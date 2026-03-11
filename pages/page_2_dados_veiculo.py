@@ -1,0 +1,238 @@
+# coding: utf-8
+"""
+Página 2: Dados do Veículo
+
+Permite ao usuário inserir informações do veículo e calcular a massa efetiva.
+"""
+
+import streamlit as st
+import os
+import sys
+
+# Adiciona o diretório raiz ao path
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from core.calculations import calcular_coeficientes_individuais
+
+
+def render(t):
+    """Renderiza a página de dados do veículo."""
+    
+    st.header(t("page_vehicle_data"))
+    
+    # Verifica se os dados foram carregados
+    if not st.session_state.data_loaded:
+        st.warning(t("error_no_file"))
+        return
+    
+    # ===== INFORMAÇÕES DO VEÍCULO =====
+    st.subheader(f"🚗 {t('vehicle_information')}")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        vehicle_model = st.text_input(
+            t("vehicle_model"),
+            value=st.session_state.vehicle_info.get("model", ""),
+            key="vehicle_model_input"
+        )
+        st.session_state.vehicle_info["model"] = vehicle_model
+    
+    with col2:
+        test_date = st.date_input(
+            t("test_date"),
+            value=st.session_state.vehicle_info.get("test_date", None),
+            key="test_date_input"
+        )
+        st.session_state.vehicle_info["test_date"] = test_date
+    
+    st.markdown("---")
+    
+    # ===== MODO DE ENTRADA DE MASSA =====
+    st.subheader(f"⚖️ {t('mass_input_mode')}")
+    
+    mass_mode = st.radio(
+        t("mass_input_mode"),
+        options=[t("total_mass_direct"), t("component_masses")],
+        horizontal=True,
+        label_visibility="collapsed"
+    )
+    
+    # Determina o modo baseado na seleção
+    if mass_mode == t("total_mass_direct"):
+        st.session_state.mass_input_mode = "total"
+        render_total_mass_input(t)
+    else:
+        st.session_state.mass_input_mode = "components"
+        render_component_masses_input(t)
+    
+    st.markdown("---")
+    
+    # ===== RESUMO DA MASSA =====
+    if st.session_state.total_mass > 0:
+        st.subheader("📊 Resumo")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric(t("total_mass"), f"{st.session_state.total_mass:.1f} kg")
+        
+        with col2:
+            inertia_mass = st.session_state.vehicle_info.get("inertia_mass", 0.0)
+            st.metric(t("inertia_mass"), f"{inertia_mass:.1f} kg")
+        
+        with col3:
+            effective_mass = st.session_state.total_mass + inertia_mass
+            st.session_state.vehicle_info["effective_mass"] = effective_mass
+            st.metric(t("effective_mass"), f"{effective_mass:.1f} kg")
+    
+    st.markdown("---")
+    
+    # ===== BOTÕES DE AÇÃO =====
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button(f"🔢 {t('calculate_coefficients')}", type="primary", use_container_width=True):
+            if st.session_state.total_mass > 0:
+                with st.spinner("Calculando coeficientes individuais..."):
+                    try:
+                        # Calcula os coeficientes individuais
+                        individual_coeffs = calcular_coeficientes_individuais(
+                            st.session_state.all_run_data,
+                            st.session_state.total_mass
+                        )
+                        
+                        st.session_state.individual_coeffs = individual_coeffs
+                        st.session_state.vehicle_data_complete = True
+                        
+                        st.success(f"✅ Coeficientes calculados para {len(individual_coeffs)} runs!")
+                        
+                    except Exception as e:
+                        st.error(f"{t('error_calculation')}: {str(e)}")
+            else:
+                st.warning(t("error_no_mass"))
+    
+    with col2:
+        if st.session_state.vehicle_data_complete:
+            if st.button(f"➡️ {t('proceed_to_pair_analysis')}", type="primary", use_container_width=True):
+                st.session_state.current_page = "3_analise_pares"
+                st.rerun()
+    
+    # ===== MOSTRA COEFICIENTES CALCULADOS =====
+    if st.session_state.individual_coeffs:
+        st.markdown("---")
+        st.subheader(f"📈 Coeficientes Individuais Calculados")
+        
+        import pandas as pd
+        
+        coeffs_data = []
+        for run_id, coeffs in st.session_state.individual_coeffs.items():
+            coeffs_data.append({
+                t("run_id"): run_id,
+                t("heading"): coeffs.get("heading", "N/A"),
+                t("f0_coefficient"): f"{coeffs.get('f0', 0):.4f}",
+                t("f2_coefficient"): f"{coeffs.get('f2', 0):.6f}",
+            })
+        
+        df_coeffs = pd.DataFrame(coeffs_data)
+        st.dataframe(df_coeffs, use_container_width=True, hide_index=True)
+
+
+def render_total_mass_input(t):
+    """Renderiza entrada de massa total direta."""
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        total_mass = st.number_input(
+            t("total_mass"),
+            min_value=0.0,
+            max_value=50000.0,
+            value=st.session_state.total_mass if st.session_state.total_mass > 0 else 1500.0,
+            step=10.0,
+            format="%.1f"
+        )
+        st.session_state.total_mass = total_mass
+    
+    with col2:
+        # Calcula automaticamente 3% da massa total (conforme ABNT 10312)
+        inertia_percentage = st.number_input(
+            "Percentual de Inércia (%)",
+            min_value=0.0,
+            max_value=10.0,
+            value=3.0,
+            step=0.1,
+            format="%.1f",
+            help="Percentual de massa de inércia rotacional (padrão ABNT: 3%)"
+        )
+        
+        # Calcula a massa de inércia
+        inertia_mass = total_mass * (inertia_percentage / 100.0)
+        st.session_state.vehicle_info["inertia_mass"] = inertia_mass
+        st.session_state.vehicle_info["inertia_percentage"] = inertia_percentage
+        
+        # Mostra o valor calculado
+        st.info(f"Massa de Inércia: **{inertia_mass:.1f} kg**")
+
+
+def render_component_masses_input(t):
+    """Renderiza entrada de massas por componente."""
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        curb_mass = st.number_input(
+            t("curb_mass"),
+            min_value=0.0,
+            max_value=50000.0,
+            value=st.session_state.vehicle_info.get("curb_mass", 1200.0),
+            step=10.0,
+            format="%.1f"
+        )
+        st.session_state.vehicle_info["curb_mass"] = curb_mass
+    
+    with col2:
+        driver_mass = st.number_input(
+            t("driver_mass"),
+            min_value=0.0,
+            max_value=500.0,
+            value=st.session_state.vehicle_info.get("driver_mass", 75.0),
+            step=1.0,
+            format="%.1f"
+        )
+        st.session_state.vehicle_info["driver_mass"] = driver_mass
+    
+    with col3:
+        equipment_mass = st.number_input(
+            t("equipment_mass"),
+            min_value=0.0,
+            max_value=1000.0,
+            value=st.session_state.vehicle_info.get("equipment_mass", 50.0),
+            step=1.0,
+            format="%.1f"
+        )
+        st.session_state.vehicle_info["equipment_mass"] = equipment_mass
+    
+    # Calcula massa total
+    total_mass = curb_mass + driver_mass + equipment_mass
+    st.session_state.total_mass = total_mass
+    
+    # Percentual de inércia (conforme ABNT 10312)
+    inertia_percentage = st.number_input(
+        "Percentual de Inércia (%)",
+        min_value=0.0,
+        max_value=10.0,
+        value=st.session_state.vehicle_info.get("inertia_percentage", 3.0),
+        step=0.1,
+        format="%.1f",
+        help="Percentual de massa de inércia rotacional (padrão ABNT: 3%)"
+    )
+    st.session_state.vehicle_info["inertia_percentage"] = inertia_percentage
+    
+    # Calcula a massa de inércia automaticamente
+    inertia_mass = total_mass * (inertia_percentage / 100.0)
+    st.session_state.vehicle_info["inertia_mass"] = inertia_mass
+    
+    # Mostra os totais calculados
+    st.info(f"**{t('total_mass')}:** {total_mass:.1f} kg")
+    st.info(f"**Massa de Inércia:** {inertia_mass:.1f} kg ({inertia_percentage}%)")
