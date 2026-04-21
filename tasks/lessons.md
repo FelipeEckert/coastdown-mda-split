@@ -36,6 +36,47 @@
 
 
 
+\## 2026-04-21 - Emojis em Software de Engenharia: Funcional vs Decorativo
+
+\### Contexto:
+
+Polimento de UX da interface Coastdown MDA — remoção de emojis para aspecto
+mais profissional em software de engenharia.
+
+\### Decisão:
+
+Emojis decorativos (no título, botões de navegação, labels de status) foram
+removidos. Emojis funcionais (📁 CSV, 📊 meteo, ⚙️ configurações) foram mantidos
+porque ajudam o usuário a identificar rapidamente o tipo de conteúdo.
+
+\### Regra:
+
+Antes de remover um emoji, perguntar: "ele identifica um tipo de conteúdo ou
+é puramente decorativo?" Se funcional, manter. Se decorativo, remover.
+Em software de engenharia, preferir clareza textual a enfeites visuais.
+
+---
+
+\## 2026-04-21 - Navegação por st.tabs() em vez de Sidebar
+
+\### Contexto:
+
+Sidebar tinha botões de navegação para as páginas 2-6. Migrado para `st.tabs()`
+na área principal, deixando sidebar apenas com gerenciamento de testes e status.
+
+\### Limitação:
+
+`st.tabs()` não permite seleção programática (sem `selected_tab` param).
+Alternativa implementada: `st.caption()` como guia textual para o usuário.
+
+\### Lição:
+
+Para navegação entre seções em Streamlit, `st.tabs()` é mais limpo visualmente
+que botões na sidebar, mas exige aceitar a limitação de não poder redirecionar
+automaticamente. Compensar com hints textuais próximos ao ponto de origem.
+
+---
+
 \## 2026-04-21 - Gráficos em Sub-abas: Separar por Responsabilidade
 
 

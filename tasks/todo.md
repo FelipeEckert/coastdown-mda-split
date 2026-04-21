@@ -105,14 +105,24 @@
 - Cards de teste com HTML+CSS customizados (3 estados: ativo/completo/incompleto)
 - Badge "● ATIVO" com pill estilo azul translúcido no card ativo
 - Status CSV/Meteo com ícones coloridos (verde/vermelho/laranja)
-- Navegação com label destacado para página ativa (borda esquerda azul)
-- Sub-abas de pares com `type="primary"` na aba selecionada
-- Status resumido com HTML inline compacto
+- Navegação migrada para `st.tabs()` na área principal (sidebar só mostra status)
+- Sub-abas de análise de pares via `st.tabs()` aninhado (Cálculos / Gráficos / Simulação)
+- Status resumido com HTML inline compacto na sidebar
 - Adicionada chave i18n `page_algorithm_selection` que estava faltando
 
 ### Bug corrigido:
 - Cards inativos exibiam HTML cru — causa: linha em branco no template multiline
   quebrava o bloco HTML no parser CommonMark do Streamlit (ver lessons.md)
+
+## Review - Polimento de UX (2026-04-21)
+
+### O que foi feito:
+- Botão excluir (✕) movido para dentro da linha do card via `st.columns([5,1])`
+- Fonte das abas aumentada: `font-size: 0.95rem` via CSS
+- Espaço acima do título reduzido: `padding-top: 1rem` no block-container, `0.5rem` na sidebar
+- Emojis removidos de: título sidebar, botão novo teste, título área principal, título welcome,
+  label de status, contador de pares selecionados, sub-abas da page_3
+- Emojis mantidos onde têm função visual: 📁 CSV upload, 📊 meteo upload, ⚙️ configurações
 
 ### Próximos passos:
 - Testar visualmente no browser com múltiplos testes

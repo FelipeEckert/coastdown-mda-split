@@ -27,69 +27,42 @@ from core.corrections import apply_climate_correction
 
 def render(t):
     """Renderiza a página de análise de pares."""
-    
-    st.header(t("page_pair_analysis"))
 
-    _, col_btn = st.columns([3, 1])
-    with col_btn:
-        if st.button(f"🤖 {t('page_algorithm_selection')} →",
-                     use_container_width=True, key="goto_algo_top"):
-            st.session_state.current_page = "4_selecao_algoritmo"
-            st.rerun()
-
-    # Verifica se os dados do veículo foram preenchidos
+    # Verifica pré-requisito
     if not st.session_state.vehicle_data_complete:
         st.warning(t("error_no_mass"))
         return
-    
-    # Inicializa subtab se não existir
-    if "pair_analysis_subtab" not in st.session_state:
-        st.session_state.pair_analysis_subtab = "calculos"
-    
-    # Renderiza baseado na sub-aba selecionada
-    current_subtab = st.session_state.pair_analysis_subtab
-    
-    if current_subtab == "calculos":
-        # ===== CÁLCULOS E CORREÇÕES =====
-        st.subheader("🔢 Cálculos e Correções")
-        
-        # ===== SELEÇÃO DE PARES =====
+
+    subtab_calc, subtab_graf, subtab_sim = st.tabs([
+        t('pair_calculations'),
+        "Gráficos",
+        "Simulação",
+    ])
+
+    with subtab_calc:
         st.markdown("### 🔗 Seleção de Pares")
-        
+
         if st.session_state.using_split_method:
             render_split_pair_selection(t)
         else:
             render_traditional_pair_selection(t)
-        
+
         st.markdown("---")
-        
-        # ===== PARES CALCULADOS =====
+
         if st.session_state.calculated_pairs:
             render_calculated_pairs_table(t)
-            
-            # Botão para prosseguir
-            if st.button(f"➡️ Ir para Comparativo Final", 
-                         type="primary", use_container_width=True, key="goto_comparativo"):
-                st.session_state.pairs_calculated = True
-                st.session_state.current_page = "5_comparativo"
-                st.rerun()
-    
-    elif current_subtab == "graficos":
-        # ===== GRÁFICOS DE DESACELERAÇÃO =====
-        st.subheader("📊 Gráficos de Desaceleração")
-        
+            st.caption(
+                f"→ Continue na aba **{t('page_algorithm_selection')}** "
+                f"ou **{t('page_final_comparison')}** acima."
+            )
+
+    with subtab_graf:
         if st.session_state.all_run_data:
             render_deceleration_graphs(t)
         else:
-            st.info("💡 Carregue os dados do teste para visualizar os gráficos de desaceleração")
-            
-            if st.button("🔢 Ir para Cálculos", type="primary"):
-                st.session_state.pair_analysis_subtab = "calculos"
-                st.rerun()
-    
-    elif current_subtab == "simulacao":
-        # ===== SIMULAÇÃO =====
-        st.subheader("🎯 Simulação de Desempenho")
+            st.info("💡 Carregue os dados do teste para visualizar os gráficos de desaceleração.")
+
+    with subtab_sim:
         render_simulation(t)
 
 

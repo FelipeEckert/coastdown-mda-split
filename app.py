@@ -120,10 +120,24 @@ st.markdown("""
         display: block;
     }
 
-    /* ---- Espaçamento da sidebar ---- */
+    /* ---- Espaçamento geral ---- */
     section[data-testid="stSidebar"] > div:first-child {
-        padding-top: 1rem;
-        padding-bottom: 1rem;
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+    }
+    .main .block-container {
+        padding-top: 1rem !important;
+    }
+
+    /* ---- Abas de navegação: fonte maior ---- */
+    .stTabs [data-baseweb="tab"] {
+        font-size: 0.95rem !important;
+        font-weight: 500 !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 2px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -294,7 +308,7 @@ def render_sidebar(t):
     """Renderiza a sidebar completa: idioma, testes e navegação."""
 
     # ---- Título ----
-    st.markdown("## 🚗 Coastdown MDA")
+    st.markdown("## Coastdown MDA")
 
     # ---- Seletor de idioma ----
     languages = get_available_languages()
@@ -320,7 +334,7 @@ def render_sidebar(t):
     st.markdown("---")
 
     # ---- Botão "+ Novo Teste" ----
-    if st.button(f"➕ {t('new_test')}", use_container_width=True, type="primary"):
+    if st.button(f"+ {t('new_test')}", use_container_width=True, type="primary"):
         st.session_state.show_new_test_form = True
         st.rerun()
 
@@ -333,10 +347,10 @@ def render_sidebar(t):
         for test_id, test in st.session_state.tests.items():
             render_test_card(test_id, test, t)
 
-    # ---- Navegação (só se há teste ativo) ----
+    # ---- Status do teste ativo ----
     if st.session_state.active_test_id:
         st.markdown("---")
-        render_navigation(t)
+        render_sidebar_status(t)
 
 
 def render_test_card(test_id, test, t):
@@ -373,36 +387,40 @@ def render_test_card(test_id, test, t):
     meteo_sym = "✓" if meteo_ok else "⚠"
 
     # Trunca nome longo para caber no card
-    display_name = name if len(name) <= 22 else name[:20] + "…"
+    display_name = name if len(name) <= 20 else name[:18] + "…"
 
-    st.markdown(
-        f'<div class="mda-test-card {card_class}">'
-        f'<div class="mda-card-title"><span>{display_name}</span>{badge_html}</div>'
-        f'<div class="mda-card-files">'
-        f'<span>📁 CSV: <span class="{csv_cls}">{csv_sym}</span></span>'
-        f'<span>📊 Meteo: <span class="{meteo_cls}">{meteo_sym}</span></span>'
-        f'</div></div>',
-        unsafe_allow_html=True
-    )
+    # Layout: card (esquerda) | botão excluir (direita, mesma linha)
+    col_card, col_del = st.columns([5, 1])
 
-    # Botões de ação (abaixo do card, fora do HTML)
-    col1, col2 = st.columns([3, 1])
-    with col1:
+    with col_card:
+        st.markdown(
+            f'<div class="mda-test-card {card_class}">'
+            f'<div class="mda-card-title"><span>{display_name}</span>{badge_html}</div>'
+            f'<div class="mda-card-files">'
+            f'<span>CSV: <span class="{csv_cls}">{csv_sym}</span></span>'
+            f'<span>Meteo: <span class="{meteo_cls}">{meteo_sym}</span></span>'
+            f'</div></div>',
+            unsafe_allow_html=True
+        )
         if not is_active:
             if st.button(
-                f"▶ {t('switch_test')}",
+                t("switch_test"),
                 key=f"sel_{test_id}",
                 use_container_width=True
             ):
                 activate_test(test_id)
                 st.session_state.show_new_test_form = False
                 st.rerun()
-    with col2:
-        if st.button("🗑️", key=f"del_{test_id}", help=t("remove_test")):
+
+    with col_del:
+        # Alinha verticalmente com o topo do card
+        st.markdown("<div style='padding-top:6px'>", unsafe_allow_html=True)
+        if st.button("✕", key=f"del_{test_id}", help=t("remove_test"), use_container_width=True):
             st.session_state.delete_confirm_id = test_id
             st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
-    st.markdown("<div style='margin-bottom:6px'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='margin-bottom:4px'></div>", unsafe_allow_html=True)
 
     # Confirmação de exclusão
     if st.session_state.delete_confirm_id == test_id:
@@ -418,86 +436,12 @@ def render_test_card(test_id, test, t):
                 st.rerun()
 
 
-def render_navigation(t):
-    """Renderiza botões de navegação com indicador visual da página ativa."""
+def render_sidebar_status(t):
+    """Renderiza status resumido do teste ativo na sidebar."""
     st.markdown(
         f"<p style='font-size:0.78em;font-weight:600;color:#a0a0a0;"
         f"letter-spacing:0.08em;margin-bottom:6px;margin-top:4px'>"
-        f"📋 {t('navigation').upper()}</p>",
-        unsafe_allow_html=True
-    )
-
-    pages = [
-        ("2_dados_veiculo",    t("page_vehicle_data")),
-        ("3_analise_pares",    t("page_pair_analysis")),
-        ("4_selecao_algoritmo", t("page_algorithm_selection")),
-        ("5_comparativo",      t("page_final_comparison")),
-        ("6_resultados",       t("page_final_results")),
-    ]
-
-    page_enabled = {
-        "2_dados_veiculo":     st.session_state.data_loaded,
-        "3_analise_pares":     st.session_state.vehicle_data_complete,
-        "4_selecao_algoritmo": st.session_state.vehicle_data_complete,
-        "5_comparativo":       st.session_state.pairs_calculated,
-        "6_resultados":        len(st.session_state.pares_finais_selecionados) > 0,
-    }
-
-    current = st.session_state.current_page
-
-    for page_id, page_name in pages:
-        enabled = page_enabled.get(page_id, False)
-        is_current = current == page_id
-
-        if is_current:
-            # Página ativa: label destacado + botão reativo
-            st.markdown(
-                f'<span class="nav-active-label">{page_name}</span>',
-                unsafe_allow_html=True
-            )
-        elif enabled:
-            if st.button(page_name, key=f"nav_{page_id}", use_container_width=True):
-                st.session_state.current_page = page_id
-                st.session_state.show_new_test_form = False
-                st.rerun()
-        else:
-            st.button(
-                page_name, key=f"nav_{page_id}",
-                use_container_width=True, disabled=True
-            )
-
-        # Sub-abas da análise de pares (só visíveis quando a página está ativa)
-        if page_id == "3_analise_pares" and enabled and is_current:
-            if "pair_analysis_subtab" not in st.session_state:
-                st.session_state.pair_analysis_subtab = "calculos"
-
-            subtab = st.session_state.pair_analysis_subtab
-            col1, col2, col3 = st.columns(3)
-            with col1:
-                active_style = "primary" if subtab == "calculos" else "secondary"
-                if st.button("🔢", key="sub_calculos", help="Cálculos",
-                             use_container_width=True, type=active_style):
-                    st.session_state.pair_analysis_subtab = "calculos"
-                    st.rerun()
-            with col2:
-                active_style = "primary" if subtab == "graficos" else "secondary"
-                if st.button("📊", key="sub_graficos", help="Gráficos",
-                             use_container_width=True, type=active_style):
-                    st.session_state.pair_analysis_subtab = "graficos"
-                    st.rerun()
-            with col3:
-                active_style = "primary" if subtab == "simulacao" else "secondary"
-                if st.button("🎯", key="sub_simulacao", help="Simulação",
-                             use_container_width=True, type=active_style):
-                    st.session_state.pair_analysis_subtab = "simulacao"
-                    st.rerun()
-
-    # Status resumido do teste ativo
-    st.markdown("---")
-    st.markdown(
-        f"<p style='font-size:0.78em;font-weight:600;color:#a0a0a0;"
-        f"letter-spacing:0.08em;margin-bottom:6px'>"
-        f"📊 {t('status').upper()}</p>",
+        f"{t('status').upper()}</p>",
         unsafe_allow_html=True
     )
 
@@ -534,7 +478,7 @@ def render_navigation(t):
         n = len(st.session_state.pares_finais_selecionados)
         st.markdown(
             f"<div style='font-size:0.82em;color:#4a9eff;margin-bottom:3px'>"
-            f"🎯 {n} {t('selected_pairs')}</div>",
+            f"{n} {t('selected_pairs')}</div>",
             unsafe_allow_html=True
         )
 
@@ -543,7 +487,7 @@ def render_navigation(t):
 
 def render_welcome(t):
     """Renderiza a tela de boas-vindas quando não há testes ativos."""
-    st.title("🚗 Coastdown MDA")
+    st.title("Coastdown MDA")
     st.markdown("---")
 
     _, col, _ = st.columns([1, 2, 1])
@@ -728,38 +672,41 @@ def _process_new_test(name, uploaded_csv, uploaded_meteo, fixed_temp, fixed_pres
 
 
 def render_test_analysis(t):
-    """Renderiza a análise do teste ativo despachando para as páginas 2-6."""
+    """Renderiza a análise do teste ativo com navegação por abas."""
     active_test = st.session_state.tests.get(st.session_state.active_test_id, {})
     test_name = active_test.get("name", "Teste")
 
-    st.title(f"🔬 {test_name}")
+    st.title(test_name)
 
-    current_page = st.session_state.current_page
+    tab_labels = [
+        t("page_vehicle_data"),
+        t("page_pair_analysis"),
+        t("page_algorithm_selection"),
+        t("page_final_comparison"),
+        t("page_final_results"),
+    ]
 
-    if current_page == "2_dados_veiculo":
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(tab_labels)
+
+    with tab1:
         from pages import page_2_dados_veiculo
         page_2_dados_veiculo.render(t)
 
-    elif current_page == "3_analise_pares":
+    with tab2:
         from pages import page_3_analise_pares
         page_3_analise_pares.render(t)
 
-    elif current_page == "4_selecao_algoritmo":
+    with tab3:
         from pages import page_4_selecao_algoritmo
         page_4_selecao_algoritmo.render(t)
 
-    elif current_page == "5_comparativo":
+    with tab4:
         from pages import page_5_comparativo
         page_5_comparativo.render(t)
 
-    elif current_page == "6_resultados":
+    with tab5:
         from pages import page_6_resultados
         page_6_resultados.render(t)
-
-    else:
-        # Fallback para página de dados do veículo
-        from pages import page_2_dados_veiculo
-        page_2_dados_veiculo.render(t)
 
 
 # ===== PONTO DE ENTRADA =====

@@ -37,6 +37,10 @@ TRANSLATIONS = {
         "pt": "3. Análise de Pares",
         "en": "3. Pair Analysis"
     },
+    "pair_calculations": {
+        "pt": "Cálculos e Correções",
+        "en": "Calculations & Corrections"
+    },
     "page_algorithm_selection": {
         "pt": "4. Seleção por Algoritmo",
         "en": "4. Algorithm Selection"
