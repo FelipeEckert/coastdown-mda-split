@@ -905,10 +905,15 @@ def run_algorithm(algorithm_mode, k, cv_max, weather_data, temp_fixed, press_fix
         st.error(f"❌ Nenhum conjunto de {k} pares pôde ser selecionado.")
         return
 
-    # ===== LIMPA FLAGS ANTERIORES =====
-    for pair_id in st.session_state.calculated_pairs:
-        st.session_state.calculated_pairs[pair_id]["selected_by_energy_algo"] = False
-        st.session_state.calculated_pairs[pair_id]["selected_by_target_algo"] = False
+    # ===== LIMPA APENAS A FLAG DO ALGORITMO ATUAL =====
+    # Preserva a flag do outro algoritmo para que o usuário possa ver
+    # simultaneamente quais pares cada algoritmo selecionou (cores distintas).
+    if algorithm_mode == "Menor Energia":
+        for pair_id in st.session_state.calculated_pairs:
+            st.session_state.calculated_pairs[pair_id]["selected_by_energy_algo"] = False
+    elif algorithm_mode == "Proximidade ao Target":
+        for pair_id in st.session_state.calculated_pairs:
+            st.session_state.calculated_pairs[pair_id]["selected_by_target_algo"] = False
 
     # ===== ADICIONA PARES AO CALCULATED_PAIRS E MARCA FLAGS =====
     st.session_state.pares_finais_selecionados = []

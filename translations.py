@@ -37,13 +37,17 @@ TRANSLATIONS = {
         "pt": "3. Análise de Pares",
         "en": "3. Pair Analysis"
     },
+    "page_algorithm_selection": {
+        "pt": "4. Seleção por Algoritmo",
+        "en": "4. Algorithm Selection"
+    },
     "page_final_comparison": {
-        "pt": "4. Comparativo Final",
-        "en": "4. Final Comparison"
+        "pt": "5. Comparativo Final",
+        "en": "5. Final Comparison"
     },
     "page_final_results": {
-        "pt": "5. Resultados Finais",
-        "en": "5. Final Results"
+        "pt": "6. Resultados Finais",
+        "en": "6. Final Results"
     },
     
     # ===== PÁGINA 1: ABRIR TESTE =====
@@ -410,6 +414,72 @@ TRANSLATIONS = {
     "save": {
         "pt": "Salvar",
         "en": "Save"
+    },
+
+    # ===== MULTI-TESTE - SIDEBAR =====
+    "new_test": {
+        "pt": "Novo Teste",
+        "en": "New Test"
+    },
+    "test_name": {
+        "pt": "Nome do Teste",
+        "en": "Test Name"
+    },
+    "create_test": {
+        "pt": "Criar Teste",
+        "en": "Create Test"
+    },
+    "no_tests_title": {
+        "pt": "Bem-vindo ao Coastdown MDA",
+        "en": "Welcome to Coastdown MDA"
+    },
+    "no_tests_description": {
+        "pt": "Nenhum teste criado ainda. Crie um novo teste para começar a análise.",
+        "en": "No tests created yet. Create a new test to start the analysis."
+    },
+    "no_tests_message": {
+        "pt": "Nenhum teste. Clique em + Novo Teste.",
+        "en": "No tests. Click + New Test."
+    },
+    "active_test": {
+        "pt": "Ativo",
+        "en": "Active"
+    },
+    "remove_test": {
+        "pt": "Remover teste",
+        "en": "Remove test"
+    },
+    "switch_test": {
+        "pt": "Selecionar",
+        "en": "Select"
+    },
+    "navigation": {
+        "pt": "Navegação",
+        "en": "Navigation"
+    },
+    "status": {
+        "pt": "Status",
+        "en": "Status"
+    },
+    "confirm_delete_test": {
+        "pt": "Remover este teste permanentemente?",
+        "en": "Remove this test permanently?"
+    },
+    "fixed_conditions": {
+        "pt": "Condições Fixas (sem arquivo meteo)",
+        "en": "Fixed Conditions (no meteo file)"
+    },
+    "fixed_conditions_hint": {
+        "pt": "Valores usados para correção climática quando não há arquivo meteorológico.",
+        "en": "Values used for climate correction when no meteorological file is provided."
+    },
+    "test_created": {
+        "pt": "Teste criado com sucesso!",
+        "en": "Test created successfully!"
+    },
+    "loading_files": {
+        "pt": "Carregando arquivos...",
+        "en": "Loading files..."
     },
 }
 

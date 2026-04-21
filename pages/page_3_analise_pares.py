@@ -9,7 +9,6 @@ climáticas e calcular coeficientes F0/F2.
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from statistics import mean, stdev
 import os
 import sys
@@ -30,7 +29,14 @@ def render(t):
     """Renderiza a página de análise de pares."""
     
     st.header(t("page_pair_analysis"))
-    
+
+    _, col_btn = st.columns([3, 1])
+    with col_btn:
+        if st.button(f"🤖 {t('page_algorithm_selection')} →",
+                     use_container_width=True, key="goto_algo_top"):
+            st.session_state.current_page = "4_selecao_algoritmo"
+            st.rerun()
+
     # Verifica se os dados do veículo foram preenchidos
     if not st.session_state.vehicle_data_complete:
         st.warning(t("error_no_mass"))
@@ -84,15 +90,7 @@ def render(t):
     elif current_subtab == "simulacao":
         # ===== SIMULAÇÃO =====
         st.subheader("🎯 Simulação de Desempenho")
-        
-        if st.session_state.get("current_pair_results"):
-            render_simulation(t)
-        else:
-            st.info("💡 Calcule um par na sub-página 'Cálculos' para realizar simulações")
-            
-            if st.button("🔢 Ir para Cálculos", type="primary"):
-                st.session_state.pair_analysis_subtab = "calculos"
-                st.rerun()
+        render_simulation(t)
 
 
 def render_traditional_pair_selection(t):
@@ -831,193 +829,399 @@ def render_calculated_pairs_table(t):
 
 
 def render_deceleration_graphs(t):
-    """Renderiza gráficos de desaceleração."""
-    
-    pair_data = st.session_state.get("current_pair_results", {})
-    
-    run_ida = pair_data.get("run_ida") if pair_data else None
-    run_volta = pair_data.get("run_volta") if pair_data else None
-    
-    # Obtém dados das runs
+    """Renderiza gráfico interativo de desaceleração (Velocidade × Tempo) com Plotly."""
+    import re
+    import plotly.graph_objects as go
+
     all_data = st.session_state.all_run_data
     if not all_data:
         st.warning("Dados das runs não disponíveis.")
         return
-    
-    # ===== SELEÇÃO DE RUNS PARA PLOTAR =====
-    st.markdown("#### 🎯 Selecione as runs para visualizar")
-    
+
+    pair_data = st.session_state.get("current_pair_results") or {}
+    run_ida   = pair_data.get("run_ida")
+    run_volta = pair_data.get("run_volta")
+
+    # ===== SELEÇÃO DE RUNS =====
     available_runs = sorted(all_data.keys())
     run_labels = [f"Run {r} ({all_data[r].get('heading', 'N/A')})" for r in available_runs]
-    
-    # Por padrão, seleciona as runs do par atual (se existir) ou as primeiras 4
-    default_indices = []
-    if run_ida is not None or run_volta is not None:
-        for i, r in enumerate(available_runs):
-            if r == run_ida or r == run_volta:
-                default_indices.append(i)
-    
-    if not default_indices:
-        default_indices = list(range(min(4, len(available_runs))))
-    
+
+    # Default: runs do par ativo se existir, senão as 4 primeiras
+    default_indices = [
+        i for i, r in enumerate(available_runs) if r in (run_ida, run_volta)
+    ] or list(range(min(4, len(available_runs))))
+
     selected_labels = st.multiselect(
         "Runs para plotar:",
         options=run_labels,
         default=[run_labels[i] for i in default_indices],
         key="graph_runs_select"
     )
-    
-    # Extrai IDs das runs selecionadas
-    import re
+
     selected_run_ids = []
     for label in selected_labels:
-        match = re.search(r"Run (\d+)", label)
-        if match:
-            selected_run_ids.append(int(match.group(1)))
-    
+        m = re.search(r"Run (\d+)", label)
+        if m:
+            selected_run_ids.append(int(m.group(1)))
+
     if not selected_run_ids:
         st.info("Selecione pelo menos uma run para visualizar o gráfico.")
         return
-    
-    # ===== GRÁFICO 1: Velocidade x Tempo =====
-    st.markdown("#### 📈 Velocidade x Tempo")
-    
-    fig1, ax1 = plt.subplots(figsize=(12, 6))
-    fig1.patch.set_facecolor('#0E1117')
-    ax1.set_facecolor('#1a1a2e')
-    
-    colors = plt.cm.tab10.colors
-    
-    for idx, run_id in enumerate(selected_run_ids):
-        if run_id in all_data:
-            data = all_data[run_id]
-            times = data["times"]
-            velocities = data["velocities"]
-            heading = data.get("heading", "N/A")
-            color = colors[idx % len(colors)]
-            
-            # Destaca as runs do par atual
-            linewidth = 2.5 if run_id in (run_ida, run_volta) else 1.5
-            marker = 'o' if run_id in (run_ida, run_volta) else '.'
-            markersize = 6 if run_id in (run_ida, run_volta) else 3
-            
-            label = f"Run {run_id} ({heading})"
-            if run_id == run_ida:
-                label += " ★ IDA"
-            elif run_id == run_volta:
-                label += " ★ VOLTA"
-            
-            ax1.plot(times, velocities, marker=marker, markersize=markersize,
-                    linestyle='-', linewidth=linewidth, color=color, label=label)
-    
-    ax1.set_xlabel("Tempo (s)", fontsize=12, color='white')
-    ax1.set_ylabel("Velocidade (km/h)", fontsize=12, color='white')
-    ax1.set_title("Curvas de Desaceleração (Coastdown)", fontsize=14, fontweight='bold', color='white')
-    ax1.grid(True, linestyle='--', alpha=0.3, color='gray')
-    ax1.tick_params(colors='white')
-    ax1.legend(fontsize=9, facecolor='#1a1a2e', edgecolor='gray', labelcolor='white')
-    
-    for spine in ax1.spines.values():
-        spine.set_color('gray')
-    
-    fig1.tight_layout()
-    st.pyplot(fig1)
-    plt.close(fig1)
-    
-    # ===== GRÁFICO 2: Força de Arrasto x Velocidade =====
-    if not pair_data:
-        st.info("💡 Calcule um par na sub-página 'Cálculos' para visualizar os gráficos de Força de Arrasto e Desaceleração.")
-        return
-    
-    st.markdown("#### 📉 Força de Arrasto (F) x Velocidade")
-    
-    # Usa coeficientes do par atual para plotar F = f0 + f2*V²
-    f0_corr = pair_data.get("f0corr_mean", pair_data.get("f0_corr", pair_data.get("f0_mean", 0)))
-    f2_corr = pair_data.get("f2corr_mean", pair_data.get("f2_corr", pair_data.get("f2_mean", 0)))
-    
-    if isinstance(f0_corr, (int, float)) and isinstance(f2_corr, (int, float)):
-        v_range_kmh = np.linspace(0, 120, 200)
-        v_range_ms = v_range_kmh / 3.6
-        F_drag = f0_corr + f2_corr * (v_range_ms ** 2)
-        
-        fig2, ax2 = plt.subplots(figsize=(12, 5))
-        fig2.patch.set_facecolor('#0E1117')
-        ax2.set_facecolor('#1a1a2e')
-        
-        ax2.plot(v_range_kmh, F_drag, color='#00ff88', linewidth=2.5, label=f"F = {f0_corr:.4f} + {f2_corr:.6f} · V²")
-        ax2.fill_between(v_range_kmh, 0, F_drag, alpha=0.15, color='#00ff88')
-        
-        ax2.set_xlabel("Velocidade (km/h)", fontsize=12, color='white')
-        ax2.set_ylabel("Força de Arrasto (N)", fontsize=12, color='white')
-        ax2.set_title("Força de Arrasto vs Velocidade", fontsize=14, fontweight='bold', color='white')
-        ax2.grid(True, linestyle='--', alpha=0.3, color='gray')
-        ax2.tick_params(colors='white')
-        ax2.legend(fontsize=11, facecolor='#1a1a2e', edgecolor='gray', labelcolor='white')
-        
-        for spine in ax2.spines.values():
-            spine.set_color('gray')
-        
-        fig2.tight_layout()
-        st.pyplot(fig2)
-        plt.close(fig2)
-    else:
-        st.info("Coeficientes corrigidos não disponíveis para plotar a curva de arrasto.")
-    
-    # ===== GRÁFICO 3: Desaceleração x Velocidade =====
-    st.markdown("#### 📉 Desaceleração x Velocidade")
-    
-    total_mass = st.session_state.total_mass
-    if isinstance(f0_corr, (int, float)) and isinstance(f2_corr, (int, float)) and total_mass > 0:
-        v_range_kmh = np.linspace(5, 120, 200)
-        v_range_ms = v_range_kmh / 3.6
-        # a = F/m = (f0 + f2*V²) / m
-        decel = (f0_corr + f2_corr * (v_range_ms ** 2)) / total_mass
-        
-        fig3, ax3 = plt.subplots(figsize=(12, 5))
-        fig3.patch.set_facecolor('#0E1117')
-        ax3.set_facecolor('#1a1a2e')
-        
-        ax3.plot(v_range_kmh, decel, color='#ff6b6b', linewidth=2.5, label=f"a = F(V) / {total_mass:.1f} kg")
-        ax3.fill_between(v_range_kmh, 0, decel, alpha=0.15, color='#ff6b6b')
-        
-        ax3.set_xlabel("Velocidade (km/h)", fontsize=12, color='white')
-        ax3.set_ylabel("Desaceleração (m/s²)", fontsize=12, color='white')
-        ax3.set_title("Desaceleração vs Velocidade", fontsize=14, fontweight='bold', color='white')
-        ax3.grid(True, linestyle='--', alpha=0.3, color='gray')
-        ax3.tick_params(colors='white')
-        ax3.legend(fontsize=11, facecolor='#1a1a2e', edgecolor='gray', labelcolor='white')
-        
-        for spine in ax3.spines.values():
-            spine.set_color('gray')
-        
-        fig3.tight_layout()
-        st.pyplot(fig3)
-        plt.close(fig3)
-    else:
-        st.info("Massa do veículo ou coeficientes não disponíveis para plotar a desaceleração.")
+
+    # ===== CORES =====
+    # Par ativo: ida = azul destacado, volta = laranja destacado
+    # Restante: paleta discreta em cinza-colorido, mais fina e transparente
+    COLOR_IDA   = "#4a9eff"   # azul (coincide com cor de destaque da UI)
+    COLOR_VOLTA = "#ff9800"   # laranja
+    COLORS_OTHER = [
+        "#a0c4ff", "#b9fbc0", "#ffd6a5", "#ffadad",
+        "#caffbf", "#9bf6ff", "#bdb2ff", "#ffc6ff",
+    ]
+
+    # ===== LEGENDA DO PAR ATIVO =====
+    if run_ida or run_volta:
+        ida_label   = f"Run {run_ida}"   if run_ida   else "—"
+        volta_label = f"Run {run_volta}" if run_volta else "—"
+        st.markdown(
+            f"<div style='font-size:0.82em; color:#a0a0a0; margin-bottom:6px'>"
+            f"Par ativo: "
+            f"<span style='color:{COLOR_IDA}; font-weight:600'>● {ida_label} (IDA)</span>"
+            f"&nbsp;&nbsp;"
+            f"<span style='color:{COLOR_VOLTA}; font-weight:600'>● {volta_label} (VOLTA)</span>"
+            f"</div>",
+            unsafe_allow_html=True
+        )
+
+    # ===== GRÁFICO PLOTLY =====
+    fig = go.Figure()
+
+    other_color_idx = 0
+    for run_id in selected_run_ids:
+        if run_id not in all_data:
+            continue
+
+        data    = all_data[run_id]
+        times   = data["times"]
+        vels    = data["velocities"]
+        heading = data.get("heading", "N/A")
+
+        is_ida   = (run_id == run_ida)
+        is_volta = (run_id == run_volta)
+        is_pair  = is_ida or is_volta
+
+        if is_ida:
+            color = COLOR_IDA
+            name  = f"Run {run_id} ★ IDA ({heading})"
+        elif is_volta:
+            color = COLOR_VOLTA
+            name  = f"Run {run_id} ★ VOLTA ({heading})"
+        else:
+            color = COLORS_OTHER[other_color_idx % len(COLORS_OTHER)]
+            name  = f"Run {run_id} ({heading})"
+            other_color_idx += 1
+
+        fig.add_trace(go.Scatter(
+            x=times,
+            y=vels,
+            mode="lines",
+            name=name,
+            line=dict(
+                color=color,
+                width=3 if is_pair else 1.5,
+            ),
+            opacity=1.0 if is_pair else 0.6,
+            hovertemplate=(
+                f"<b>{name}</b><br>"
+                "Tempo: %{x:.2f} s<br>"
+                "Velocidade: %{y:.2f} km/h<extra></extra>"
+            ),
+        ))
+
+    fig.update_layout(
+        title=dict(
+            text="Curvas de Desaceleração — Velocidade × Tempo",
+            font=dict(size=15, color="white"),
+        ),
+        xaxis=dict(
+            title="Tempo (s)",
+            color="white",
+            gridcolor="#2a2a2a",
+            showgrid=True,
+        ),
+        yaxis=dict(
+            title="Velocidade (km/h)",
+            color="white",
+            gridcolor="#2a2a2a",
+            showgrid=True,
+        ),
+        plot_bgcolor="#1a1a2e",
+        paper_bgcolor="#0e1117",
+        font=dict(color="white"),
+        legend=dict(
+            bgcolor="#1e1e2e",
+            bordercolor="#3d3d3d",
+            borderwidth=1,
+            font=dict(size=11),
+        ),
+        hovermode="x unified",
+        height=500,
+        margin=dict(l=60, r=20, t=50, b=50),
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def _resolve_coeff(pair, keys):
+    """Retorna o primeiro valor numérico encontrado nas chaves do par."""
+    for k in keys:
+        v = pair.get(k)
+        if isinstance(v, (int, float)):
+            return float(v)
+    return None
 
 
 def render_simulation(t):
-    """Renderiza simulação de desempenho."""
-    
-    pair_data = st.session_state.current_pair_results
-    
-    if not pair_data:
+    """Renderiza a aba de simulação: Força Resistiva e Validação Simulado vs Real."""
+    import plotly.graph_objects as go
+    import numpy as np
+
+    all_data   = st.session_state.get("all_run_data", {})
+    total_mass = st.session_state.get("total_mass", 0.0)
+    calc_pairs = st.session_state.get("calculated_pairs", {})
+    current    = st.session_state.get("current_pair_results") or {}
+
+    # ===== FONTE DOS COEFICIENTES =====
+    st.subheader("⚙️ Coeficientes para Simulação")
+
+    source_options = ["Inserir manualmente"]
+    if current:
+        source_options.insert(0, "Par calculado atualmente")
+    if calc_pairs:
+        source_options.insert(0 if not current else 1, "Selecionar par calculado")
+
+    coeff_source = st.radio(
+        "Fonte dos coeficientes F0 e F2:",
+        source_options,
+        horizontal=True,
+        key="sim_coeff_source"
+    )
+
+    f0, f2 = None, None
+
+    if coeff_source == "Par calculado atualmente":
+        f0 = _resolve_coeff(current, ("f0corr_mean", "f0_corr", "f0_mean"))
+        f2 = _resolve_coeff(current, ("f2corr_mean", "f2_corr", "f2_mean"))
+        if f0 is not None:
+            st.caption(f"F0 = {f0:.4f} N  |  F2 = {f2:.6f} N/(km/h)²")
+
+    elif coeff_source == "Selecionar par calculado":
+        pair_ids = list(calc_pairs.keys())
+        chosen = st.selectbox("Par:", pair_ids, key="sim_pair_select")
+        if chosen:
+            p  = calc_pairs[chosen]
+            f0 = _resolve_coeff(p, ("f0_corr", "mean_f0_corrected", "f0corr_mean"))
+            f2 = _resolve_coeff(p, ("f2_corr", "mean_f2_corrected", "f2corr_mean"))
+            if f0 is not None:
+                st.caption(f"Par {chosen}  →  F0 = {f0:.4f} N  |  F2 = {f2:.6f} N/(km/h)²")
+
+    if coeff_source == "Inserir manualmente" or f0 is None:
+        col1, col2 = st.columns(2)
+        with col1:
+            f0 = st.number_input(
+                "F0 (N)", min_value=0.0, max_value=5000.0,
+                value=float(f0) if f0 else 100.0,
+                step=0.1, format="%.4f", key="sim_f0_input"
+            )
+        with col2:
+            f2 = st.number_input(
+                "F2 (N/(km/h)²)", min_value=0.0, max_value=1.0,
+                value=float(f2) if f2 else 0.04,
+                step=0.0001, format="%.6f", key="sim_f2_input"
+            )
+
+    if f0 is None or f2 is None:
+        st.info("Defina os coeficientes acima para continuar.")
         return
-    
-    st.info("🚧 Feature em desenvolvimento: Simulação de desempenho do veículo")
-    
-    st.write("**Simulações planejadas:**")
-    st.write("- Cálculo de autonomia baseado nos coeficientes")
-    st.write("- Previsão de consumo em diferentes velocidades")
-    st.write("- Comparação de cenários (velocidade constante vs ciclo urbano)")
-    
-    # Placeholder - pode implementar depois com calma
-    col1, col2 = st.columns(2)
-    with col1:
-        st.number_input("Velocidade de cruzeiro (km/h)", min_value=30.0, max_value=120.0, value=80.0)
-    with col2:
-        st.number_input("Distância simulada (km)", min_value=1.0, max_value=1000.0, value=100.0)
-    
-    if st.button("🎯 Simular", type="primary"):
-        st.warning("Funcionalidade em desenvolvimento!")
+
+    st.markdown("---")
+
+    # ===== SIMULAÇÃO 1: FORÇA RESISTIVA =====
+    st.subheader("📈 Força Resistiva  F = F0 + F2 · V²")
+
+    col_v1, col_v2 = st.columns(2)
+    with col_v1:
+        v_min = st.number_input("Velocidade mínima (km/h)", 0.0, 100.0, 0.0,  5.0, key="sim_vmin")
+    with col_v2:
+        v_max = st.number_input("Velocidade máxima (km/h)", 10.0, 250.0, 120.0, 5.0, key="sim_vmax")
+
+    v_kmh  = np.linspace(v_min, v_max, 300)
+    v_ms   = v_kmh / 3.6
+    F_vals = f0 + f2 * (v_ms ** 2)
+
+    # Velocidade de destaque (slider)
+    v_highlight = st.slider(
+        "Inspecionar velocidade (km/h)",
+        float(v_min), float(v_max), min(80.0, float(v_max)),
+        step=1.0, key="sim_v_slider"
+    )
+    v_h_ms    = v_highlight / 3.6
+    F_h       = f0 + f2 * (v_h_ms ** 2)
+
+    fig_f = go.Figure()
+
+    fig_f.add_trace(go.Scatter(
+        x=v_kmh, y=F_vals,
+        mode="lines",
+        name=f"F = {f0:.4f} + {f2:.6f}·V²",
+        line=dict(color="#4a9eff", width=2.5),
+        fill="tozeroy", fillcolor="rgba(74,158,255,0.10)",
+        hovertemplate="V = %{x:.1f} km/h<br>F = %{y:.2f} N<extra></extra>",
+    ))
+
+    # Ponto de destaque
+    fig_f.add_trace(go.Scatter(
+        x=[v_highlight], y=[F_h],
+        mode="markers+text",
+        name=f"{v_highlight:.0f} km/h",
+        marker=dict(color="#ff9800", size=12, symbol="circle"),
+        text=[f"  {F_h:.2f} N"],
+        textposition="middle right",
+        textfont=dict(color="#ff9800", size=12),
+        hovertemplate=f"V = {v_highlight:.1f} km/h<br>F = {F_h:.2f} N<extra></extra>",
+    ))
+
+    fig_f.update_layout(
+        xaxis=dict(title="Velocidade (km/h)", color="white", gridcolor="#2a2a2a"),
+        yaxis=dict(title="Força Resistiva (N)", color="white", gridcolor="#2a2a2a"),
+        plot_bgcolor="#1a1a2e", paper_bgcolor="#0e1117",
+        font=dict(color="white"),
+        legend=dict(bgcolor="#1e1e2e", bordercolor="#3d3d3d", borderwidth=1),
+        hovermode="x unified", height=400,
+        margin=dict(l=60, r=20, t=30, b=50),
+    )
+    st.plotly_chart(fig_f, use_container_width=True)
+
+    # Métricas pontuais
+    mc1, mc2, mc3 = st.columns(3)
+    mc1.metric("F0 (atrito constante)", f"{f0:.4f} N")
+    mc2.metric("F2 (aerodinâmica)", f"{f2:.6f} N/(km/h)²")
+    mc3.metric(f"F a {v_highlight:.0f} km/h", f"{F_h:.2f} N")
+
+    # Contribuições percentuais
+    F_aero = f2 * (v_h_ms ** 2)
+    pct_f0  = f0  / F_h * 100 if F_h > 0 else 0
+    pct_f2  = F_aero / F_h * 100 if F_h > 0 else 0
+    st.caption(
+        f"A {v_highlight:.0f} km/h: atrito constante = **{pct_f0:.1f}%**  |  "
+        f"resistência aerodinâmica = **{pct_f2:.1f}%** da força total"
+    )
+
+    st.markdown("---")
+
+    # ===== SIMULAÇÃO 2: DESACELERAÇÃO SIMULADA vs REAL =====
+    st.subheader("🔬 Desaceleração Simulada × Real")
+
+    if not all_data:
+        st.info("💡 Carregue um arquivo de teste para comparar a desaceleração simulada com a real.")
+        return
+
+    if total_mass <= 0:
+        st.info("💡 Preencha a massa do veículo na página 'Dados do Veículo' para simular a desaceleração.")
+        return
+
+    # Seleção de run para comparação
+    available_runs = sorted(all_data.keys())
+
+    # Default: run ida do par atual, se existir
+    default_run = current.get("run_ida", available_runs[0]) if current else available_runs[0]
+    if default_run not in available_runs:
+        default_run = available_runs[0]
+
+    run_labels = [f"Run {r} ({all_data[r].get('heading', 'N/A')})" for r in available_runs]
+    default_idx = available_runs.index(default_run)
+
+    selected_label = st.selectbox(
+        "Run real para comparar:",
+        run_labels,
+        index=default_idx,
+        key="sim_run_compare"
+    )
+    import re
+    m = re.search(r"Run (\d+)", selected_label)
+    selected_run_id = int(m.group(1)) if m else available_runs[0]
+
+    run_data   = all_data[selected_run_id]
+    times_real = np.array(run_data["times"])
+    vels_real  = np.array(run_data["velocities"])   # km/h
+
+    # ===== INTEGRAÇÃO NUMÉRICA (Euler) =====
+    # dV/dt = -F/m = -(f0 + f2·V²) / m   [V em m/s, F em N, m em kg]
+    v0_ms  = vels_real[0] / 3.6
+    t_end  = times_real[-1] - times_real[0]
+    dt     = 0.05   # passo de integração (s)
+    t_sim  = [0.0]
+    v_sim  = [v0_ms]
+
+    v = v0_ms
+    while t_sim[-1] < t_end:
+        dv = -(f0 + f2 * v**2) / total_mass * dt
+        v  = max(v + dv, 0.0)
+        t_sim.append(t_sim[-1] + dt)
+        v_sim.append(v)
+        if v <= 0:
+            break
+
+    t_sim_arr = np.array(t_sim) + times_real[0]
+    v_sim_kmh = np.array(v_sim) * 3.6
+
+    # ===== GRÁFICO =====
+    fig_d = go.Figure()
+
+    fig_d.add_trace(go.Scatter(
+        x=times_real, y=vels_real,
+        mode="lines",
+        name=f"Real — Run {selected_run_id}",
+        line=dict(color="#4a9eff", width=2.5),
+        hovertemplate="t = %{x:.2f} s<br>V real = %{y:.2f} km/h<extra></extra>",
+    ))
+
+    fig_d.add_trace(go.Scatter(
+        x=t_sim_arr, y=v_sim_kmh,
+        mode="lines",
+        name="Simulado (F0, F2, massa)",
+        line=dict(color="#ff9800", width=2, dash="dash"),
+        hovertemplate="t = %{x:.2f} s<br>V sim = %{y:.2f} km/h<extra></extra>",
+    ))
+
+    fig_d.update_layout(
+        title=dict(
+            text=f"Run {selected_run_id} — Desaceleração Real vs Simulada",
+            font=dict(size=14, color="white"),
+        ),
+        xaxis=dict(title="Tempo (s)", color="white", gridcolor="#2a2a2a"),
+        yaxis=dict(title="Velocidade (km/h)", color="white", gridcolor="#2a2a2a"),
+        plot_bgcolor="#1a1a2e", paper_bgcolor="#0e1117",
+        font=dict(color="white"),
+        legend=dict(bgcolor="#1e1e2e", bordercolor="#3d3d3d", borderwidth=1),
+        hovermode="x unified", height=450,
+        margin=dict(l=60, r=20, t=50, b=50),
+    )
+    st.plotly_chart(fig_d, use_container_width=True)
+
+    # ===== ERRO MÉDIO =====
+    # Interpola simulado nos instantes reais para calcular RMSE
+    v_sim_interp = np.interp(times_real - times_real[0], t_sim, v_sim) * 3.6
+    residuals    = vels_real - v_sim_interp
+    rmse         = float(np.sqrt(np.mean(residuals ** 2)))
+    max_err      = float(np.max(np.abs(residuals)))
+
+    ec1, ec2 = st.columns(2)
+    ec1.metric("RMSE (km/h)", f"{rmse:.3f}")
+    ec2.metric("Erro máximo (km/h)", f"{max_err:.3f}")
+
+    if rmse < 1.0:
+        st.success("✅ Boa aderência: os coeficientes representam bem a desaceleração real.")
+    elif rmse < 3.0:
+        st.warning("⚠️ Aderência moderada: possível influência de vento, inclinação ou variação de massa.")
+    else:
+        st.error("❌ Baixa aderência: verifique os coeficientes e as condições do ensaio.")
