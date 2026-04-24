@@ -222,8 +222,6 @@ def init_session_state():
         st.session_state.tests = {}
     if "active_test_id" not in st.session_state:
         st.session_state.active_test_id = None
-    if "show_new_test_form" not in st.session_state:
-        st.session_state.show_new_test_form = False
     if "delete_confirm_id" not in st.session_state:
         st.session_state.delete_confirm_id = None
 
@@ -335,8 +333,7 @@ def render_sidebar(t):
 
     # ---- Botão "+ Novo Teste" ----
     if st.button(f"+ {t('new_test')}", use_container_width=True, type="primary"):
-        st.session_state.show_new_test_form = True
-        st.rerun()
+        new_test_dialog(t)
 
     st.markdown("---")
 
@@ -409,7 +406,6 @@ def render_test_card(test_id, test, t):
                 use_container_width=True
             ):
                 activate_test(test_id)
-                st.session_state.show_new_test_form = False
                 st.rerun()
 
     with col_del:
@@ -505,8 +501,7 @@ def render_welcome(t):
         """)
         st.markdown("")
         if st.button(f"➕ {t('new_test')}", type="primary", use_container_width=True):
-            st.session_state.show_new_test_form = True
-            st.rerun()
+            new_test_dialog(t)
 
 
 @st.dialog("➕ Novo Teste / New Test", width="large")
@@ -568,7 +563,6 @@ def new_test_dialog(t):
     c1, c2 = st.columns(2)
     with c1:
         if st.button(f"✖️ {t('cancel')}", use_container_width=True):
-            st.session_state.show_new_test_form = False
             st.rerun()
     with c2:
         create_disabled = (not uploaded_csv) or (not test_name.strip())
@@ -663,7 +657,6 @@ def _process_new_test(name, uploaded_csv, uploaded_meteo, fixed_temp, fixed_pres
             # Ativa o novo teste (carrega seus dados nas flat keys)
             load_test_state(test_id)
             st.session_state.active_test_id = test_id
-            st.session_state.show_new_test_form = False
 
             st.rerun()
 
@@ -719,10 +712,6 @@ t = get_translator(st.session_state.language)
 # Renderiza sidebar
 with st.sidebar:
     render_sidebar(t)
-
-# Abre o modal de novo teste quando solicitado (overlay sobre o conteúdo)
-if st.session_state.show_new_test_form:
-    new_test_dialog(t)
 
 # Renderiza área principal conforme estado
 if not st.session_state.active_test_id:

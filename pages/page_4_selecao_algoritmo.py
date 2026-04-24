@@ -1029,6 +1029,3 @@ def display_algorithm_results(t, results):
 
     st.success(f"✅ Os {results['num_pairs']} pares foram adicionados ao **Comparativo Final** com cores correspondentes ao algoritmo.")
 
-    if st.button("➡️ Ir para Comparativo Final", type="primary", key="goto_comparativo_from_algo"):
-        st.session_state.current_page = "5_comparativo"
-        st.rerun()

@@ -89,34 +89,24 @@ def render(t):
     st.markdown("---")
     
     # ===== BOTÕES DE AÇÃO =====
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        if st.button(f"🔢 {t('calculate_coefficients')}", type="primary", use_container_width=True):
-            if st.session_state.total_mass > 0:
-                with st.spinner("Calculando coeficientes individuais..."):
-                    try:
-                        # Calcula os coeficientes individuais
-                        individual_coeffs = calcular_coeficientes_individuais(
-                            st.session_state.all_run_data,
-                            st.session_state.total_mass
-                        )
-                        
-                        st.session_state.individual_coeffs = individual_coeffs
-                        st.session_state.vehicle_data_complete = True
-                        
-                        st.success(f"✅ Coeficientes calculados para {len(individual_coeffs)} runs!")
-                        
-                    except Exception as e:
-                        st.error(f"{t('error_calculation')}: {str(e)}")
-            else:
-                st.warning(t("error_no_mass"))
-    
-    with col2:
-        if st.session_state.vehicle_data_complete:
-            if st.button(f"➡️ {t('proceed_to_pair_analysis')}", type="primary", use_container_width=True):
-                st.session_state.current_page = "3_analise_pares"
-                st.rerun()
+    if st.button(f"🔢 {t('calculate_coefficients')}", type="primary"):
+        if st.session_state.total_mass > 0:
+            with st.spinner("Calculando coeficientes individuais..."):
+                try:
+                    individual_coeffs = calcular_coeficientes_individuais(
+                        st.session_state.all_run_data,
+                        st.session_state.total_mass
+                    )
+
+                    st.session_state.individual_coeffs = individual_coeffs
+                    st.session_state.vehicle_data_complete = True
+
+                    st.success(f"✅ Coeficientes calculados para {len(individual_coeffs)} runs!")
+
+                except Exception as e:
+                    st.error(f"{t('error_calculation')}: {str(e)}")
+        else:
+            st.warning(t("error_no_mass"))
     
     # ===== MOSTRA COEFICIENTES CALCULADOS =====
     if st.session_state.individual_coeffs:

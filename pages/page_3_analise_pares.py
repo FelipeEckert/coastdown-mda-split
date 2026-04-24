@@ -51,10 +51,6 @@ def render(t):
 
         if st.session_state.calculated_pairs:
             render_calculated_pairs_table(t)
-            st.caption(
-                f"→ Continue na aba **{t('page_algorithm_selection')}** "
-                f"ou **{t('page_final_comparison')}** acima."
-            )
 
     with subtab_graf:
         if st.session_state.all_run_data:
@@ -772,8 +768,10 @@ def render_calculated_pairs_table(t):
             
             with col2:
                 st.markdown("**📊 Coeficientes Corrigidos**")
-                st.write(f"f'0: {f0_corr:.4f} N")
-                st.write(f"f'2: {f2_corr:.6f}")
+                f0_str = f"{f0_corr:.4f}" if isinstance(f0_corr, (int, float)) else str(f0_corr)
+                f2_str = f"{f2_corr:.6f}" if isinstance(f2_corr, (int, float)) else str(f2_corr)
+                st.write(f"f'0: {f0_str} N")
+                st.write(f"f'2: {f2_str}")
             
             with col3:
                 st.markdown("**📈 Variações**")

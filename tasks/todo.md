@@ -20,7 +20,19 @@
   - Causa: limpeza de AMBAS as flags ao executar qualquer algoritmo
   - Fix: cada algoritmo limpa apenas sua própria flag, preservando a do outro
 
-### Pendente (aguardando aprovação)
+### Implementado (2026-04-24 — sessão 2)
+- [x] Bug: crash ValueError ao exibir par sem correção em page_3 (linha 771)
+  - Causa: f0_corr/"N/A" (string) passava para :.4f sem isinstance check
+  - Fix: mesmo padrão já usado para cv/energy nas linhas seguintes
+- [x] Bug: par sem correção climática quebrava comparativo final (page_5)
+  - Solução: tabela separada em duas seções com design e lógica distintos
+  - Seção corrigida: checkboxes, F0 (N) / F2 (N/km/h²), cores de algoritmo
+  - Seção referência: sem checkbox, fundo laranja, f'0 (N) / f'2 (N/m/s²), valores brutos
+  - _is_corrected() bloqueia pares sem F0/F2 de entrar nas estatísticas e cálculo final
+  - Batch actions (Selecionar Todos etc.) ignoram pares sem correção
+  - Cabeçalhos refletem a mudança de unidade do processo de correção climática
+
+### Pendente
 - [ ] Redirecionamento automático para page_5 após executar algoritmo
 - [ ] Contador "X pares candidatos com CV ≤ Y%" antes do botão executar
 - [ ] Badge na sidebar mostrando algoritmo usado por último

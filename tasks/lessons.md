@@ -36,6 +36,53 @@
 
 
 
+## 2026-04-24 - Correção Climática Muda Unidades, Não Só Valores
+
+### Contexto:
+Separação visual entre pares com e sem correção climática na tabela comparativo final.
+
+### Decisão:
+Os cabeçalhos das duas seções usam notações diferentes:
+- Seção corrigida: F0 (N) e F2 (N/km/h²) — letras maiúsculas, unidade km/h
+- Seção referência: f'0 (N) e f'2 (N/m/s²) — letras minúsculas com apóstrofe, unidade m/s
+
+### Lição:
+A correção climática não é apenas um ajuste de magnitude — ela também converte as
+unidades de F2 de N/m/s² para N/km/h². Cabeçalhos de tabela devem refletir isso
+explicitamente para que o usuário não compare valores entre as duas seções achando
+que estão na mesma escala.
+
+---
+
+
+
+## 2026-04-24 - Seção de Referência para Dados Incompletos
+
+### Contexto:
+Pares calculados sem correção climática causavam crash (ValueError) e confusão
+ao serem adicionados ao comparativo final, onde o código esperava valores numéricos.
+
+### Solução adotada:
+Separar a tabela em duas seções (corrigidos / referência) em vez de bloquear
+a adição ou mostrar mensagens de erro inline. A seção de referência:
+- Exibe os valores brutos (f0_mean, f2_mean) em vez de N/A
+- Usa fundo laranja para sinalizar status sem precisar de texto extra
+- Remove o checkbox — impossível selecionar acidentalmente para cálculo
+- _is_corrected() centraliza a lógica de separação; batch actions respeitam isso
+
+### Por que não bloquear a adição ao comparativo?
+O usuário pode querer ver o par sem correção lado a lado com os corrigidos para
+decidir se vale a pena retestar com condições climáticas registradas.
+
+### Lição:
+Quando um objeto pode existir em estado "incompleto mas útil para visualização",
+prefira seção separada a mensagem de erro ou bloqueio. O usuário entende o contexto
+pela posição visual do dado; erros inline interrompem o fluxo de análise.
+
+---
+
+
+
 \## 2026-04-21 - Emojis em Software de Engenharia: Funcional vs Decorativo
 
 \### Contexto:
