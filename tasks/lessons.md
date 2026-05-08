@@ -374,6 +374,93 @@ st.markdown(
 
 
 
+## 2026-05-08 - Alerta de Data: Dado Já Estava Disponível, Faltava Usá-lo
+
+### Contexto:
+Implementação de alerta quando CSV de coastdown e arquivo meteorológico têm datas diferentes.
+
+### Observação:
+`carregar_dados_csv_robusto` já retornava `test_date` como terceiro elemento da tupla.
+Em `_process_new_test` ele era descartado com `_test_date`. O dado necessário já existia,
+só precisava ser capturado e comparado.
+
+### Solução:
+Renomear `_test_date` → `csv_date`, extrair `meteo_date = weather_data[0]['timestamp'].date()`,
+comparar com `abs((meteo_date - csv_date).days) > 1`. Armazenar mensagem no dict do teste
+(chave `date_mismatch_warning`) para exibir via `st.warning` na área de análise.
+
+### Por que armazenar no dict do teste (não mostrar inline no dialog)?
+O `@st.dialog` fecha com `st.rerun()` ao criar o teste. Qualquer `st.warning` dentro do
+spinner não sobrevive ao rerun. Armazenar no estado do teste garante que o alerta persista
+e reapareça ao trocar de aba.
+
+### Lição:
+Antes de buscar o dado em outro lugar, verificar se ele já é retornado por alguma função
+existente e apenas descartado. Em `_process_new_test` havia vários `_var` com underline
+que sinalizavam exatamente isso.
+
+---
+
+## 2026-05-08 - get_translator Precisava de Suporte a Interpolação
+
+### Contexto:
+Adição de chaves de tradução com placeholders (`{data_csv}`, `{data_meteo}`).
+
+### Problema:
+`get_translator` retornava `t(key: str) -> str` sem suporte a kwargs.
+O CLAUDE.md já documentava o padrão `t("key", percent=15.2)` mas nunca foi implementado.
+
+### Solução:
+```python
+def t(key: str, **kwargs) -> str:
+    text = TRANSLATIONS[key].get(lang, ...)
+    if kwargs:
+        try:
+            text = text.format(**kwargs)
+        except (KeyError, ValueError):
+            pass
+    return text
+```
+O `try/except` garante que chaves sem placeholders não quebrem se kwargs forem passados.
+
+### Lição:
+Quando o CLAUDE.md especifica um padrão de uso, implementar imediatamente — não deixar
+para quando o primeiro caso de uso aparecer. Dívida de spec cria surpresa desnecessária.
+
+---
+
+## 2026-05-08 - Div Aberto/Fechado Não Funciona como Wrapper em Streamlit
+
+### Contexto:
+Tentativa de ajustar alinhamento do botão ✕ (excluir teste) na sidebar.
+
+### Erro anterior:
+```python
+st.markdown("<div style='padding-top:6px'>", unsafe_allow_html=True)
+st.button("✕", ...)
+st.markdown("</div>", unsafe_allow_html=True)
+```
+Cada `st.markdown` é um elemento Streamlit independente. O `<div>` de abertura e o de
+fechamento não envolvem o botão — ficam como elementos irmãos no DOM, não pai/filho.
+O resultado visual é o botão fora do alinhamento esperado.
+
+### Solução:
+Remover o hack e usar CSS estrutural:
+```css
+section[data-testid="stSidebar"] [data-testid="stHorizontalBlock"] {
+    align-items: flex-start !important;
+}
+```
+Isso ancora todas as colunas ao topo dentro dos `st.columns()` da sidebar,
+sem precisar de wrappers manuais.
+
+### Lição:
+Não tentar simular wrappers HTML abrindo/fechando divs em chamadas separadas de
+`st.markdown`. Para ajustes de alinhamento, usar CSS no seletor do container pai.
+O elemento correto a targetar é `[data-testid="stHorizontalBlock"]` para colunas.
+
+---
+
 ## Início do Projeto - 2024-03-11
 
 

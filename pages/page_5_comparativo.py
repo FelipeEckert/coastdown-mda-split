@@ -98,7 +98,7 @@ def render(t):
         return
     
     # ===== AÇÕES EM LOTE (Selecionar/Desselecionar) =====
-    st.subheader(f"🤖 {t('auto_select_best')}")
+    st.subheader(t('auto_select_best'))
     
     # Inicializa flag de ação se não existir
     if "batch_action" not in st.session_state:

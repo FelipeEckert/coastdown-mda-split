@@ -626,7 +626,7 @@ def generate_all_candidate_pairs_split(weather_data, temp_fixed, press_fixed, cv
 def render(t):
     """Renderiza a página de seleção por algoritmo."""
 
-    st.header("🤖 Seleção Automática de Pares")
+    st.header("Seleção Automática de Pares")
 
     # Verifica pré-requisitos
     if not st.session_state.data_loaded:

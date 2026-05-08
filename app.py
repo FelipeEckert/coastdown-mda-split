@@ -126,6 +126,11 @@ st.markdown("""
     .stTabs [data-baseweb="tab-list"] {
         gap: 2px;
     }
+
+    /* ---- Alinha botão de excluir ao topo do card ---- */
+    section[data-testid="stSidebar"] [data-testid="stHorizontalBlock"] {
+        align-items: flex-start !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -157,6 +162,8 @@ TEST_STATE_KEYS = [
     "data_info",
     # Navegação interna do teste
     "current_page", "pair_analysis_subtab",
+    # Alertas
+    "date_mismatch_warning",
 ]
 
 # Valores padrão para um teste novo/vazio
@@ -193,6 +200,7 @@ TEST_DEFAULTS = {
     "data_info": {},
     "current_page": "2_dados_veiculo",
     "pair_analysis_subtab": "calculos",
+    "date_mismatch_warning": None,
 }
 
 
@@ -203,6 +211,10 @@ def init_session_state():
     # Configuração global de idioma
     if "language" not in st.session_state:
         st.session_state.language = "pt"
+
+    # Preferência de tamanho de fonte
+    if "font_size" not in st.session_state:
+        st.session_state.font_size = "medium"
 
     # Estrutura multi-teste
     if "tests" not in st.session_state:
@@ -316,6 +328,23 @@ def render_sidebar(t):
         st.session_state.language = new_lang
         st.rerun()
 
+    # ---- Seletor de tamanho de fonte ----
+    font_values = ["small", "medium", "large"]
+    font_labels = [t("font_small"), t("font_medium"), t("font_large")]
+    current_font = st.session_state.get("font_size", "medium")
+    current_font_idx = font_values.index(current_font) if current_font in font_values else 1
+
+    selected_font_label = st.selectbox(
+        t("font_size"),
+        options=font_labels,
+        index=current_font_idx,
+        key="font_size_selector"
+    )
+    new_font = font_values[font_labels.index(selected_font_label)]
+    if new_font != current_font:
+        st.session_state.font_size = new_font
+        st.rerun()
+
     st.markdown("---")
 
     # ---- Botão "+ Novo Teste" ----
@@ -396,12 +425,9 @@ def render_test_card(test_id, test, t):
                 st.rerun()
 
     with col_del:
-        # Alinha verticalmente com o topo do card
-        st.markdown("<div style='padding-top:6px'>", unsafe_allow_html=True)
         if st.button("✕", key=f"del_{test_id}", help=t("remove_test"), use_container_width=True):
             st.session_state.delete_confirm_id = test_id
             st.rerun()
-        st.markdown("</div>", unsafe_allow_html=True)
 
     st.markdown("<div style='margin-bottom:4px'></div>", unsafe_allow_html=True)
 
@@ -581,7 +607,7 @@ def _process_new_test(name, uploaded_csv, uploaded_meteo, fixed_temp, fixed_pres
                 tmp.write(uploaded_csv.getvalue())
                 tmp_path = tmp.name
 
-            df_raw, all_run_data, _test_date = carregar_dados_csv_robusto(tmp_path)
+            df_raw, all_run_data, csv_date = carregar_dados_csv_robusto(tmp_path)
 
             try:
                 os.unlink(tmp_path)
@@ -595,6 +621,7 @@ def _process_new_test(name, uploaded_csv, uploaded_meteo, fixed_temp, fixed_pres
             # Processa arquivo meteorológico se fornecido
             weather_data = None
             meteo_name = None
+            date_mismatch_warning = None
             if uploaded_meteo is not None:
                 with tempfile.NamedTemporaryFile(
                     mode='wb', suffix='.csv', delete=False
@@ -609,6 +636,16 @@ def _process_new_test(name, uploaded_csv, uploaded_meteo, fixed_temp, fixed_pres
                     os.unlink(tmp_m_path)
                 except Exception:
                     pass
+
+                # Verifica se as datas do CSV e do meteo coincidem
+                if weather_data and csv_date is not None:
+                    meteo_date = weather_data[0]['timestamp'].date()
+                    if abs((meteo_date - csv_date).days) > 1:
+                        date_mismatch_warning = t(
+                            "date_mismatch_warning",
+                            data_csv=csv_date.strftime("%d/%m/%Y"),
+                            data_meteo=meteo_date.strftime("%d/%m/%Y")
+                        )
 
             # Salva estado do teste ativo atual (se houver)
             save_active_test_state()
@@ -634,6 +671,8 @@ def _process_new_test(name, uploaded_csv, uploaded_meteo, fixed_temp, fixed_pres
                 # Dados meteorológicos
                 "weather_data": weather_data,
                 "meteo_csv_path": meteo_name,
+                # Alerta de data incompatível (None se datas coincidem)
+                "date_mismatch_warning": date_mismatch_warning,
                 # Começa pela página de dados do veículo
                 "current_page": "2_dados_veiculo",
             })
@@ -657,6 +696,11 @@ def render_test_analysis(t):
     test_name = active_test.get("name", "Teste")
 
     st.title(test_name)
+
+    # Mostra alerta de data incompatível se existir
+    warning_msg = st.session_state.get("date_mismatch_warning")
+    if warning_msg:
+        st.warning(warning_msg)
 
     tab_labels = [
         t("page_vehicle_data"),
@@ -692,6 +736,16 @@ def render_test_analysis(t):
 # ===== PONTO DE ENTRADA =====
 
 init_session_state()
+
+# CSS dinâmico de tamanho de fonte
+_font_px = {"small": "13px", "medium": "15px", "large": "17px"}
+_size = _font_px.get(st.session_state.get("font_size", "medium"), "15px")
+st.markdown(
+    f"<style>body, .main p, .main li, .main div, .stMarkdown p, "
+    f".stDataFrame, .stSelectbox label, .stNumberInput label, "
+    f".stTextInput label, .stCheckbox label {{ font-size: {_size} !important; }}</style>",
+    unsafe_allow_html=True
+)
 
 # Obtém a função de tradução para o idioma atual
 t = get_translator(st.session_state.language)

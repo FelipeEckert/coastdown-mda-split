@@ -485,25 +485,56 @@ TRANSLATIONS = {
         "pt": "Carregando arquivos...",
         "en": "Loading files..."
     },
+
+    # ===== ALERTA DE DATA =====
+    "date_mismatch_warning": {
+        "pt": "⚠️ Atenção: Data do CSV ({data_csv}) difere do arquivo meteorológico ({data_meteo}). Isso pode afetar a correção climática.",
+        "en": "⚠️ Warning: CSV date ({data_csv}) differs from meteorological file ({data_meteo}). This may affect climatic correction."
+    },
+
+    # ===== TAMANHO DE FONTE =====
+    "font_size": {
+        "pt": "Tamanho da fonte",
+        "en": "Font size"
+    },
+    "font_small": {
+        "pt": "Pequeno",
+        "en": "Small"
+    },
+    "font_medium": {
+        "pt": "Médio (padrão)",
+        "en": "Medium (default)"
+    },
+    "font_large": {
+        "pt": "Grande",
+        "en": "Large"
+    },
 }
 
 
 def get_translator(lang: str = "pt"):
     """
     Retorna uma função de tradução para o idioma especificado.
-    
+
     Args:
         lang: Código do idioma ("pt" ou "en")
-    
+
     Returns:
-        Função t(key) que retorna o texto traduzido
+        Função t(key, **kwargs) que retorna o texto traduzido com interpolação opcional
     """
-    def t(key: str) -> str:
+    def t(key: str, **kwargs) -> str:
         """Retorna o texto traduzido para a chave especificada."""
         if key in TRANSLATIONS:
-            return TRANSLATIONS[key].get(lang, TRANSLATIONS[key].get("pt", key))
-        return key
-    
+            text = TRANSLATIONS[key].get(lang, TRANSLATIONS[key].get("pt", key))
+        else:
+            text = key
+        if kwargs:
+            try:
+                text = text.format(**kwargs)
+            except (KeyError, ValueError):
+                pass
+        return text
+
     return t
 
 

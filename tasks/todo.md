@@ -37,6 +37,27 @@
 - [ ] Contador "X pares candidatos com CV ≤ Y%" antes do botão executar
 - [ ] Badge na sidebar mostrando algoritmo usado por último
 
+---
+
+## MELHORIAS DE UX — 2026-05-08
+
+### Implementado
+- [x] Alerta de data incompatível: CSV vs arquivo meteorológico
+  - `carregar_dados_csv_robusto` já retornava `test_date`; `_process_new_test` agora captura como `csv_date`
+  - Extrai `meteo_date` do primeiro registro de `weather_data`
+  - Se diferença > 1 dia: armazena `date_mismatch_warning` no dict do teste
+  - Exibido via `st.warning()` no topo da área de análise (persiste ao trocar de aba)
+  - Tradução bilíngue com interpolação `{data_csv}` / `{data_meteo}`
+  - `get_translator` atualizado para suportar `**kwargs` (`.format(**kwargs)`)
+- [x] Seletor de tamanho de fonte na sidebar (Pequeno / Médio / Grande)
+  - 13 px / 15 px / 17 px via CSS dinâmico injetado no `st.markdown`
+  - Preferência salva em `st.session_state.font_size` (persiste na sessão)
+  - Médio (15 px) já é leve aumento em relação ao padrão Streamlit (~14 px)
+- [x] Botão ✕ de excluir teste corrigido (desalinhado / saindo do card)
+  - Removido hack `<div style='padding-top:6px'>` que não fechava corretamente no DOM
+  - Adicionada regra CSS `align-items: flex-start` no `stHorizontalBlock` da sidebar
+- [x] Emoji 🤖 removido de `page_4_selecao_algoritmo.py` e `page_5_comparativo.py`
+
 ## FASE 3 - Sub-abas de Análise de Pares (page_3)
 
 ### Implementado
