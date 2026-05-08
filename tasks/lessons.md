@@ -1,34 +1,34 @@
-\# Lições Aprendidas - Coastdown MDA
+# Lições Aprendidas - Coastdown MDA
 
 
 
-\## Template
+## Template
 
 
 
-\### Data: YYYY-MM-DD
+### Data: YYYY-MM-DD
 
-\### Contexto:
+### Contexto:
 
-\[O que estava fazendo]
-
-
-
-\### Erro:
-
-\[O que deu errado]
+[O que estava fazendo]
 
 
 
-\### Solução:
+### Erro:
 
-\[Como foi corrigido]
+[O que deu errado]
 
 
 
-\### Lição:
+### Solução:
 
-\[Regra para não repetir]
+[Como foi corrigido]
+
+
+
+### Lição:
+
+[Regra para não repetir]
 
 
 
@@ -83,20 +83,20 @@ pela posição visual do dado; erros inline interrompem o fluxo de análise.
 
 
 
-\## 2026-04-21 - Emojis em Software de Engenharia: Funcional vs Decorativo
+## 2026-04-21 - Emojis em Software de Engenharia: Funcional vs Decorativo
 
-\### Contexto:
+### Contexto:
 
 Polimento de UX da interface Coastdown MDA — remoção de emojis para aspecto
 mais profissional em software de engenharia.
 
-\### Decisão:
+### Decisão:
 
 Emojis decorativos (no título, botões de navegação, labels de status) foram
 removidos. Emojis funcionais (📁 CSV, 📊 meteo, ⚙️ configurações) foram mantidos
 porque ajudam o usuário a identificar rapidamente o tipo de conteúdo.
 
-\### Regra:
+### Regra:
 
 Antes de remover um emoji, perguntar: "ele identifica um tipo de conteúdo ou
 é puramente decorativo?" Se funcional, manter. Se decorativo, remover.
@@ -104,19 +104,19 @@ Em software de engenharia, preferir clareza textual a enfeites visuais.
 
 ---
 
-\## 2026-04-21 - Navegação por st.tabs() em vez de Sidebar
+## 2026-04-21 - Navegação por st.tabs() em vez de Sidebar
 
-\### Contexto:
+### Contexto:
 
 Sidebar tinha botões de navegação para as páginas 2-6. Migrado para `st.tabs()`
 na área principal, deixando sidebar apenas com gerenciamento de testes e status.
 
-\### Limitação:
+### Limitação:
 
 `st.tabs()` não permite seleção programática (sem `selected_tab` param).
 Alternativa implementada: `st.caption()` como guia textual para o usuário.
 
-\### Lição:
+### Lição:
 
 Para navegação entre seções em Streamlit, `st.tabs()` é mais limpo visualmente
 que botões na sidebar, mas exige aceitar a limitação de não poder redirecionar
@@ -124,11 +124,11 @@ automaticamente. Compensar com hints textuais próximos ao ponto de origem.
 
 ---
 
-\## 2026-04-21 - Gráficos em Sub-abas: Separar por Responsabilidade
+## 2026-04-21 - Gráficos em Sub-abas: Separar por Responsabilidade
 
 
 
-\### Contexto:
+### Contexto:
 
 Refatoração das sub-abas Gráficos e Simulação da page_3 (Análise de Pares).
 Gráficos 2 e 3 (F×V e Desaceleração×V) estavam na sub-aba de Gráficos mas
@@ -136,7 +136,7 @@ só apareciam com par calculado, sem aviso claro ao usuário.
 
 
 
-\### Decisão de design:
+### Decisão de design:
 
 Sub-aba Gráficos = exclusivamente visualização das passadas brutas (V×T).
 Sub-aba Simulação = tudo que depende de coeficientes (F×V, simulado×real).
@@ -144,7 +144,7 @@ Isso evita gráficos fantasmas que somem sem explicação.
 
 
 
-\### Lição:
+### Lição:
 
 Se um elemento de UI depende de um pré-requisito (par calculado, massa, etc.),
 ele pertence à seção que controla esse pré-requisito, não à seção de visualização
@@ -156,18 +156,18 @@ geral. Agrupe por responsabilidade, não por tipo de widget.
 
 
 
-\## 2026-04-21 - Integração Numérica para Validação de Coeficientes
+## 2026-04-21 - Integração Numérica para Validação de Coeficientes
 
 
 
-\### Contexto:
+### Contexto:
 
 Simulação de desaceleração para comparar curva V(t) real vs modelada com os
 coeficientes F0 e F2 calculados pelo coastdown.
 
 
 
-\### Implementação:
+### Implementação:
 
 Euler explícito com passo dt=0.05 s resolve `dV/dt = -(F0 + F2·V²) / m`.
 V em m/s internamente (física correta), convertido para km/h na exibição.
@@ -176,7 +176,7 @@ RMSE calculado por np.interp nos instantes reais (evita dependência de dt unifo
 
 
 
-\### Por que Euler e não RK4?
+### Por que Euler e não RK4?
 
 Passo de 0.05 s é pequeno o suficiente para a dinâmica lenta de coastdown
 (constante de tempo >> 1 s). Euler é mais simples, sem dependência de scipy.
@@ -184,7 +184,7 @@ Se precisar de maior precisão no futuro, trocar por scipy.integrate.solve_ivp.
 
 
 
-\### Critérios de qualidade adotados:
+### Critérios de qualidade adotados:
 
 RMSE < 1 km/h = boa aderência; 1-3 km/h = moderada (possível vento/inclinação);
 > 3 km/h = baixa (verificar coeficientes e condições do ensaio).
@@ -196,18 +196,18 @@ Esses limiares são heurísticos — podem ser ajustados com dados reais de vali
 
 
 
-\## 2026-04-21 - Limpeza de Flags Devia ser Cirúrgica, não Global
+## 2026-04-21 - Limpeza de Flags Devia ser Cirúrgica, não Global
 
 
 
-\### Contexto:
+### Contexto:
 
 Bug reportado: ao executar o algoritmo de Energia e depois o de Target (ou vice-versa),
 os pares selecionados pelo primeiro algoritmo perdiam a cor de destaque (verde/azul).
 
 
 
-\### Causa:
+### Causa:
 
 `run_algorithm()` em page_4 limpava AMBAS as flags (`selected_by_energy_algo` e
 `selected_by_target_algo`) em TODOS os pares antes de marcar os novos resultados,
@@ -222,7 +222,7 @@ for pair_id in st.session_state.calculated_pairs:
 
 
 
-\### Fix:
+### Fix:
 
 Cada algoritmo limpa apenas sua própria flag, preservando a do outro.
 
@@ -238,7 +238,7 @@ elif algorithm_mode == "Proximidade ao Target":
 
 
 
-\### Lição:
+### Lição:
 
 Ao limpar estado antes de uma operação, limpe apenas o escopo que a operação
 vai reescrever. Limpeza global de flags interdependentes destrói contexto
@@ -250,11 +250,11 @@ que o usuário ainda precisa ver (no caso, a cor do algoritmo anterior).
 
 
 
-\## 2026-04-21 - Schema Duplo em calculated_pairs (page_3 vs page_4)
+## 2026-04-21 - Schema Duplo em calculated_pairs (page_3 vs page_4)
 
 
 
-\### Contexto:
+### Contexto:
 
 Análise e robustez do sistema de seleção automática de pares.
 page_3 (seleção manual) e page_4 (algoritmo automático) salvam pares no mesmo
@@ -263,7 +263,7 @@ para os mesmos valores.
 
 
 
-\### Problema:
+### Problema:
 
 As 5 funções `_get_pair_f0/f2/cv_f0/cv_f2/energy()` tentavam múltiplas chaves
 e retornavam `0.0` como fallback quando nenhuma era encontrada. Um par com F0
@@ -272,7 +272,7 @@ O cálculo de resultados finais usava esse zero silenciosamente.
 
 
 
-\### Solução:
+### Solução:
 
 `normalize_pair(pair)` resolve as chaves de ambas as origens de uma vez,
 adicionando `_f0`, `_f2`, `_cv_f0`, `_cv_f2`, `_energy` ao dict do par.
@@ -282,7 +282,7 @@ O código de exibição trata `None` explicitamente: mostra "N/A" e emite
 
 
 
-\### Mapeamento de campos (referência futura):
+### Mapeamento de campos (referência futura):
 
 | Valor         | page_3 (manual)       | page_4 (algoritmo)      | canônico  |
 |---------------|-----------------------|-------------------------|-----------|
@@ -298,7 +298,7 @@ com o isinstance(v, (int, float)) antes de aceitar o valor.
 
 
 
-\### Lição:
+### Lição:
 
 Quando dois fluxos diferentes escrevem no mesmo dict de estado com schemas
 divergentes, crie UMA função de normalização que centraliza toda a resolução
@@ -311,11 +311,11 @@ prefira `None` e trate explicitamente na exibição.
 
 
 
-\## 2026-04-21 - HTML Customizado na Sidebar do Streamlit
+## 2026-04-21 - HTML Customizado na Sidebar do Streamlit
 
 
 
-\### Contexto:
+### Contexto:
 
 Aplicação de melhorias visuais nos cards de teste da sidebar.
 Substituição de `st.container(border=True)` por divs HTML+CSS para obter
@@ -323,7 +323,7 @@ estados visuais distintos (ativo/completo/incompleto) conforme paleta do CLAUDE.
 
 
 
-\### Erro:
+### Erro:
 
 Cards inativos exibiam o HTML cru como texto na tela.
 O template multiline do f-string produzia uma linha em branco onde `{badge_html}`
@@ -332,7 +332,7 @@ encontrar linha em branco — tudo após ela virava texto puro.
 
 
 
-\### Solução:
+### Solução:
 
 Substituir o template multiline por f-strings concatenadas em linha única,
 sem nenhuma quebra de linha entre as tags. O HTML chega ao Streamlit como
@@ -356,7 +356,7 @@ st.markdown(
 
 
 
-\### Lição:
+### Lição:
 
 **Ao usar HTML customizado via `st.markdown(unsafe_allow_html=True)` no Streamlit:**
 - Nunca usar templates multiline com variáveis que podem ser string vazia
@@ -374,17 +374,16 @@ st.markdown(
 
 
 
-\## Início do Projeto - 2024-03-11
+## Início do Projeto - 2024-03-11
 
 
 
-\### Setup inicial concluído
+### Setup inicial concluído
 
-\- CLAUDE.md criado com especificação completa
+- CLAUDE.md criado com especificação completa
 
-\- Workflow orchestration implementado
+- Workflow orchestration implementado
 
-\- Estrutura de tasks/ configurada
+- Estrutura de tasks/ configurada
 
-\- Pronto para desenvolvimento com Claude Code
-
+- Pronto para desenvolvimento com Claude Code

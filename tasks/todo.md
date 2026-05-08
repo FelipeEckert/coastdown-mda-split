@@ -97,12 +97,13 @@
 - [x] Melhorias visuais da sidebar (cards, navegação, status)
 
 ### Critérios de Sucesso
-- [ ] Sidebar com cards estilo MDA (ativo/completo/erro)
-- [ ] Criar/remover/alternar entre testes
-- [ ] Formulário com upload de CSV + meteo
-- [ ] Páginas 2-6 funcionando sem modificação
-- [ ] Interface em PT e EN
-- [ ] Zero regressão em funcionalidades existentes
+> **FASE 1 100% concluída e testada** (2026-04-21)
+- [x] Sidebar com cards estilo MDA (ativo/completo/erro)
+- [x] Criar/remover/alternar entre testes
+- [x] Formulário com upload de CSV + meteo
+- [x] Páginas 2-6 funcionando sem modificação
+- [x] Interface em PT e EN
+- [x] Zero regressão em funcionalidades existentes
 
 ### Notas
 - Streamlit >= 1.28: st.container(border=True) disponível

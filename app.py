@@ -107,19 +107,6 @@ st.markdown("""
     .mda-file-warn { color: #ff9800; }
     .mda-file-err  { color: #f44336; }
 
-    /* ---- Botões de navegação (página ativa destaque) ---- */
-    .nav-active-label {
-        background-color: #1a2d4a;
-        border-left: 3px solid #4a9eff;
-        color: #4a9eff;
-        font-weight: 600;
-        font-size: 0.82em;
-        padding: 5px 10px;
-        border-radius: 0 6px 6px 0;
-        margin-bottom: 4px;
-        display: block;
-    }
-
     /* ---- Espaçamento geral ---- */
     section[data-testid="stSidebar"] > div:first-child {
         padding-top: 0.5rem;
