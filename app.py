@@ -33,106 +33,288 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ===== CSS CUSTOMIZADO =====
-st.markdown("""
+FONT_SIZE_PRESETS = {
+    "small": {
+        "base": "14px",
+        "small": "12px",
+        "label": "14px",
+        "control": "14px",
+        "button": "14px",
+        "title": "22px",
+        "subtitle": "18px",
+        "section": "16px",
+        "tab": "14px",
+        "metric_value": "22px",
+        "metric_label": "13px",
+        "table": "13px",
+        "sidebar_title": "14px",
+        "sidebar_meta": "12px",
+    },
+    "medium": {
+        "base": "16px",
+        "small": "14px",
+        "label": "16px",
+        "control": "16px",
+        "button": "16px",
+        "title": "26px",
+        "subtitle": "20px",
+        "section": "18px",
+        "tab": "16px",
+        "metric_value": "26px",
+        "metric_label": "15px",
+        "table": "15px",
+        "sidebar_title": "16px",
+        "sidebar_meta": "14px",
+    },
+    "large": {
+        "base": "18px",
+        "small": "16px",
+        "label": "18px",
+        "control": "18px",
+        "button": "18px",
+        "title": "30px",
+        "subtitle": "24px",
+        "section": "21px",
+        "tab": "18px",
+        "metric_value": "30px",
+        "metric_label": "17px",
+        "table": "17px",
+        "sidebar_title": "18px",
+        "sidebar_meta": "16px",
+    },
+}
+
+
+def apply_font_size_css(font_size_option):
+    """Aplica CSS global centralizado para tamanhos de fonte da aplicação."""
+    tokens = FONT_SIZE_PRESETS.get(font_size_option, FONT_SIZE_PRESETS["medium"])
+
+    st.markdown(
+        f"""
 <style>
-    /* ---- Botões primários verdes ---- */
-    div[data-testid="stButton"] button[kind="primary"] {
-        background-color: #28a745 !important;
-        border-color: #28a745 !important;
-    }
-    div[data-testid="stButton"] button[kind="primary"]:hover {
-        background-color: #218838 !important;
-        border-color: #1e7e34 !important;
-    }
+    :root {{
+        --mda-font-base: {tokens["base"]};
+        --mda-font-small: {tokens["small"]};
+        --mda-font-label: {tokens["label"]};
+        --mda-font-control: {tokens["control"]};
+        --mda-font-button: {tokens["button"]};
+        --mda-font-title: {tokens["title"]};
+        --mda-font-subtitle: {tokens["subtitle"]};
+        --mda-font-section: {tokens["section"]};
+        --mda-font-tab: {tokens["tab"]};
+        --mda-font-metric-value: {tokens["metric_value"]};
+        --mda-font-metric-label: {tokens["metric_label"]};
+        --mda-font-table: {tokens["table"]};
+        --mda-font-sidebar-title: {tokens["sidebar_title"]};
+        --mda-font-sidebar-meta: {tokens["sidebar_meta"]};
+    }}
 
-    /* ---- Cabeçalhos de tabelas em cinza escuro ---- */
-    thead tr th {
-        background-color: #2d2d2d !important;
-        color: #ffffff !important;
-    }
+    html, body, [class*="css"] {{
+        font-size: var(--mda-font-base);
+    }}
 
-    /* ---- Esconde coluna de índice das tabelas ---- */
-    .stDataFrame thead tr th:first-child,
-    .stDataFrame tbody tr td:first-child {
-        display: none;
-    }
+    body, p, li, div, span, label {{
+        font-size: inherit;
+    }}
 
-    /* ---- Cards de teste na sidebar ---- */
-    .mda-test-card {
-        border-radius: 8px;
-        padding: 10px 14px 10px 14px;
-        margin-bottom: 2px;
-        transition: border-color 0.2s;
-    }
-    .mda-test-card.active {
-        background-color: #1a2d4a;
-        border: 2px solid #4a9eff;
-    }
-    .mda-test-card.complete {
-        background-color: #181818;
-        border: 1px solid #3d3d3d;
-    }
-    .mda-test-card.incomplete {
-        background-color: #1e1a13;
-        border: 1px solid #ff9800;
-    }
-    .mda-card-title {
-        font-size: 0.88em;
-        font-weight: 700;
-        color: #ffffff;
-        margin-bottom: 6px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-    .mda-badge-active {
-        background-color: #4a9eff22;
-        color: #4a9eff;
-        font-size: 0.72em;
-        font-weight: 600;
-        padding: 2px 6px;
-        border-radius: 10px;
-        border: 1px solid #4a9eff66;
-        letter-spacing: 0.03em;
-    }
-    .mda-card-files {
-        font-size: 0.78em;
-        color: #a0a0a0;
-        display: flex;
-        gap: 14px;
-        margin-top: 2px;
-    }
-    .mda-file-ok   { color: #4caf50; }
-    .mda-file-warn { color: #ff9800; }
-    .mda-file-err  { color: #f44336; }
+    h1 {{
+        font-size: var(--mda-font-title) !important;
+    }}
 
-    /* ---- Espaçamento geral ---- */
-    section[data-testid="stSidebar"] > div:first-child {
-        padding-top: 0.5rem;
-        padding-bottom: 0.5rem;
-    }
-    .main .block-container {
-        padding-top: 1rem !important;
-    }
+    h2 {{
+        font-size: var(--mda-font-subtitle) !important;
+    }}
 
-    /* ---- Abas de navegação: fonte maior ---- */
-    .stTabs [data-baseweb="tab"] {
-        font-size: 0.95rem !important;
+    h3 {{
+        font-size: var(--mda-font-section) !important;
+    }}
+
+    [data-testid="stMarkdownContainer"] p,
+    [data-testid="stMarkdownContainer"] li,
+    [data-testid="stCaptionContainer"] p,
+    .stCaption,
+    .stMarkdown,
+    .stText,
+    .stAlert,
+    .stAlert *,
+    .stRadio,
+    .stRadio *,
+    .stCheckbox,
+    .stCheckbox *,
+    .stFileUploader,
+    .stFileUploader *,
+    .stExpander,
+    .stExpander * {{
+        font-size: var(--mda-font-base) !important;
+    }}
+
+    [data-testid="stCaptionContainer"] p,
+    .stCaption {{
+        font-size: var(--mda-font-small) !important;
+    }}
+
+    [data-testid="stMetricValue"] {{
+        font-size: var(--mda-font-metric-value) !important;
+    }}
+
+    [data-testid="stMetricLabel"],
+    [data-testid="stMetricDelta"] {{
+        font-size: var(--mda-font-metric-label) !important;
+    }}
+
+    div[data-testid="stButton"] button,
+    div[data-testid="stDownloadButton"] button {{
+        font-size: var(--mda-font-button) !important;
+    }}
+
+    .stTextInput label,
+    .stNumberInput label,
+    .stSelectbox label,
+    .stDateInput label,
+    .stMultiSelect label,
+    .stTextArea label,
+    .stRadio label,
+    .stCheckbox label,
+    .stFileUploader label {{
+        font-size: var(--mda-font-label) !important;
+    }}
+
+    input,
+    textarea,
+    [data-baseweb="input"] input,
+    [data-baseweb="input"] textarea,
+    [data-baseweb="base-input"] input,
+    [data-baseweb="select"] > div,
+    [data-baseweb="select"] span,
+    [data-baseweb="select"] input,
+    [data-baseweb="tag"],
+    .stSelectbox div,
+    .stMultiSelect div,
+    .stDateInput input {{
+        font-size: var(--mda-font-control) !important;
+    }}
+
+    .stTabs [data-baseweb="tab"] {{
+        font-size: var(--mda-font-tab) !important;
         font-weight: 500 !important;
         padding-left: 1rem !important;
         padding-right: 1rem !important;
-    }
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 2px;
-    }
+    }}
 
-    /* ---- Alinha botão de excluir ao topo do card ---- */
-    section[data-testid="stSidebar"] [data-testid="stHorizontalBlock"] {
-        align-items: flex-start !important;
-    }
+    .stTabs [data-baseweb="tab-list"] {{
+        gap: 2px;
+    }}
+
+    .stDataFrame,
+    .stDataFrame *,
+    [data-testid="stTable"],
+    [data-testid="stTable"] *,
+    table,
+    thead tr th,
+    tbody tr td {{
+        font-size: var(--mda-font-table) !important;
+    }}
+
+    /* ---- Botões primários verdes ---- */
+    div[data-testid="stButton"] button[kind="primary"] {{
+        background-color: #28a745 !important;
+        border-color: #28a745 !important;
+    }}
+
+    div[data-testid="stButton"] button[kind="primary"]:hover {{
+        background-color: #218838 !important;
+        border-color: #1e7e34 !important;
+    }}
+
+    /* ---- Cabeçalhos de tabelas em cinza escuro ---- */
+    thead tr th {{
+        background-color: #2d2d2d !important;
+        color: #ffffff !important;
+    }}
+
+    /* ---- Esconde coluna de índice das tabelas ---- */
+    .stDataFrame thead tr th:first-child,
+    .stDataFrame tbody tr td:first-child {{
+        display: none;
+    }}
+
+    .mda-sidebar-status-label {{
+        font-size: var(--mda-font-small);
+        font-weight: 600;
+        color: #a0a0a0;
+        letter-spacing: 0.08em;
+        margin-bottom: 6px;
+        margin-top: 4px;
+    }}
+
+    .mda-sidebar-status-item {{
+        font-size: var(--mda-font-sidebar-meta);
+        margin-bottom: 3px;
+    }}
+
+    .mda-pair-energy-value {{
+        margin: 0;
+        padding: 0;
+        font-size: var(--mda-font-subtitle);
+        line-height: 1.1;
+    }}
+
+    .mda-pair-energy-unit {{
+        margin: 0;
+        color: #888;
+        font-size: var(--mda-font-small);
+    }}
+
+    /* ---- Espaçamento geral ---- */
+    section[data-testid="stSidebar"] > div:first-child {{
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+    }}
+
+    .main .block-container {{
+        padding-top: 1rem !important;
+    }}
+
+    /* ---- Cards de teste da sidebar: refinamento visual nativo ---- */
+    section[data-testid="stSidebar"] [class*="st-key-test_card_active_"] {{
+        background-color: #162b4d;
+        border: 1px solid #4a9eff;
+        border-radius: 10px;
+        padding: 0.45rem 0.6rem;
+        margin-bottom: 0.35rem;
+    }}
+
+    section[data-testid="stSidebar"] [class*="st-key-test_card_inactive_"] {{
+        background-color: #1e1e1e;
+        border: 1px solid #3d3d3d;
+        border-radius: 10px;
+        padding: 0.45rem 0.6rem;
+        margin-bottom: 0.35rem;
+    }}
+
+    section[data-testid="stSidebar"] [class*="st-key-delete_btn_"] [data-testid="stButton"] {{
+        width: auto;
+    }}
+
+    section[data-testid="stSidebar"] [class*="st-key-delete_btn_"] > div {{
+        display: flex;
+        justify-content: flex-end;
+        align-items: flex-start;
+    }}
+
+    section[data-testid="stSidebar"] [class*="st-key-delete_btn_"] [data-testid="stButton"] button {{
+        width: auto !important;
+        min-width: 1.9rem !important;
+        height: 1.9rem !important;
+        padding: 0.08rem 0.42rem !important;
+        line-height: 1 !important;
+        margin-top: 0 !important;
+    }}
+
 </style>
-""", unsafe_allow_html=True)
+        """,
+        unsafe_allow_html=True,
+    )
 
 # ===== CONSTANTES: CHAVES DO TESTE =====
 
@@ -299,6 +481,42 @@ def delete_test(test_id):
     st.session_state.delete_confirm_id = None
 
 
+def confirm_delete_dialog(t):
+    """Exibe modal de confirmação para remover um teste."""
+    test_id = st.session_state.get("delete_confirm_id")
+    if not test_id:
+        st.rerun()
+
+    if test_id not in st.session_state.tests:
+        st.session_state.delete_confirm_id = None
+        st.rerun()
+
+    @st.dialog(t("confirm_remove_title"), width="small")
+    def _confirm_delete_dialog():
+        st.write(t("confirm_delete_test"))
+
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button(
+                t("confirm"),
+                key="confirm_delete_modal_confirm",
+                type="primary",
+                use_container_width=True,
+            ):
+                delete_test(test_id)
+                st.rerun()
+        with c2:
+            if st.button(
+                t("cancel"),
+                key="confirm_delete_modal_cancel",
+                use_container_width=True,
+            ):
+                st.session_state.delete_confirm_id = None
+                st.rerun()
+
+    _confirm_delete_dialog()
+
+
 # ===== RENDERIZAÇÃO DA SIDEBAR =====
 
 def render_sidebar(t):
@@ -379,85 +597,49 @@ def render_test_card(test_id, test, t):
         csv_ok = test.get("data_loaded", False)
         meteo_ok = bool(test.get("weather_data") or test.get("meteo_csv_path"))
 
-    # Classe CSS conforme estado
-    if is_active:
-        card_class = "active"
-    elif csv_ok:
-        card_class = "complete"
-    else:
-        card_class = "incomplete"
-
-    # Badge "ATIVO" só aparece no card ativo
-    badge_html = (
-        f'<span class="mda-badge-active">● {t("active_test").upper()}</span>'
-        if is_active else ""
+    csv_sym = "✓" if csv_ok else "✗"
+    meteo_sym = "✓" if meteo_ok else "⚠"
+    status_text = f"CSV: {csv_sym}   Meteo: {meteo_sym}"
+    card_key = (
+        f"test_card_active_{test_id}"
+        if is_active
+        else f"test_card_inactive_{test_id}"
     )
 
-    # Ícones de status dos arquivos
-    csv_cls = "mda-file-ok" if csv_ok else "mda-file-err"
-    csv_sym = "✓" if csv_ok else "✗"
-    meteo_cls = "mda-file-ok" if meteo_ok else "mda-file-warn"
-    meteo_sym = "✓" if meteo_ok else "⚠"
+    with st.container(border=True, key=card_key):
+        col_info, col_delete = st.columns([0.82, 0.18], vertical_alignment="top")
 
-    # Trunca nome longo para caber no card
-    display_name = name if len(name) <= 20 else name[:18] + "…"
+        with col_info:
+            st.markdown(f"**{name}**")
 
-    # Layout: card (esquerda) | botão excluir (direita, mesma linha)
-    col_card, col_del = st.columns([5, 1])
+            if is_active:
+                st.caption(f"● {t('active_test').upper()}")
+            else:
+                if st.button(t("switch_test"), key=f"sel_{test_id}"):
+                    activate_test(test_id)
+                    st.rerun()
 
-    with col_card:
-        st.markdown(
-            f'<div class="mda-test-card {card_class}">'
-            f'<div class="mda-card-title"><span>{display_name}</span>{badge_html}</div>'
-            f'<div class="mda-card-files">'
-            f'<span>CSV: <span class="{csv_cls}">{csv_sym}</span></span>'
-            f'<span>Meteo: <span class="{meteo_cls}">{meteo_sym}</span></span>'
-            f'</div></div>',
-            unsafe_allow_html=True
-        )
-        if not is_active:
-            if st.button(
-                t("switch_test"),
-                key=f"sel_{test_id}",
-                use_container_width=True
-            ):
-                activate_test(test_id)
-                st.rerun()
+            st.caption(status_text)
 
-    with col_del:
-        if st.button("✕", key=f"del_{test_id}", help=t("remove_test"), use_container_width=True):
-            st.session_state.delete_confirm_id = test_id
-            st.rerun()
+        with col_delete:
+            with st.container(key=f"delete_btn_{test_id}"):
+                if st.button("✕", key=f"del_{test_id}", help=t("remove_test")):
+                    st.session_state.delete_confirm_id = test_id
+                    st.rerun()
 
-    st.markdown("<div style='margin-bottom:4px'></div>", unsafe_allow_html=True)
-
-    # Confirmação de exclusão
-    if st.session_state.delete_confirm_id == test_id:
-        st.warning(t("confirm_delete_test"))
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button(t("confirm"), key=f"conf_del_{test_id}", type="primary"):
-                delete_test(test_id)
-                st.rerun()
-        with c2:
-            if st.button(t("cancel"), key=f"canc_del_{test_id}"):
-                st.session_state.delete_confirm_id = None
-                st.rerun()
-
+    st.markdown("")
 
 def render_sidebar_status(t):
     """Renderiza status resumido do teste ativo na sidebar."""
     st.markdown(
-        f"<p style='font-size:0.78em;font-weight:600;color:#a0a0a0;"
-        f"letter-spacing:0.08em;margin-bottom:6px;margin-top:4px'>"
-        f"{t('status').upper()}</p>",
+        f"<p class='mda-sidebar-status-label'>{t('status').upper()}</p>",
         unsafe_allow_html=True
     )
 
     if st.session_state.data_loaded:
         runs = len(st.session_state.all_run_data)
         st.markdown(
-            f"<div style='font-size:0.82em;color:#4caf50;margin-bottom:3px'>"
+            f"<div class='mda-sidebar-status-item' style='color:#4caf50'>"
             f"✅ {t('file_loaded_success')}"
             + (f" <span style='color:#a0a0a0'>({runs} {t('runs_detected')})</span>" if runs else "")
             + "</div>",
@@ -470,7 +652,7 @@ def render_sidebar_status(t):
             if st.session_state.total_mass else ""
         )
         st.markdown(
-            f"<div style='font-size:0.82em;color:#4caf50;margin-bottom:3px'>"
+            f"<div class='mda-sidebar-status-item' style='color:#4caf50'>"
             f"✅ {t('vehicle_information')}{mass_str}</div>",
             unsafe_allow_html=True
         )
@@ -478,7 +660,7 @@ def render_sidebar_status(t):
     if st.session_state.calculated_pairs:
         n = len(st.session_state.calculated_pairs)
         st.markdown(
-            f"<div style='font-size:0.82em;color:#4caf50;margin-bottom:3px'>"
+            f"<div class='mda-sidebar-status-item' style='color:#4caf50'>"
             f"✅ {n} {t('calculated_pairs')}</div>",
             unsafe_allow_html=True
         )
@@ -486,7 +668,7 @@ def render_sidebar_status(t):
     if st.session_state.pares_finais_selecionados:
         n = len(st.session_state.pares_finais_selecionados)
         st.markdown(
-            f"<div style='font-size:0.82em;color:#4a9eff;margin-bottom:3px'>"
+            f"<div class='mda-sidebar-status-item' style='color:#4a9eff'>"
             f"{n} {t('selected_pairs')}</div>",
             unsafe_allow_html=True
         )
@@ -737,15 +919,7 @@ def render_test_analysis(t):
 
 init_session_state()
 
-# CSS dinâmico de tamanho de fonte
-_font_px = {"small": "13px", "medium": "15px", "large": "17px"}
-_size = _font_px.get(st.session_state.get("font_size", "medium"), "15px")
-st.markdown(
-    f"<style>body, .main p, .main li, .main div, .stMarkdown p, "
-    f".stDataFrame, .stSelectbox label, .stNumberInput label, "
-    f".stTextInput label, .stCheckbox label {{ font-size: {_size} !important; }}</style>",
-    unsafe_allow_html=True
-)
+apply_font_size_css(st.session_state.get("font_size", "medium"))
 
 # Obtém a função de tradução para o idioma atual
 t = get_translator(st.session_state.language)
@@ -753,6 +927,9 @@ t = get_translator(st.session_state.language)
 # Renderiza sidebar
 with st.sidebar:
     render_sidebar(t)
+
+if st.session_state.get("delete_confirm_id"):
+    confirm_delete_dialog(t)
 
 # Renderiza área principal conforme estado
 if not st.session_state.active_test_id:

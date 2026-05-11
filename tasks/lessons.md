@@ -461,6 +461,52 @@ O elemento correto a targetar é `[data-testid="stHorizontalBlock"]` para coluna
 
 ---
 
+## 2026-05-11 - Sidebar no Streamlit: Estrutura Nativa Primeiro, CSS Escopado Depois
+
+### Contexto:
+Rodada de correções na sidebar envolvendo:
+- seletor de tamanho de fonte;
+- layout dos cards de teste;
+- botão `X` de remoção;
+- confirmação de remoção em modal/pop-up;
+- recuperação do destaque azul do card ativo.
+
+### Erro:
+Os cards da sidebar quebravam visualmente:
+- `X` desalinhado;
+- confirmação de remoção aparecendo dentro da sidebar;
+- `CSV/Meteo` escapando ou sendo cortado;
+- muito espaço vertical vazio;
+- mistura de HTML/CSS customizado com widgets Streamlit (`st.button`, `st.caption`, etc.).
+
+### Causa raiz:
+Widgets Streamlit não ficam realmente dentro do HTML criado via
+`st.markdown(..., unsafe_allow_html=True)`. Além disso:
+- seletores CSS amplos demais afetavam subcontainers e botões não relacionados;
+- prefixes/keys sobrepostos faziam o estilo vazar entre container principal e wrappers internos;
+- colunas e containers estavam sendo usados para simular um card customizado instável.
+
+### Solução:
+- migrar o card para estrutura nativa estável com `st.container(border=True)`;
+- manter os elementos em fluxo normal: nome, estado (`● ATIVO` ou `Selecionar`), status e `X`;
+- usar `st.dialog` para a confirmação de remoção, nunca renderizando confirmação na sidebar;
+- aplicar CSS apenas quando necessário e sempre escopado por `key` específica;
+- separar card ativo e inativo por keys diferentes;
+- usar wrapper dedicado para o botão `X` quando precisar refinamento visual local.
+
+### Lição:
+No Streamlit, não tentar envolver widgets com HTML customizado para montar cards.
+Preferir sempre:
+- containers nativos;
+- CSS escopado por `key`;
+- seletores estreitos;
+- modal/diálogo fora da sidebar para fluxos de confirmação importantes.
+
+Se o layout começar a exigir hacks de DOM, a estrutura está errada e precisa voltar
+para componentes nativos antes de qualquer polimento visual.
+
+---
+
 ## Início do Projeto - 2024-03-11
 
 

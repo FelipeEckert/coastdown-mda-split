@@ -16,6 +16,8 @@ ENV/
 
 # Debug files
 debug_*.txt
+*.log
+.tmp*/
 
 # IDE
 .vscode/

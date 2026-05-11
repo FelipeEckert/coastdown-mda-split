@@ -200,7 +200,7 @@ def render_pairs_selection_table(t):
         cols = st.columns(col_ratios)
         for col, header in zip(cols, labels):
             col.markdown(
-                f"<div style='text-align:center;font-size:0.85em;color:{label_color};'>"
+                f"<div style='text-align:center;font-size:var(--mda-font-table);color:{label_color};'>"
                 f"<strong>{header}</strong></div>",
                 unsafe_allow_html=True
             )
@@ -243,7 +243,7 @@ def render_pairs_selection_table(t):
 
         row_cols = st.columns(col_ratios)
         cell = (f"text-align:center;background-color:{bg_color};color:{text_color};"
-                f"padding:8px;border-radius:4px;font-size:0.85em;")
+                f"padding:8px;border-radius:4px;font-size:var(--mda-font-table);")
 
         with row_cols[0]:
             if selectable:
@@ -268,13 +268,13 @@ def render_pairs_selection_table(t):
             cv_f0 = norm["_cv_f0"]
             cv_style = cell if (cv_f0 is None or cv_f0 <= 10) else (
                 f"text-align:center;background-color:{bg_color};color:#ff6b6b;"
-                f"padding:8px;border-radius:4px;font-weight:bold;font-size:0.85em;")
+                f"padding:8px;border-radius:4px;font-weight:bold;font-size:var(--mda-font-table);")
             st.markdown(f"<div style='{cv_style}'>{cv_f0_str}</div>", unsafe_allow_html=True)
         with row_cols[8]:
             cv_f2 = norm["_cv_f2"]
             cv_style = cell if (cv_f2 is None or cv_f2 <= 10) else (
                 f"text-align:center;background-color:{bg_color};color:#ff6b6b;"
-                f"padding:8px;border-radius:4px;font-weight:bold;font-size:0.85em;")
+                f"padding:8px;border-radius:4px;font-weight:bold;font-size:var(--mda-font-table);")
             st.markdown(f"<div style='{cv_style}'>{cv_f2_str}</div>", unsafe_allow_html=True)
         with row_cols[9]:
             st.markdown(f"<div style='{cell}'>{energy_str}</div>", unsafe_allow_html=True)

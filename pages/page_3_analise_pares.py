@@ -792,8 +792,14 @@ def render_calculated_pairs_table(t):
                 st.markdown("**⚡ Energia**")
                 energy_str = f"{energy:.2f}" if isinstance(energy, (int, float)) else str(energy)
                 # Aumenta a fonte do valor
-                st.markdown(f"<h2 style='margin: 0; padding: 0;'>{energy_str}</h2>", unsafe_allow_html=True)
-                st.markdown("<p style='margin: 0; color: #888;'>MJ/km</p>", unsafe_allow_html=True)
+                st.markdown(
+                    f"<h2 class='mda-pair-energy-value'>{energy_str}</h2>",
+                    unsafe_allow_html=True
+                )
+                st.markdown(
+                    "<p class='mda-pair-energy-unit'>MJ/km</p>",
+                    unsafe_allow_html=True
+                )
     
     st.markdown("---")
     st.info("💡 Vá para **Comparativo Final** para selecionar e comparar os pares")
@@ -854,7 +860,7 @@ def render_deceleration_graphs(t):
         ida_label   = f"Run {run_ida}"   if run_ida   else "—"
         volta_label = f"Run {run_volta}" if run_volta else "—"
         st.markdown(
-            f"<div style='font-size:0.82em; color:#a0a0a0; margin-bottom:6px'>"
+            f"<div style='font-size:var(--mda-font-small); color:#a0a0a0; margin-bottom:6px'>"
             f"Par ativo: "
             f"<span style='color:{COLOR_IDA}; font-weight:600'>● {ida_label} (IDA)</span>"
             f"&nbsp;&nbsp;"

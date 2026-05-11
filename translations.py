@@ -469,6 +469,10 @@ TRANSLATIONS = {
         "pt": "Remover este teste permanentemente?",
         "en": "Remove this test permanently?"
     },
+    "confirm_remove_title": {
+        "pt": "Confirmar remoção",
+        "en": "Confirm removal"
+    },
     "fixed_conditions": {
         "pt": "Condições Fixas (sem arquivo meteo)",
         "en": "Fixed Conditions (no meteo file)"
