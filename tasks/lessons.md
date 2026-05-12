@@ -520,3 +520,70 @@ para componentes nativos antes de qualquer polimento visual.
 - Estrutura de tasks/ configurada
 
 - Pronto para desenvolvimento com Claude Code
+
+---
+
+## 2026-05-12 - Matriz de Engenharia: Shape Primeiro, Destaque Depois
+
+### Contexto:
+Aba `Conformidade de Tempos` na `page_3`, com ajuste posterior solicitado
+para destacar apenas as células não conformes da matriz já pivotada.
+
+### Erro:
+Na primeira entrega da feature, foquei primeiro nos cálculos e tabelas
+derivadas, mas não tratei o formato da visualização principal como requisito
+funcional central. Isso gerou retrabalho em duas etapas:
+- primeiro corrigir o shape para matriz;
+- depois aplicar o destaque visual por célula.
+
+### Solução:
+Separar claramente as camadas:
+- `DataFrame` longo para cálculo;
+- `pivot_table` para matriz principal;
+- máscara booleana alinhada para não conformidade;
+- `pandas Styler` apenas para a pintura das células-alvo.
+
+### LiÃ§Ã£o:
+Em telas de análise técnica, o formato da grade é parte da regra de negócio.
+Antes de pensar em cores, tooltips ou detalhes visuais, validar primeiro:
+- o que é linha;
+- o que é coluna;
+- o que cada célula representa.
+
+Se o requisito disser "matriz", a pivotagem correta vem antes de qualquer
+polimento visual.
+
+---
+
+## 2026-05-12 - Persistência de Widget Também Faz Parte do Estado do Teste
+
+### Contexto:
+Correção do bug em que `vehicle_model` e `test_date` ficavam compartilhados
+entre testes ao alternar o teste ativo na aplicação multi-teste.
+
+### Erro:
+Eu considerei suficiente persistir apenas `vehicle_info` por teste, mas a UI
+da página 2 usava widgets com keys globais:
+- `vehicle_model_input`
+- `test_date_input`
+
+Ao trocar de teste, `vehicle_info` era restaurado corretamente, porém o
+Streamlit mantinha os valores antigos dessas widget keys. Na renderização
+seguinte, o valor global do widget sobrescrevia o valor correto do teste ativo.
+
+### Solução:
+Tratar também as keys dos widgets como parte do estado isolado de cada teste:
+- adicionar `vehicle_model_input` e `test_date_input` em `TEST_STATE_KEYS`;
+- adicionar defaults correspondentes em `TEST_DEFAULTS`;
+- restaurar fallback a partir de `vehicle_info` para compatibilidade com testes
+  antigos;
+- na `page_2_dados_veiculo.py`, deixar os widgets serem controlados pela
+  própria key restaurada e depois sincronizar `vehicle_info` a partir dela,
+  sem usar `value=` junto com `key=` nesse caso.
+
+### Lição:
+Em Streamlit multi-teste, não basta persistir apenas o dado de domínio. Sempre
+verificar se o valor visível na tela está vindo de uma widget key separada. Se
+o widget usa `key=` fixa e essa key não for isolada por teste, a interface pode
+recontaminar o estado restaurado e parecer "global", mesmo quando o dicionário
+de dados já está correto.
