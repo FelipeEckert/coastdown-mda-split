@@ -41,6 +41,18 @@ TRANSLATIONS = {
         "pt": "Cálculos e Correções",
         "en": "Calculations & Corrections"
     },
+    "pair_analysis_graphs": {
+        "pt": "Gráficos",
+        "en": "Graphs"
+    },
+    "pair_analysis_simulation": {
+        "pt": "Simulação",
+        "en": "Simulation"
+    },
+    "pair_time_conformity_tab": {
+        "pt": "Conformidade de Tempos",
+        "en": "Time Conformity"
+    },
     "page_algorithm_selection": {
         "pt": "4. Seleção por Algoritmo",
         "en": "4. Algorithm Selection"
@@ -226,6 +238,130 @@ TRANSLATIONS = {
     "energy": {
         "pt": "Energia (J)",
         "en": "Energy (J)"
+    },
+    "time_conformity_title": {
+        "pt": "Conformidade dos Tempos de Desaceleração",
+        "en": "Deceleration Time Conformity"
+    },
+    "time_conformity_description": {
+        "pt": "Compare os tempos por intervalo de velocidade de cada passada e veja o desvio em relação à média daquele intervalo.",
+        "en": "Compare each run's interval times and inspect the deviation relative to that interval's mean."
+    },
+    "time_conformity_source": {
+        "pt": "Fonte das passadas",
+        "en": "Run source"
+    },
+    "time_conformity_tolerance_pct": {
+        "pt": "Tolerância (%)",
+        "en": "Tolerance (%)"
+    },
+    "time_conformity_all_runs": {
+        "pt": "Todas as passadas",
+        "en": "All runs"
+    },
+    "time_conformity_selected_pair_runs": {
+        "pt": "Passadas dos pares selecionados",
+        "en": "Runs from selected pairs"
+    },
+    "time_conformity_all_runs_hint": {
+        "pt": "Analisando {run_count} passadas válidas carregadas no teste ativo.",
+        "en": "Analyzing {run_count} valid runs loaded in the active test."
+    },
+    "time_conformity_selected_runs_hint": {
+        "pt": "Usando runs deduplicadas de {pair_count} par(es) marcado(s): {run_count} passada(s) encontrada(s).",
+        "en": "Using deduplicated runs from {pair_count} checked pair(s): {run_count} run(s) found."
+    },
+    "time_conformity_no_selected_runs": {
+        "pt": "Nenhuma passada disponível para a fonte selecionada.",
+        "en": "No runs are available for the selected source."
+    },
+    "time_conformity_no_interval_data": {
+        "pt": "Nenhuma passada possui dados válidos de tempo por intervalo para análise.",
+        "en": "No runs contain valid interval-time data for analysis."
+    },
+    "time_conformity_split_not_supported": {
+        "pt": "A análise de conformidade de tempos ainda não está disponível para o método Split.",
+        "en": "Time conformity analysis is not available for the Split method yet."
+    },
+    "time_conformity_summary": {
+        "pt": "Resumo por Intervalo",
+        "en": "Interval Summary"
+    },
+    "time_conformity_matrix": {
+        "pt": "Matriz de Tempos por Intervalo",
+        "en": "Interval Time Matrix"
+    },
+    "time_conformity_details": {
+        "pt": "Detalhamento por Passada",
+        "en": "Run Details"
+    },
+    "time_conformity_run_label": {
+        "pt": "Run {run_id}",
+        "en": "Run {run_id}"
+    },
+    "time_conformity_interval": {
+        "pt": "Intervalo",
+        "en": "Interval"
+    },
+    "time_conformity_mean_time": {
+        "pt": "Tempo Médio (s)",
+        "en": "Mean Time (s)"
+    },
+    "time_conformity_min_time": {
+        "pt": "Tempo Mínimo (s)",
+        "en": "Min Time (s)"
+    },
+    "time_conformity_max_time": {
+        "pt": "Tempo Máximo (s)",
+        "en": "Max Time (s)"
+    },
+    "time_conformity_spread_s": {
+        "pt": "Amplitude (s)",
+        "en": "Spread (s)"
+    },
+    "time_conformity_cv_pct": {
+        "pt": "CV (%)",
+        "en": "CV (%)"
+    },
+    "time_conformity_max_deviation_pct": {
+        "pt": "Maior Desvio (%)",
+        "en": "Max Deviation (%)"
+    },
+    "time_conformity_deviation_s": {
+        "pt": "Desvio (s)",
+        "en": "Deviation (s)"
+    },
+    "time_conformity_deviation_pct": {
+        "pt": "Desvio (%)",
+        "en": "Deviation (%)"
+    },
+    "time_conformity_runs_count": {
+        "pt": "Qtde. de Passadas",
+        "en": "Run Count"
+    },
+    "time_conformity_intervals_count": {
+        "pt": "Intervalos",
+        "en": "Intervals"
+    },
+    "time_conformity_records_count": {
+        "pt": "Registros",
+        "en": "Records"
+    },
+    "time_conformity_non_conforming_count": {
+        "pt": "Não Conformes",
+        "en": "Non-conforming"
+    },
+    "time_conformity_non_conforming_runs": {
+        "pt": "Células Não Conformes",
+        "en": "Non-conforming Cells"
+    },
+    "time_conformity_non_conforming_intervals": {
+        "pt": "Intervalos com Desvio",
+        "en": "Intervals with Deviation"
+    },
+    "time_conformity_skipped_runs": {
+        "pt": "Passadas ignoradas por falta de dados válidos de intervalo: {runs}",
+        "en": "Runs skipped due to missing valid interval data: {runs}"
     },
     
     # ===== PÁGINA 4: COMPARATIVO FINAL =====

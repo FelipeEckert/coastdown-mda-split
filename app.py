@@ -331,6 +331,7 @@ TEST_STATE_KEYS = [
     "weather_data", "weather_data_split",
     # Dados do veículo
     "vehicle_info", "total_mass", "mass_input_mode",
+    "vehicle_model_input", "test_date_input",
     # Coeficientes e pares
     "individual_coeffs", "calculated_pairs", "split_coefficients",
     # Resultados
@@ -366,6 +367,8 @@ TEST_DEFAULTS = {
     "vehicle_info": {},
     "total_mass": 0.0,
     "mass_input_mode": "total",
+    "vehicle_model_input": "",
+    "test_date_input": None,
     "individual_coeffs": {},
     "calculated_pairs": {},
     "split_coefficients": {},
@@ -446,6 +449,12 @@ def load_test_state(test_id):
                 st.session_state[key] = copy.deepcopy(default)
             else:
                 st.session_state[key] = default
+
+    # Compatibilidade com testes salvos antes das widget keys por teste.
+    if "vehicle_model_input" not in test_data:
+        st.session_state.vehicle_model_input = st.session_state.vehicle_info.get("model", "")
+    if "test_date_input" not in test_data:
+        st.session_state.test_date_input = st.session_state.vehicle_info.get("test_date", None)
 
 
 def activate_test(test_id):

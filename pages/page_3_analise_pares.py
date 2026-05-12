@@ -25,6 +25,429 @@ from core.calculations import (
 from core.corrections import apply_climate_correction
 
 
+def _run_sort_key(run_id):
+    """Retorna chave estável para ordenar IDs de runs."""
+    try:
+        return (0, int(run_id))
+    except (TypeError, ValueError):
+        return (1, str(run_id))
+
+
+def _format_run_heading(heading, t):
+    """Normaliza o heading para rótulo amigável."""
+    heading_str = str(heading).strip()
+    if heading_str in ["+", "N", "Norte", "North", "ida", "Ida", "IDA"]:
+        return t("outbound")
+    if heading_str in ["-", "S", "Sul", "South", "volta", "Volta", "VOLTA"]:
+        return t("return")
+    return heading_str or "N/A"
+
+
+def _format_run_column_label(run_id, t):
+    """Retorna rótulo amigável para coluna da matriz."""
+    return t("time_conformity_run_label", run_id=run_id)
+
+
+def _normalize_interval_times(run_data):
+    """
+    Normaliza os tempos de uma run para semântica por intervalo.
+
+    Preferência:
+    - lista já em formato de intervalo: len(times) == len(velocities) - 1
+    - compatibilidade com schema legado acumulado: len(times) == len(velocities)
+      e primeiro ponto em zero
+    """
+    velocities = run_data.get("velocities") or []
+    times = run_data.get("times") or []
+
+    if len(velocities) < 2 or not times:
+        return [], []
+
+    try:
+        velocities = [float(v) for v in velocities]
+        times = [float(v) for v in times]
+    except (TypeError, ValueError):
+        return [], []
+
+    interval_times = []
+    if len(times) == len(velocities) - 1:
+        interval_times = times
+    elif len(times) == len(velocities) and abs(times[0]) < 1e-9:
+        interval_times = [times[i + 1] - times[i] for i in range(len(times) - 1)]
+    else:
+        return [], []
+
+    interval_rows = []
+    for idx, interval_time in enumerate(interval_times):
+        if idx + 1 >= len(velocities):
+            break
+        if not np.isfinite(interval_time) or interval_time <= 0:
+            continue
+
+        v_start = velocities[idx]
+        v_end = velocities[idx + 1]
+        if not np.isfinite(v_start) or not np.isfinite(v_end) or v_start <= v_end:
+            continue
+
+        start_label = int(round(v_start))
+        end_label = int(round(v_end))
+        interval_rows.append(
+            {
+                "interval_start": start_label,
+                "interval_end": end_label,
+                "interval_label": f"{start_label}-{end_label} km/h",
+                "time_s": float(interval_time),
+            }
+        )
+
+    return velocities, interval_rows
+
+
+def _resolve_selected_run_id(raw_run_id, all_run_data):
+    """Resolve um ID de run vindo do estado dos pares para uma chave existente."""
+    if raw_run_id in all_run_data:
+        return raw_run_id
+
+    try:
+        run_as_int = int(raw_run_id)
+        if run_as_int in all_run_data:
+            return run_as_int
+    except (TypeError, ValueError):
+        pass
+
+    run_as_str = str(raw_run_id)
+    if run_as_str in all_run_data:
+        return run_as_str
+
+    return None
+
+
+def _get_selected_pair_run_ids():
+    """Retorna runs deduplicadas a partir dos pares marcados no Comparativo Final."""
+    all_run_data = st.session_state.get("all_run_data", {})
+    selected_runs = set()
+
+    for pair in st.session_state.get("calculated_pairs", {}).values():
+        if not pair.get("selected", False):
+            continue
+
+        for key in ("run1", "run2", "run_ida", "run_volta"):
+            resolved_run_id = _resolve_selected_run_id(pair.get(key), all_run_data)
+            if resolved_run_id is not None:
+                selected_runs.add(resolved_run_id)
+
+    return sorted(selected_runs, key=_run_sort_key)
+
+
+def render_time_conformity_analysis(t):
+    """Renderiza a análise de conformidade dos tempos por intervalo de velocidade."""
+    if st.session_state.using_split_method:
+        st.info(t("time_conformity_split_not_supported"))
+        return
+
+    all_run_data = st.session_state.get("all_run_data", {})
+    if not all_run_data:
+        st.warning(t("error_no_file"))
+        return
+
+    st.markdown(f"### {t('time_conformity_title')}")
+    st.caption(t("time_conformity_description"))
+
+    control_col1, control_col2 = st.columns([2, 1])
+    with control_col1:
+        source_mode = st.radio(
+            t("time_conformity_source"),
+            options=[
+                t("time_conformity_all_runs"),
+                t("time_conformity_selected_pair_runs"),
+            ],
+            horizontal=True,
+            key="time_conformity_source_mode",
+        )
+    with control_col2:
+        tolerance_pct = st.number_input(
+            t("time_conformity_tolerance_pct"),
+            min_value=0.1,
+            max_value=100.0,
+            value=5.0,
+            step=0.1,
+            format="%.1f",
+            key="time_conformity_tolerance_pct_value",
+        )
+
+    if source_mode == t("time_conformity_all_runs"):
+        run_ids = sorted(all_run_data.keys(), key=_run_sort_key)
+        st.caption(t("time_conformity_all_runs_hint", run_count=len(run_ids)))
+    else:
+        run_ids = _get_selected_pair_run_ids()
+        selected_pair_count = sum(
+            1
+            for pair in st.session_state.get("calculated_pairs", {}).values()
+            if pair.get("selected", False)
+        )
+        st.caption(
+            t(
+                "time_conformity_selected_runs_hint",
+                pair_count=selected_pair_count,
+                run_count=len(run_ids),
+            )
+        )
+
+    if not run_ids:
+        st.info(t("time_conformity_no_selected_runs"))
+        return
+
+    detailed_rows = []
+    skipped_runs = []
+
+    for run_id in run_ids:
+        run_data = all_run_data.get(run_id, {})
+        _, interval_rows = _normalize_interval_times(run_data)
+
+        if not interval_rows:
+            skipped_runs.append(run_id)
+            continue
+
+        heading_label = _format_run_heading(run_data.get("heading", ""), t)
+        for interval_row in interval_rows:
+            detailed_rows.append(
+                {
+                    t("run_id"): run_id,
+                    "_run_id": run_id,
+                    "_run_label": _format_run_column_label(run_id, t),
+                    t("heading"): heading_label,
+                    t("time_conformity_interval"): interval_row["interval_label"],
+                    "_interval_start": interval_row["interval_start"],
+                    "_interval_end": interval_row["interval_end"],
+                    "_time_s": interval_row["time_s"],
+                }
+            )
+
+    if not detailed_rows:
+        st.warning(t("time_conformity_no_interval_data"))
+        return
+
+    detailed_df = pd.DataFrame(detailed_rows)
+    interval_stats = (
+        detailed_df.groupby(
+            [t("time_conformity_interval"), "_interval_start", "_interval_end"],
+            as_index=False,
+        )["_time_s"]
+        .agg(["mean", "min", "max", "count"])
+        .reset_index()
+        .rename(
+            columns={
+                "mean": "_mean_time_s",
+                "min": "_min_time_s",
+                "max": "_max_time_s",
+                "count": "_run_count",
+            }
+        )
+    )
+    interval_stats["_spread_s"] = (
+        interval_stats["_max_time_s"] - interval_stats["_min_time_s"]
+    )
+
+    detailed_df = detailed_df.merge(
+        interval_stats[
+            [
+                t("time_conformity_interval"),
+                "_interval_start",
+                "_interval_end",
+                "_mean_time_s",
+            ]
+        ],
+        on=[t("time_conformity_interval"), "_interval_start", "_interval_end"],
+        how="left",
+    )
+    detailed_df["_deviation_s"] = detailed_df["_time_s"] - detailed_df["_mean_time_s"]
+    detailed_df["_deviation_pct"] = np.where(
+        np.abs(detailed_df["_mean_time_s"]) > 1e-9,
+        (detailed_df["_deviation_s"] / detailed_df["_mean_time_s"]) * 100.0,
+        np.nan,
+    )
+    detailed_df["_is_non_conforming"] = (
+        np.abs(detailed_df["_deviation_pct"]) > float(tolerance_pct)
+    )
+
+    interval_stats = interval_stats.sort_values(
+        by=["_interval_start", "_interval_end"],
+        ascending=[False, False],
+    )
+    detailed_df = detailed_df.sort_values(
+        by=["_interval_start", "_interval_end", t("run_id")],
+        ascending=[False, False, True],
+        key=lambda col: col.map(_run_sort_key) if col.name == t("run_id") else col,
+    )
+
+    interval_non_conforming = (
+        detailed_df.groupby(
+            [t("time_conformity_interval"), "_interval_start", "_interval_end"],
+            as_index=False,
+        )
+        .agg(
+            _max_deviation_pct=("_deviation_pct", lambda values: float(np.nanmax(np.abs(values))) if len(values) else np.nan),
+            _non_conforming_count=("_is_non_conforming", "sum"),
+        )
+    )
+    interval_cv = (
+        detailed_df.groupby(
+            [t("time_conformity_interval"), "_interval_start", "_interval_end"],
+            as_index=False,
+        )["_time_s"]
+        .agg(lambda values: float((np.std(values, ddof=1) / np.mean(values)) * 100.0) if len(values) > 1 and abs(np.mean(values)) > 1e-9 else 0.0)
+        .rename(columns={"_time_s": "_cv_pct"})
+    )
+
+    interval_stats = interval_stats.merge(
+        interval_cv,
+        on=[t("time_conformity_interval"), "_interval_start", "_interval_end"],
+        how="left",
+    ).merge(
+        interval_non_conforming,
+        on=[t("time_conformity_interval"), "_interval_start", "_interval_end"],
+        how="left",
+    )
+
+    interval_stats["_non_conforming_count"] = (
+        interval_stats["_non_conforming_count"].fillna(0).astype(int)
+    )
+
+    run_labels = {
+        run_id: _format_run_column_label(run_id, t)
+        for run_id in sorted(run_ids, key=_run_sort_key)
+    }
+    matrix_df = (
+        detailed_df.pivot_table(
+            index=[t("time_conformity_interval"), "_interval_start", "_interval_end"],
+            columns="_run_label",
+            values="_time_s",
+            aggfunc="first",
+        )
+        .reset_index()
+        .sort_values(by=["_interval_start", "_interval_end"], ascending=[False, False])
+    )
+    matrix_status_df = (
+        detailed_df.pivot_table(
+            index=[t("time_conformity_interval"), "_interval_start", "_interval_end"],
+            columns="_run_label",
+            values="_is_non_conforming",
+            aggfunc="first",
+        )
+        .reset_index()
+        .sort_values(by=["_interval_start", "_interval_end"], ascending=[False, False])
+    )
+    ordered_run_columns = [
+        run_labels[run_id]
+        for run_id in sorted(run_ids, key=_run_sort_key)
+        if run_labels[run_id] in matrix_df.columns
+    ]
+    matrix_display = matrix_df[
+        [t("time_conformity_interval")] + ordered_run_columns
+    ].copy()
+    for column in ordered_run_columns:
+        matrix_display[column] = matrix_display[column].map(
+            lambda value: f"{value:.2f} s" if pd.notna(value) else ""
+        )
+    matrix_status_display = matrix_status_df[
+        [t("time_conformity_interval")] + ordered_run_columns
+    ].copy()
+    for column in ordered_run_columns:
+        matrix_status_display[column] = (
+            matrix_status_display[column].fillna(False).astype(bool)
+        )
+
+    def _highlight_non_conforming_cells(_):
+        styles = pd.DataFrame(
+            "",
+            index=matrix_display.index,
+            columns=matrix_display.columns,
+        )
+        for column in ordered_run_columns:
+            non_conforming_mask = matrix_status_display[column]
+            styles.loc[non_conforming_mask, column] = (
+                "background-color: #902626; color: #ffffff;"
+            )
+        return styles
+
+    matrix_styler = (
+        matrix_display.style
+        .apply(_highlight_non_conforming_cells, axis=None)
+        .hide(axis="index")
+    )
+
+    total_non_conforming = int(detailed_df["_is_non_conforming"].sum())
+    intervals_with_non_conforming = int(
+        (interval_stats["_non_conforming_count"] > 0).sum()
+    )
+
+    metric_col1, metric_col2, metric_col3 = st.columns(3)
+    with metric_col1:
+        st.metric(t("runs_detected"), len(run_ids))
+    with metric_col2:
+        st.metric(t("time_conformity_intervals_count"), len(interval_stats))
+    with metric_col3:
+        st.metric(t("time_conformity_non_conforming_runs"), total_non_conforming)
+
+    metric_col4, metric_col5 = st.columns(2)
+    with metric_col4:
+        st.metric(t("time_conformity_records_count"), len(detailed_df))
+    with metric_col5:
+        st.metric(
+            t("time_conformity_non_conforming_intervals"),
+            intervals_with_non_conforming,
+        )
+
+    if skipped_runs:
+        skipped_str = ", ".join(
+            str(run_id) for run_id in sorted(skipped_runs, key=_run_sort_key)
+        )
+        st.caption(t("time_conformity_skipped_runs", runs=skipped_str))
+
+    st.markdown("---")
+    st.subheader(t("time_conformity_matrix"))
+    st.dataframe(matrix_styler, use_container_width=True)
+
+    st.markdown("---")
+    st.subheader(t("time_conformity_summary"))
+
+    summary_display = interval_stats[
+        [
+            t("time_conformity_interval"),
+            "_run_count",
+            "_mean_time_s",
+            "_min_time_s",
+            "_max_time_s",
+            "_cv_pct",
+            "_max_deviation_pct",
+            "_non_conforming_count",
+        ]
+    ].rename(
+        columns={
+            "_run_count": t("time_conformity_runs_count"),
+            "_mean_time_s": t("time_conformity_mean_time"),
+            "_min_time_s": t("time_conformity_min_time"),
+            "_max_time_s": t("time_conformity_max_time"),
+            "_cv_pct": t("time_conformity_cv_pct"),
+            "_max_deviation_pct": t("time_conformity_max_deviation_pct"),
+            "_non_conforming_count": t("time_conformity_non_conforming_count"),
+        }
+    ).copy()
+
+    for column in (
+        t("time_conformity_mean_time"),
+        t("time_conformity_min_time"),
+        t("time_conformity_max_time"),
+        t("time_conformity_cv_pct"),
+        t("time_conformity_max_deviation_pct"),
+    ):
+        summary_display[column] = summary_display[column].map(
+            lambda value: round(value, 3)
+        )
+
+    st.dataframe(summary_display, use_container_width=True, hide_index=True)
+
+
 def render(t):
     """Renderiza a página de análise de pares."""
 
@@ -33,10 +456,11 @@ def render(t):
         st.warning(t("error_no_mass"))
         return
 
-    subtab_calc, subtab_graf, subtab_sim = st.tabs([
+    subtab_calc, subtab_graf, subtab_sim, subtab_conf = st.tabs([
         t('pair_calculations'),
-        "Gráficos",
-        "Simulação",
+        t("pair_analysis_graphs"),
+        t("pair_analysis_simulation"),
+        t("pair_time_conformity_tab"),
     ])
 
     with subtab_calc:
@@ -60,6 +484,9 @@ def render(t):
 
     with subtab_sim:
         render_simulation(t)
+
+    with subtab_conf:
+        render_time_conformity_analysis(t)
 
 
 def render_traditional_pair_selection(t):

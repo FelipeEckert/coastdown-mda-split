@@ -31,20 +31,18 @@ def render(t):
     col1, col2 = st.columns(2)
     
     with col1:
-        vehicle_model = st.text_input(
+        st.text_input(
             t("vehicle_model"),
-            value=st.session_state.vehicle_info.get("model", ""),
             key="vehicle_model_input"
         )
-        st.session_state.vehicle_info["model"] = vehicle_model
+        st.session_state.vehicle_info["model"] = st.session_state.vehicle_model_input
     
     with col2:
-        test_date = st.date_input(
+        st.date_input(
             t("test_date"),
-            value=st.session_state.vehicle_info.get("test_date", None),
             key="test_date_input"
         )
-        st.session_state.vehicle_info["test_date"] = test_date
+        st.session_state.vehicle_info["test_date"] = st.session_state.test_date_input
     
     st.markdown("---")
     
