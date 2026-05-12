@@ -4,8 +4,6 @@
 
 ## Template
 
-
-
 ### Data: YYYY-MM-DD
 
 ### Contexto:
@@ -587,3 +585,52 @@ verificar se o valor visível na tela está vindo de uma widget key separada. Se
 o widget usa `key=` fixa e essa key não for isolada por teste, a interface pode
 recontaminar o estado restaurado e parecer "global", mesmo quando o dicionário
 de dados já está correto.
+
+---
+
+## 2026-05-12 - Editar Teste Existente: Validar Antes, Invalidar Depois
+
+### Contexto:
+Implementacao do fluxo para editar um teste ja criado a partir do card da
+sidebar, permitindo alterar nome, substituir CSV, adicionar/substituir meteo
+e remover meteo atual sem precisar excluir e recriar o teste.
+
+### Problema:
+Editar arquivos de um teste existente toca em estado sensivel:
+- trocar CSV invalida coeficientes individuais, pares, selecoes e resultados;
+- trocar/remover meteo invalida correcoes climaticas, pares e resultados;
+- `current_pair_results` e `excel_buffer` eram estados auxiliares globais e
+  poderiam sobreviver indevidamente apos uma edicao;
+- se um novo arquivo fosse invalido, nao poderia apagar dados antigos;
+- `st.dialog` podia reabrir em reruns globais se `edit_test_id` ficasse preso.
+
+### Solucao:
+- criar helpers de carregamento temporario para CSV e meteo, reutilizando
+  `carregar_dados_csv_robusto()` e `read_weather_station_csv()`;
+- carregar novos arquivos em variaveis temporarias e so substituir o teste
+  depois que todos os arquivos fossem validados;
+- preservar identidade e dados seguros do teste (`name`, `vehicle_info`, massa,
+  modelo/data, metodo e velocidades de referencia);
+- limpar somente os derivados afetados pela mudanca:
+  - CSV: `individual_coeffs`, `calculated_pairs`, selecoes, resultados,
+    algoritmo, par corrente, Excel e `vehicle_data_complete`;
+  - meteo: `calculated_pairs`, selecoes, resultados, algoritmo, par corrente e Excel;
+- adicionar `csv_test_date`, `current_pair_results` e `excel_buffer` ao estado
+  por teste para manter isolamento multi-teste;
+- usar `on_dismiss=_close_edit_test_dialog` no `st.dialog` e limpar o estado
+  de edicao antes de reruns de idioma/tamanho de fonte.
+
+### Licao:
+Em fluxos de edicao de arquivos, nunca altere o teste atual antes de validar
+os novos inputs. A ordem correta e:
+1. salvar estado ativo;
+2. copiar o dict do teste;
+3. validar novos arquivos em temporarios;
+4. aplicar alteracoes na copia;
+5. invalidar apenas os derivados dependentes;
+6. substituir o teste e recarregar o estado ativo.
+
+Em Streamlit, todo dialog controlado por flag no `session_state` precisa ter
+um caminho claro para limpar essa flag em salvar, cancelar, dismiss e reruns
+globais. Caso contrario, mudar idioma/fonte ou qualquer widget global pode
+reabrir um modal antigo inesperadamente.

@@ -561,6 +561,14 @@ TRANSLATIONS = {
         "pt": "Novo Teste",
         "en": "New Test"
     },
+    "edit_test": {
+        "pt": "Editar",
+        "en": "Edit"
+    },
+    "edit_test_title": {
+        "pt": "Editar teste",
+        "en": "Edit test"
+    },
     "test_name": {
         "pt": "Nome do Teste",
         "en": "Test Name"
@@ -608,6 +616,66 @@ TRANSLATIONS = {
     "confirm_remove_title": {
         "pt": "Confirmar remoção",
         "en": "Confirm removal"
+    },
+    "current_csv": {
+        "pt": "CSV atual",
+        "en": "Current CSV"
+    },
+    "current_meteo": {
+        "pt": "Meteo atual",
+        "en": "Current meteo"
+    },
+    "no_meteo_file": {
+        "pt": "Sem arquivo meteorológico",
+        "en": "No meteorological file"
+    },
+    "replace_csv": {
+        "pt": "Substituir CSV",
+        "en": "Replace CSV"
+    },
+    "replace_meteo": {
+        "pt": "Substituir meteo",
+        "en": "Replace meteo"
+    },
+    "add_meteo": {
+        "pt": "Adicionar meteo",
+        "en": "Add meteo"
+    },
+    "remove_meteo": {
+        "pt": "Remover meteo atual",
+        "en": "Remove current meteo"
+    },
+    "save_changes": {
+        "pt": "Salvar alterações",
+        "en": "Save changes"
+    },
+    "no_changes_detected": {
+        "pt": "Nenhuma alteração detectada.",
+        "en": "No changes detected."
+    },
+    "warning_replace_csv": {
+        "pt": "⚠️ Substituir o CSV apagará cálculos, pares, seleções e resultados deste teste.",
+        "en": "⚠️ Replacing the CSV will clear calculations, pairs, selections, and results for this test."
+    },
+    "warning_replace_meteo": {
+        "pt": "⚠️ Alterar o arquivo meteorológico invalidará correções climáticas, pares calculados e resultados finais.",
+        "en": "⚠️ Changing the meteorological file will invalidate climate corrections, calculated pairs, and final results."
+    },
+    "confirm_replace_csv_understand": {
+        "pt": "Entendo que substituir o CSV apagará cálculos, pares, seleções e resultados.",
+        "en": "I understand that replacing the CSV will clear calculations, pairs, selections, and results."
+    },
+    "confirm_replace_meteo_understand": {
+        "pt": "Entendo que alterar o meteo exigirá recalcular correções e resultados.",
+        "en": "I understand that changing the meteo will require recalculating corrections and results."
+    },
+    "invalid_csv_file": {
+        "pt": "Nenhum dado válido foi encontrado no CSV informado.",
+        "en": "No valid data was found in the provided CSV."
+    },
+    "invalid_meteo_file": {
+        "pt": "Nenhum dado meteorológico válido foi encontrado no arquivo informado.",
+        "en": "No valid meteorological data was found in the provided file."
     },
     "fixed_conditions": {
         "pt": "Condições Fixas (sem arquivo meteo)",

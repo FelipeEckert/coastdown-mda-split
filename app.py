@@ -309,6 +309,57 @@ def apply_font_size_css(font_size_option):
         padding: 0.08rem 0.42rem !important;
         line-height: 1 !important;
         margin-top: 0 !important;
+        background-color: #8a2121 !important;
+        border-color: #8a2121 !important;
+        color: #ffffff !important;
+    }}
+
+    section[data-testid="stSidebar"] [class*="st-key-delete_btn_"] [data-testid="stButton"] button:hover {{
+        background-color: #751b1b !important;
+        border-color: #751b1b !important;
+        color: #ffffff !important;
+    }}
+
+    section[data-testid="stSidebar"] [class*="st-key-sel_"] [data-testid="stButton"] button {{
+        background-color: #46874e !important;
+        border-color: #46874e !important;
+        color: #ffffff !important;
+    }}
+
+    section[data-testid="stSidebar"] [class*="st-key-sel_"] [data-testid="stButton"] button:hover {{
+        background-color: #3d7544 !important;
+        border-color: #3d7544 !important;
+        color: #ffffff !important;
+    }}
+
+    section[data-testid="stSidebar"] [class*="st-key-edit_btn_"] {{
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+    }}
+
+    section[data-testid="stSidebar"] [class*="st-key-edit_btn_"] > div {{
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+    }}
+
+    section[data-testid="stSidebar"] [class*="st-key-edit_btn_"] [data-testid="stButton"] {{
+        width: auto;
+        margin-left: auto;
+    }}
+
+    section[data-testid="stSidebar"] [class*="st-key-edit_btn_"] [data-testid="stButton"] button {{
+        width: auto !important;
+        min-width: 0 !important;
+        height: 1.8rem !important;
+        min-height: 1.8rem !important;
+        padding: 0.04rem 0.38rem !important;
+        line-height: 1 !important;
+        font-size: var(--mda-font-small) !important;
+        margin-top: 0.3rem !important;
+        white-space: nowrap !important;
     }}
 
 </style>
@@ -329,6 +380,7 @@ TEST_STATE_KEYS = [
     # Dados processados
     "all_run_data", "all_run_data_alta", "all_run_data_baixa",
     "weather_data", "weather_data_split",
+    "csv_test_date",
     # Dados do veículo
     "vehicle_info", "total_mass", "mass_input_mode",
     "vehicle_model_input", "test_date_input",
@@ -347,6 +399,8 @@ TEST_STATE_KEYS = [
     "current_page", "pair_analysis_subtab",
     # Alertas
     "date_mismatch_warning",
+    # Estado auxiliar do teste
+    "current_pair_results", "excel_buffer",
 ]
 
 # Valores padrão para um teste novo/vazio
@@ -364,6 +418,7 @@ TEST_DEFAULTS = {
     "all_run_data_baixa": {},
     "weather_data": None,
     "weather_data_split": None,
+    "csv_test_date": None,
     "vehicle_info": {},
     "total_mass": 0.0,
     "mass_input_mode": "total",
@@ -386,6 +441,8 @@ TEST_DEFAULTS = {
     "current_page": "2_dados_veiculo",
     "pair_analysis_subtab": "calculos",
     "date_mismatch_warning": None,
+    "current_pair_results": None,
+    "excel_buffer": None,
 }
 
 
@@ -408,6 +465,12 @@ def init_session_state():
         st.session_state.active_test_id = None
     if "delete_confirm_id" not in st.session_state:
         st.session_state.delete_confirm_id = None
+    if "edit_test_id" not in st.session_state:
+        st.session_state.edit_test_id = None
+    if "edit_test_dialog_context" not in st.session_state:
+        st.session_state.edit_test_dialog_context = None
+    if "edit_test_dialog_token" not in st.session_state:
+        st.session_state.edit_test_dialog_token = None
 
     # Flat keys de compatibilidade com páginas 2-6
     for key, default in TEST_DEFAULTS.items():
@@ -490,6 +553,156 @@ def delete_test(test_id):
     st.session_state.delete_confirm_id = None
 
 
+def _close_edit_test_dialog():
+    """Fecha o modal de edição e limpa seu estado auxiliar."""
+    st.session_state.edit_test_id = None
+    st.session_state.edit_test_dialog_context = None
+    st.session_state.edit_test_dialog_token = None
+
+
+def _prepare_edit_test_dialog_state(test_id):
+    """Gera token novo quando um teste é aberto no modal de edição."""
+    if st.session_state.get("edit_test_dialog_context") != test_id:
+        st.session_state.edit_test_dialog_context = test_id
+        st.session_state.edit_test_dialog_token = uuid.uuid4().hex[:8]
+
+    return st.session_state.get("edit_test_dialog_token") or uuid.uuid4().hex[:8]
+
+
+def _build_date_mismatch_warning(csv_date, weather_data, t):
+    """Retorna alerta de data incompatível entre CSV e meteo, se necessário."""
+    if not weather_data or csv_date is None:
+        return None
+
+    meteo_date = weather_data[0]["timestamp"].date()
+    if abs((meteo_date - csv_date).days) > 1:
+        return t(
+            "date_mismatch_warning",
+            data_csv=csv_date.strftime("%d/%m/%Y"),
+            data_meteo=meteo_date.strftime("%d/%m/%Y")
+        )
+
+    return None
+
+
+def _load_uploaded_csv_file(uploaded_csv, t):
+    """Valida e carrega um CSV de coastdown em estruturas temporárias."""
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=".csv", delete=False) as tmp:
+        tmp.write(uploaded_csv.getvalue())
+        tmp_path = tmp.name
+
+    try:
+        df_raw, all_run_data, csv_date = carregar_dados_csv_robusto(tmp_path)
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except Exception:
+            pass
+
+    if df_raw is None or not all_run_data:
+        raise ValueError(t("invalid_csv_file"))
+
+    return df_raw, all_run_data, csv_date
+
+
+def _load_uploaded_meteo_file(uploaded_meteo, t):
+    """Valida e carrega um CSV meteorológico em estrutura temporária."""
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=".csv", delete=False) as tmp:
+        tmp.write(uploaded_meteo.getvalue())
+        tmp_path = tmp.name
+
+    try:
+        weather_data = read_weather_station_csv(tmp_path)
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except Exception:
+            pass
+
+    if not weather_data:
+        raise ValueError(t("invalid_meteo_file"))
+
+    return weather_data
+
+
+def _clear_test_data_for_csv_change(test_data):
+    """Limpa estruturas derivadas que dependem diretamente do CSV."""
+    test_data["individual_coeffs"] = {}
+    test_data["vehicle_data_complete"] = False
+    _clear_test_data_for_meteo_change(test_data)
+
+
+def _clear_test_data_for_meteo_change(test_data):
+    """Limpa estruturas derivadas que dependem de correções climáticas e pares."""
+    test_data["calculated_pairs"] = {}
+    test_data["pares_finais_selecionados"] = []
+    test_data["final_results"] = {}
+    test_data["algorithm_results"] = None
+    test_data["pairs_calculated"] = False
+    test_data["current_pair_results"] = None
+    test_data["excel_buffer"] = None
+
+
+def _apply_test_edits(test_id, new_name, uploaded_csv, uploaded_meteo, remove_meteo, t):
+    """Aplica edição segura do teste somente após validar novos arquivos."""
+    with st.spinner(t("loading_files")):
+        try:
+            save_active_test_state()
+
+            original_test = st.session_state.tests.get(test_id)
+            if original_test is None:
+                st.error(t("file_load_error"))
+                return
+
+            updated_test = copy.deepcopy(original_test)
+            updated_test["name"] = new_name
+
+            csv_changed = uploaded_csv is not None
+            meteo_removed = bool(remove_meteo and original_test.get("meteo_csv_path"))
+            meteo_changed = uploaded_meteo is not None or meteo_removed
+
+            if csv_changed:
+                df_raw, all_run_data, csv_date = _load_uploaded_csv_file(uploaded_csv, t)
+                updated_test["df_raw"] = df_raw
+                updated_test["all_run_data"] = all_run_data
+                updated_test["coastdown_csv_path"] = uploaded_csv.name
+                updated_test["data_info"] = {
+                    "filename": uploaded_csv.name,
+                    "rows": len(df_raw),
+                    "runs": len(all_run_data),
+                }
+                updated_test["csv_test_date"] = csv_date
+                updated_test["data_loaded"] = True
+                _clear_test_data_for_csv_change(updated_test)
+
+            if uploaded_meteo is not None:
+                updated_test["weather_data"] = _load_uploaded_meteo_file(uploaded_meteo, t)
+                updated_test["meteo_csv_path"] = uploaded_meteo.name
+            elif meteo_removed:
+                updated_test["weather_data"] = None
+                updated_test["meteo_csv_path"] = None
+
+            if meteo_changed:
+                _clear_test_data_for_meteo_change(updated_test)
+
+            updated_test["date_mismatch_warning"] = _build_date_mismatch_warning(
+                updated_test.get("csv_test_date"),
+                updated_test.get("weather_data"),
+                t
+            )
+
+            st.session_state.tests[test_id] = updated_test
+
+            if st.session_state.active_test_id == test_id:
+                load_test_state(test_id)
+
+            _close_edit_test_dialog()
+            st.rerun()
+
+        except Exception as e:
+            st.error(f"{t('file_load_error')}: {str(e)}")
+
+
 def confirm_delete_dialog(t):
     """Exibe modal de confirmação para remover um teste."""
     test_id = st.session_state.get("delete_confirm_id")
@@ -526,6 +739,125 @@ def confirm_delete_dialog(t):
     _confirm_delete_dialog()
 
 
+def edit_test_dialog(t):
+    """Exibe modal para editar nome e arquivos de um teste existente."""
+    save_active_test_state()
+
+    test_id = st.session_state.get("edit_test_id")
+    if not test_id:
+        st.rerun()
+
+    test_data = st.session_state.tests.get(test_id)
+    if test_data is None:
+        _close_edit_test_dialog()
+        st.rerun()
+
+    dialog_token = _prepare_edit_test_dialog_state(test_id)
+    current_name = test_data.get("name", test_id)
+    current_csv = test_data.get("coastdown_csv_path") or "N/A"
+    current_meteo = test_data.get("meteo_csv_path") or t("no_meteo_file")
+    has_current_meteo = bool(test_data.get("meteo_csv_path"))
+
+    @st.dialog(t("edit_test_title"), width="large", on_dismiss=_close_edit_test_dialog)
+    def _edit_test_dialog():
+        st.write(f"**{t('test_name')}:** {current_name}")
+        st.write(f"**{t('current_csv')}:** {current_csv}")
+        st.write(f"**{t('current_meteo')}:** {current_meteo}")
+
+        st.markdown("---")
+
+        updated_name = st.text_input(
+            t("test_name"),
+            value=current_name,
+            key=f"edit_test_name_{dialog_token}"
+        )
+
+        st.markdown("---")
+
+        uploaded_csv = st.file_uploader(
+            t("replace_csv"),
+            type=["csv"],
+            key=f"edit_test_csv_{dialog_token}"
+        )
+
+        meteo_label = t("replace_meteo") if has_current_meteo else t("add_meteo")
+        uploaded_meteo = st.file_uploader(
+            meteo_label,
+            type=["csv"],
+            key=f"edit_test_meteo_{dialog_token}"
+        )
+
+        remove_meteo = False
+        if has_current_meteo:
+            remove_meteo = st.checkbox(
+                t("remove_meteo"),
+                key=f"edit_test_remove_meteo_{dialog_token}",
+                disabled=uploaded_meteo is not None
+            )
+
+        csv_changed = uploaded_csv is not None
+        meteo_changed = uploaded_meteo is not None or remove_meteo
+        name_changed = updated_name.strip() != current_name
+
+        if csv_changed:
+            st.warning(t("warning_replace_csv"))
+
+        if meteo_changed:
+            st.warning(t("warning_replace_meteo"))
+
+        confirm_csv = True
+        confirm_meteo = True
+
+        if csv_changed:
+            confirm_csv = st.checkbox(
+                t("confirm_replace_csv_understand"),
+                key=f"edit_test_confirm_csv_{dialog_token}"
+            )
+
+        if meteo_changed:
+            confirm_meteo = st.checkbox(
+                t("confirm_replace_meteo_understand"),
+                key=f"edit_test_confirm_meteo_{dialog_token}"
+            )
+
+        has_changes = name_changed or csv_changed or meteo_changed
+        valid_name = bool(updated_name.strip())
+        save_disabled = (not has_changes) or (not valid_name) or (not confirm_csv) or (not confirm_meteo)
+
+        if not has_changes:
+            st.info(t("no_changes_detected"))
+
+        st.markdown("---")
+
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button(
+                t("cancel"),
+                key=f"edit_test_cancel_{dialog_token}",
+                use_container_width=True
+            ):
+                _close_edit_test_dialog()
+                st.rerun()
+        with c2:
+            if st.button(
+                t("save_changes"),
+                key=f"edit_test_save_{dialog_token}",
+                type="primary",
+                use_container_width=True,
+                disabled=save_disabled
+            ):
+                _apply_test_edits(
+                    test_id,
+                    updated_name.strip(),
+                    uploaded_csv,
+                    uploaded_meteo,
+                    remove_meteo,
+                    t
+                )
+
+    _edit_test_dialog()
+
+
 # ===== RENDERIZAÇÃO DA SIDEBAR =====
 
 def render_sidebar(t):
@@ -552,6 +884,7 @@ def render_sidebar(t):
     )
     new_lang = lang_options[selected_display]
     if new_lang != st.session_state.language:
+        _close_edit_test_dialog()
         st.session_state.language = new_lang
         st.rerun()
 
@@ -569,6 +902,7 @@ def render_sidebar(t):
     )
     new_font = font_values[font_labels.index(selected_font_label)]
     if new_font != current_font:
+        _close_edit_test_dialog()
         st.session_state.font_size = new_font
         st.rerun()
 
@@ -627,13 +961,16 @@ def render_test_card(test_id, test, t):
                 if st.button(t("switch_test"), key=f"sel_{test_id}"):
                     activate_test(test_id)
                     st.rerun()
-
             st.caption(status_text)
 
         with col_delete:
             with st.container(key=f"delete_btn_{test_id}"):
                 if st.button("✕", key=f"del_{test_id}", help=t("remove_test")):
                     st.session_state.delete_confirm_id = test_id
+                    st.rerun()
+            with st.container(key=f"edit_btn_{test_id}"):
+                if st.button("🛠", key=f"edit_{test_id}", help=t("edit_test_title")):
+                    st.session_state.edit_test_id = test_id
                     st.rerun()
 
     st.markdown("")
@@ -794,49 +1131,16 @@ def _process_new_test(name, uploaded_csv, uploaded_meteo, fixed_temp, fixed_pres
     with st.spinner(t("loading_files")):
         try:
             # Processa arquivo CSV de coastdown
-            with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as tmp:
-                tmp.write(uploaded_csv.getvalue())
-                tmp_path = tmp.name
-
-            df_raw, all_run_data, csv_date = carregar_dados_csv_robusto(tmp_path)
-
-            try:
-                os.unlink(tmp_path)
-            except Exception:
-                pass
-
-            if df_raw is None or not all_run_data:
-                st.error(t("file_load_error"))
-                return
+            df_raw, all_run_data, csv_date = _load_uploaded_csv_file(uploaded_csv, t)
 
             # Processa arquivo meteorológico se fornecido
             weather_data = None
             meteo_name = None
             date_mismatch_warning = None
             if uploaded_meteo is not None:
-                with tempfile.NamedTemporaryFile(
-                    mode='wb', suffix='.csv', delete=False
-                ) as tmp_m:
-                    tmp_m.write(uploaded_meteo.getvalue())
-                    tmp_m_path = tmp_m.name
-
-                weather_data = read_weather_station_csv(tmp_m_path)
+                weather_data = _load_uploaded_meteo_file(uploaded_meteo, t)
                 meteo_name = uploaded_meteo.name
-
-                try:
-                    os.unlink(tmp_m_path)
-                except Exception:
-                    pass
-
-                # Verifica se as datas do CSV e do meteo coincidem
-                if weather_data and csv_date is not None:
-                    meteo_date = weather_data[0]['timestamp'].date()
-                    if abs((meteo_date - csv_date).days) > 1:
-                        date_mismatch_warning = t(
-                            "date_mismatch_warning",
-                            data_csv=csv_date.strftime("%d/%m/%Y"),
-                            data_meteo=meteo_date.strftime("%d/%m/%Y")
-                        )
+                date_mismatch_warning = _build_date_mismatch_warning(csv_date, weather_data, t)
 
             # Salva estado do teste ativo atual (se houver)
             save_active_test_state()
@@ -862,6 +1166,7 @@ def _process_new_test(name, uploaded_csv, uploaded_meteo, fixed_temp, fixed_pres
                 # Dados meteorológicos
                 "weather_data": weather_data,
                 "meteo_csv_path": meteo_name,
+                "csv_test_date": csv_date,
                 # Alerta de data incompatível (None se datas coincidem)
                 "date_mismatch_warning": date_mismatch_warning,
                 # Começa pela página de dados do veículo
@@ -939,6 +1244,9 @@ with st.sidebar:
 
 if st.session_state.get("delete_confirm_id"):
     confirm_delete_dialog(t)
+
+if st.session_state.get("edit_test_id"):
+    edit_test_dialog(t)
 
 # Renderiza área principal conforme estado
 if not st.session_state.active_test_id:
