@@ -401,6 +401,18 @@ TRANSLATIONS = {
         "pt": "Calcular Resultados Finais",
         "en": "Calculate Final Results"
     },
+    "select_all_pairs": {
+        "pt": "Selecionar todos",
+        "en": "Select all"
+    },
+    "deselect_all_pairs": {
+        "pt": "Desmarcar todos",
+        "en": "Deselect all"
+    },
+    "clear_all_pairs": {
+        "pt": "Limpar tudo",
+        "en": "Clear all"
+    },
     "remove_pair": {
         "pt": "Remover Par",
         "en": "Remove Pair"

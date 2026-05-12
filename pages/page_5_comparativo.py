@@ -21,6 +21,44 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from core.calculations import calcular_energia
 
 
+def _selection_widget_key(pair_id: str) -> str:
+    """Retorna a key do checkbox de selecao do par."""
+    return f"sel_{pair_id}"
+
+
+def _reset_final_outputs():
+    """Limpa resultados finais que ficam invalidos quando a selecao muda."""
+    st.session_state.pares_finais_selecionados = []
+    st.session_state.final_results = {}
+    st.session_state.excel_buffer = None
+
+
+def _set_pair_selected(pair_id: str, selected: bool):
+    """Sincroniza a selecao real do par e o estado do checkbox."""
+    if pair_id not in st.session_state.calculated_pairs:
+        return
+
+    st.session_state.calculated_pairs[pair_id]["selected"] = selected
+    st.session_state[_selection_widget_key(pair_id)] = selected
+
+
+def _clear_pair_widget_state(pair_ids):
+    """Remove estados de widgets dos pares que sairam da tabela."""
+    for pair_id in pair_ids:
+        st.session_state.pop(_selection_widget_key(pair_id), None)
+
+
+def _clear_all_final_comparison_pairs():
+    """Remove todos os pares do Comparativo Final e limpa derivados."""
+    pair_ids = list(st.session_state.calculated_pairs.keys())
+    _clear_pair_widget_state(pair_ids)
+    st.session_state.calculated_pairs = {}
+    st.session_state.pairs_calculated = False
+    st.session_state.algorithm_results = None
+    st.session_state.pop("batch_action", None)
+    _reset_final_outputs()
+
+
 def normalize_pair(pair: dict) -> dict:
     """
     Retorna cópia do par com chaves canônicas resolvidas.
@@ -97,47 +135,31 @@ def render(t):
         st.warning(t("error_no_pairs"))
         return
     
-    # ===== AÇÕES EM LOTE (Selecionar/Desselecionar) =====
+    # ===== ACOES EM LOTE =====
     st.subheader(t('auto_select_best'))
-    
-    # Inicializa flag de ação se não existir
-    if "batch_action" not in st.session_state:
-        st.session_state.batch_action = None
-    
+
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        if st.button("✅ Selecionar Todos", use_container_width=True, key="select_all"):
-            st.session_state.batch_action = "select_all"
+        if st.button(f"✅ {t('select_all_pairs')}", use_container_width=True, key="select_all"):
+            for pair_id, pair in st.session_state.calculated_pairs.items():
+                if _is_corrected(pair):
+                    _set_pair_selected(pair_id, True)
+            _reset_final_outputs()
+            st.rerun()
     
     with col2:
-        if st.button("❎ Desselecionar Todos", use_container_width=True, key="deselect_all"):
-            st.session_state.batch_action = "deselect_all"
+        if st.button(f"❎ {t('deselect_all_pairs')}", use_container_width=True, key="deselect_all"):
+            for pair_id, pair in st.session_state.calculated_pairs.items():
+                if _is_corrected(pair):
+                    _set_pair_selected(pair_id, False)
+            _reset_final_outputs()
+            st.rerun()
     
     with col3:
-        if st.button("🔄 Inverter Seleção", use_container_width=True, key="invert_selection"):
-            st.session_state.batch_action = "invert"
-    
-    # Aplica ação em lote ANTES de renderizar checkboxes (apenas pares com correção)
-    if st.session_state.batch_action == "select_all":
-        for pair_id, pair in st.session_state.calculated_pairs.items():
-            if _is_corrected(pair):
-                st.session_state.calculated_pairs[pair_id]["selected"] = True
-        st.session_state.batch_action = None
-        st.rerun()
-    elif st.session_state.batch_action == "deselect_all":
-        for pair_id, pair in st.session_state.calculated_pairs.items():
-            if _is_corrected(pair):
-                st.session_state.calculated_pairs[pair_id]["selected"] = False
-        st.session_state.batch_action = None
-        st.rerun()
-    elif st.session_state.batch_action == "invert":
-        for pair_id, pair in st.session_state.calculated_pairs.items():
-            if _is_corrected(pair):
-                current = st.session_state.calculated_pairs[pair_id].get("selected", False)
-                st.session_state.calculated_pairs[pair_id]["selected"] = not current
-        st.session_state.batch_action = None
-        st.rerun()
+        if st.button(f"🗑️ {t('clear_all_pairs')}", use_container_width=True, key="clear_all_pairs"):
+            _clear_all_final_comparison_pairs()
+            st.rerun()
     
     st.markdown("---")
     
@@ -189,7 +211,7 @@ def render_pairs_selection_table(t):
 
     # Garante que pares sem correção nunca ficam marcados como selecionados
     for pid, _ in uncorrected:
-        st.session_state.calculated_pairs[pid]["selected"] = False
+        _set_pair_selected(pid, False)
 
     col_ratios = [0.5, 0.9, 0.9, 0.9, 1.0, 1.1, 1.1, 0.8, 0.8, 1.0, 0.5]
 
@@ -247,8 +269,14 @@ def render_pairs_selection_table(t):
 
         with row_cols[0]:
             if selectable:
-                sel = st.checkbox("", value=pair.get("selected", False),
-                                  key=f"sel_{pair_id}", label_visibility="collapsed")
+                previous = bool(pair.get("selected", False))
+                widget_key = _selection_widget_key(pair_id)
+                if widget_key not in st.session_state:
+                    st.session_state[widget_key] = previous
+
+                sel = st.checkbox("", key=widget_key, label_visibility="collapsed")
+                if sel != previous:
+                    _reset_final_outputs()
                 st.session_state.calculated_pairs[pair_id]["selected"] = sel
             else:
                 st.markdown(f"<div style='{cell}'>⚠️</div>", unsafe_allow_html=True)
@@ -280,7 +308,12 @@ def render_pairs_selection_table(t):
             st.markdown(f"<div style='{cell}'>{energy_str}</div>", unsafe_allow_html=True)
         with row_cols[10]:
             if st.button("❌", key=f"rem_{pair_id}", help=f"Remover par {pair_id}", use_container_width=True):
+                _clear_pair_widget_state([pair_id])
                 del st.session_state.calculated_pairs[pair_id]
+                if not st.session_state.calculated_pairs:
+                    st.session_state.pairs_calculated = False
+                    st.session_state.algorithm_results = None
+                _reset_final_outputs()
                 st.rerun()
         st.markdown("<hr style='margin:2px 0;'>", unsafe_allow_html=True)
 

@@ -634,3 +634,41 @@ Em Streamlit, todo dialog controlado por flag no `session_state` precisa ter
 um caminho claro para limpar essa flag em salvar, cancelar, dismiss e reruns
 globais. Caso contrario, mudar idioma/fonte ou qualquer widget global pode
 reabrir um modal antigo inesperadamente.
+
+---
+
+## 2026-05-12 - Comparativo Final: Sincronizar Widget Key e Estado Real
+
+### Contexto:
+Correcao dos botoes da tabela de Comparativo Final:
+- `Selecionar todos`;
+- `Desmarcar todos`;
+- substituicao de `Inverter selecao` por `Limpar tudo`.
+
+### Problema:
+A selecao real dos pares era salva em
+`st.session_state.calculated_pairs[pair_id]["selected"]`, mas a tabela tambem
+usava checkboxes com keys fixas `sel_{pair_id}`.
+
+Os botoes atualizavam apenas o dict de dominio. No rerun, o Streamlit mantinha
+o valor antigo da widget key do checkbox e a renderizacao da linha escrevia esse
+valor antigo de volta em `calculated_pairs[pair_id]["selected"]`. O efeito na UI
+era parecer que `Selecionar todos` e `Desselecionar todos` nao faziam nada.
+
+### Solucao:
+- centralizar a key do checkbox em helper (`sel_{pair_id}`);
+- ao selecionar/desmarcar em lote, atualizar tanto
+  `calculated_pairs[pair_id]["selected"]` quanto `st.session_state[sel_key]`;
+- ao mudar selecao, invalidar resultados dependentes:
+  `pares_finais_selecionados`, `final_results` e `excel_buffer`;
+- ao remover/limpar pares, apagar tambem o estado dos checkboxes desses pares;
+- trocar o antigo `Inverter selecao` por `Limpar tudo`, que remove todos os
+  pares do Comparativo Final e reseta derivados como `algorithm_results` e
+  `pairs_calculated`.
+
+### Licao:
+Em Streamlit, quando um widget tem `key=`, essa key tambem e fonte de verdade.
+Se o estado de dominio e a widget key representam a mesma informacao, operacoes
+programaticas precisam sincronizar os dois lados antes do `st.rerun()`. Caso
+contrario, o valor antigo do widget pode recontaminar o estado correto na
+renderizacao seguinte.
