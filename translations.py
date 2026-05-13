@@ -165,6 +165,10 @@ TRANSLATIONS = {
         "pt": "Massa Efetiva (kg)",
         "en": "Effective Mass (kg)"
     },
+    "mass_norm_note": {
+        "pt": "Nota: a norma recomenda considerar 136 kg adicionais referentes a motorista + equipamento.",
+        "en": "Note: the standard recommends considering an additional 136 kg for driver + equipment."
+    },
     "frontal_area": {
         "pt": "Área Frontal (m²)",
         "en": "Frontal Area (m²)"
@@ -172,6 +176,34 @@ TRANSLATIONS = {
     "calculate_coefficients": {
         "pt": "Calcular Coeficientes Individuais",
         "en": "Calculate Individual Coefficients"
+    },
+    "calculate_uncorrected_coefficients": {
+        "pt": "Calcular coeficientes individuais não corrigidos",
+        "en": "Calculate uncorrected individual coefficients"
+    },
+    "calculating_uncorrected_coefficients": {
+        "pt": "Calculando coeficientes individuais não corrigidos...",
+        "en": "Calculating uncorrected individual coefficients..."
+    },
+    "uncorrected_coefficients_success": {
+        "pt": "Coeficientes individuais não corrigidos calculados para {count} runs!",
+        "en": "Uncorrected individual coefficients calculated for {count} runs!"
+    },
+    "individual_uncorrected_coefficients": {
+        "pt": "Coeficientes individuais não corrigidos calculados",
+        "en": "Calculated uncorrected individual coefficients"
+    },
+    "uncorrected_coefficients_note": {
+        "pt": "Estes coeficientes são não corrigidos, antes da correção climática.",
+        "en": "These coefficients are uncorrected, before climate correction."
+    },
+    "individual_f0_coefficient": {
+        "pt": "f'0 (N)",
+        "en": "f'0 (N)"
+    },
+    "individual_f2_coefficient": {
+        "pt": "f'2 (N/(m/s)²)",
+        "en": "f'2 (N/(m/s)²)"
     },
     "proceed_to_pair_analysis": {
         "pt": "Prosseguir para Análise de Pares",

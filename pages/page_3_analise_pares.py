@@ -898,10 +898,10 @@ def render_traditional_pair_selection(t):
                                 <th>Run</th>
                                 <th>T (°C)</th>
                                 <th>P (kPa)</th>
-                                <th>f'0 Corr. (N)</th>
-                                <th>f'2 Corr. (N/(km/h)²)</th>
-                                <th>CV f'0 (%)</th>
-                                <th>CV f'2 (%)</th>
+                                <th>f0 (N)</th>
+                                <th>f2 (N/(km/h)²)</th>
+                                <th>CV f0 (%)</th>
+                                <th>CV f2 (%)</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -938,9 +938,9 @@ def render_traditional_pair_selection(t):
                     
                     # Avisos de CV alto
                     if cv_f0_corr > 10.0:
-                        st.warning(f"⚠️ CV de f'0 ({cv_f0_corr:.2f}%) está acima de 10%!")
+                        st.warning(f"⚠️ CV de f0 ({cv_f0_corr:.2f}%) está acima de 10%!")
                     if cv_f2_corr > 10.0:
-                        st.warning(f"⚠️ CV de f'2 ({cv_f2_corr:.2f}%) está acima de 10%!")
+                        st.warning(f"⚠️ CV de f2 ({cv_f2_corr:.2f}%) está acima de 10%!")
                 
                 # Botão para adicionar ao comparativo - SEMPRE VISÍVEL após cálculo
                 st.markdown("---")
@@ -1197,8 +1197,8 @@ def render_calculated_pairs_table(t):
                 st.markdown("**📊 Coeficientes Corrigidos**")
                 f0_str = f"{f0_corr:.4f}" if isinstance(f0_corr, (int, float)) else str(f0_corr)
                 f2_str = f"{f2_corr:.6f}" if isinstance(f2_corr, (int, float)) else str(f2_corr)
-                st.write(f"f'0: {f0_str} N")
-                st.write(f"f'2: {f2_str}")
+                st.write(f"f0: {f0_str} N")
+                st.write(f"f2: {f2_str} N/(km/h)²")
             
             with col3:
                 st.markdown("**📈 Variações**")
@@ -1206,14 +1206,14 @@ def render_calculated_pairs_table(t):
                 cv_f2_str = f"{cv_f2:.2f}%" if isinstance(cv_f2, (int, float)) else str(cv_f2)
                 
                 if isinstance(cv_f0, (int, float)) and cv_f0 > 10:
-                    st.write(f"CV f'0: :red[{cv_f0_str}] ⚠️")
+                    st.write(f"CV f0: :red[{cv_f0_str}] ⚠️")
                 else:
-                    st.write(f"CV f'0: {cv_f0_str}")
+                    st.write(f"CV f0: {cv_f0_str}")
                 
                 if isinstance(cv_f2, (int, float)) and cv_f2 > 10:
-                    st.write(f"CV f'2: :red[{cv_f2_str}] ⚠️")
+                    st.write(f"CV f2: :red[{cv_f2_str}] ⚠️")
                 else:
-                    st.write(f"CV f'2: {cv_f2_str}")
+                    st.write(f"CV f2: {cv_f2_str}")
             
             with col4:
                 st.markdown("**⚡ Energia**")

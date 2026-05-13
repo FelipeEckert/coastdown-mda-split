@@ -55,6 +55,7 @@ def render(t):
         horizontal=True,
         label_visibility="collapsed"
     )
+    st.caption(t("mass_norm_note"))
     
     # Determina o modo baseado na seleção
     if mass_mode == t("total_mass_direct"):
@@ -87,9 +88,9 @@ def render(t):
     st.markdown("---")
     
     # ===== BOTÕES DE AÇÃO =====
-    if st.button(f"🔢 {t('calculate_coefficients')}", type="primary"):
+    if st.button(f"🔢 {t('calculate_uncorrected_coefficients')}", type="primary"):
         if st.session_state.total_mass > 0:
-            with st.spinner("Calculando coeficientes individuais..."):
+            with st.spinner(t("calculating_uncorrected_coefficients")):
                 try:
                     individual_coeffs = calcular_coeficientes_individuais(
                         st.session_state.all_run_data,
@@ -99,7 +100,7 @@ def render(t):
                     st.session_state.individual_coeffs = individual_coeffs
                     st.session_state.vehicle_data_complete = True
 
-                    st.success(f"✅ Coeficientes calculados para {len(individual_coeffs)} runs!")
+                    st.success(f"✅ {t('uncorrected_coefficients_success', count=len(individual_coeffs))}")
 
                 except Exception as e:
                     st.error(f"{t('error_calculation')}: {str(e)}")
@@ -109,7 +110,8 @@ def render(t):
     # ===== MOSTRA COEFICIENTES CALCULADOS =====
     if st.session_state.individual_coeffs:
         st.markdown("---")
-        st.subheader(f"📈 Coeficientes Individuais Calculados")
+        st.subheader(f"📈 {t('individual_uncorrected_coefficients')}")
+        st.caption(t("uncorrected_coefficients_note"))
         
         import pandas as pd
         
@@ -118,8 +120,8 @@ def render(t):
             coeffs_data.append({
                 t("run_id"): run_id,
                 t("heading"): coeffs.get("heading", "N/A"),
-                t("f0_coefficient"): f"{coeffs.get('f0', 0):.4f}",
-                t("f2_coefficient"): f"{coeffs.get('f2', 0):.6f}",
+                t("individual_f0_coefficient"): f"{coeffs.get('f0', 0):.4f}",
+                t("individual_f2_coefficient"): f"{coeffs.get('f2', 0):.6f}",
             })
         
         df_coeffs = pd.DataFrame(coeffs_data)
