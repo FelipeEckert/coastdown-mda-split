@@ -672,3 +672,47 @@ Se o estado de dominio e a widget key representam a mesma informacao, operacoes
 programaticas precisam sincronizar os dois lados antes do `st.rerun()`. Caso
 contrario, o valor antigo do widget pode recontaminar o estado correto na
 renderizacao seguinte.
+
+---
+
+## 2026-05-13 - Sincronizacao Flexivel CSV/Meteo: Estado Parcial
+
+### Contexto:
+Implementacao parcial para permitir sincronizacao meteorologica flexivel quando
+o CSV de coastdown e o arquivo meteo tem datas divergentes, mas horarios
+compativeis. A funcionalidade compila, mas ainda nao foi validada manualmente.
+Nao commitar/pushar antes de testar com dados reais.
+
+### Implementacao parcial feita:
+- adicionada flag `sync_meteo_by_time_only` ao estado do teste;
+- adicionada UI/checkbox quando ha divergencia de datas entre CSV e meteo;
+- criado helper `find_closest_weather_record(..., time_only=False)`;
+- page 3 e page 4 passaram a usar o helper para escolher o registro meteo;
+- page 4 passou a bloquear a execucao com aviso amigavel quando nao ha horario
+  valido para sincronizar meteo;
+- traducoes PT/EN foram adicionadas/corrigidas.
+
+### Comportamento pretendido:
+- modo normal: sincronizar meteo usando data + horario;
+- modo flexivel: quando o usuario confirmar, sincronizar usando apenas horario
+  do dia;
+- usar modo flexivel apenas para arquivos CSV e meteo com datas divergentes,
+  mas horarios compativeis.
+
+### Pendente para retomar:
+- testar manualmente com CSV e meteo de mesma data;
+- testar manualmente com CSV e meteo de datas diferentes, mas horarios
+  compativeis;
+- confirmar que o checkbox aparece apenas quando necessario;
+- confirmar que a escolha fica salva no teste ativo;
+- confirmar que page 3 e page 4 usam o mesmo comportamento;
+- confirmar que nao ha regressao na correcao climatica;
+- revisar diff antes de commit;
+- commitar somente depois do teste manual.
+
+### Cuidados:
+- nao modificar `core/`;
+- nao alterar logica F0/F2;
+- nao misturar esta alteracao com outras features;
+- se o teste manual falhar, revisar primeiro `find_closest_weather_record()` e
+  o uso de `sync_meteo_by_time_only`.

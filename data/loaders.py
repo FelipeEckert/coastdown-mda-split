@@ -14,7 +14,7 @@ import csv
 import chardet
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 
 from utils.file_utils import detect_encoding_and_dialect, normalize_column_names
 
@@ -591,3 +591,84 @@ def read_weather_station_csv(file_path):
     weather_data.sort(key=lambda x: x['timestamp'])
     
     return weather_data
+
+
+def _seconds_since_midnight(value):
+    """Converte datetime/time/string HH:MM[:SS] para segundos desde meia-noite."""
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        time_obj = value.time()
+    elif isinstance(value, time):
+        time_obj = value
+    else:
+        text = str(value).strip().replace(",", ".")
+        if not text:
+            return None
+
+        formats = ("%H:%M:%S.%f", "%H:%M:%S", "%H:%M")
+        time_obj = None
+        for fmt in formats:
+            try:
+                time_obj = datetime.strptime(text, fmt).time()
+                break
+            except ValueError:
+                continue
+
+        if time_obj is None:
+            return None
+
+    return (
+        time_obj.hour * 3600
+        + time_obj.minute * 60
+        + time_obj.second
+        + time_obj.microsecond / 1_000_000
+    )
+
+
+def find_closest_weather_record(run_or_time, weather_data, time_only=False):
+    """
+    Retorna o registro meteorológico mais próximo de uma passada.
+
+    Modo normal: compara timestamp completo (data + horário), preservando o
+    comportamento existente. Modo flexível: compara apenas horário do dia.
+    """
+    if not weather_data:
+        return None
+
+    if isinstance(run_or_time, dict):
+        target_time = run_or_time.get("start_timestamp") or run_or_time.get("start_time_str")
+    else:
+        target_time = run_or_time
+
+    if time_only:
+        target_seconds = _seconds_since_midnight(target_time)
+        if target_seconds is None:
+            return None
+
+        candidates = []
+        for record in weather_data:
+            record_seconds = _seconds_since_midnight(record.get("timestamp"))
+            if record_seconds is not None:
+                candidates.append((abs(record_seconds - target_seconds), record))
+
+        if not candidates:
+            return None
+
+        return min(candidates, key=lambda item: item[0])[1]
+
+    if not isinstance(target_time, datetime):
+        return None
+
+    valid_records = [
+        record for record in weather_data
+        if isinstance(record.get("timestamp"), datetime)
+    ]
+    if not valid_records:
+        return None
+
+    return min(
+        valid_records,
+        key=lambda record: abs((record["timestamp"] - target_time).total_seconds())
+    )

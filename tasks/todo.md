@@ -162,3 +162,34 @@
 - Testar visualmente no browser com múltiplos testes
 - Testar compatibilidade com páginas 2-6
 - Testar i18n (PT/EN)
+
+---
+
+## Retomada - Sincronizacao Flexivel CSV/Meteo (2026-05-13)
+
+### Estado atual
+- Implementacao parcial compila, mas ainda nao foi validada manualmente.
+- Nao fazer commit/push antes dos testes com dados reais.
+
+### Ja implementado
+- Flag `sync_meteo_by_time_only` no estado do teste.
+- Checkbox exibido quando ha divergencia de datas CSV/Meteo.
+- Helper `find_closest_weather_record(..., time_only=False)`.
+- Page 3 e page 4 usando o helper.
+- Page 4 bloqueando execucao quando nao ha horario valido para sincronizar meteo.
+- Traducoes PT/EN adicionadas/corrigidas.
+
+### Testar antes de commit
+- [ ] CSV e meteo com mesma data mantem sincronizacao por data + horario.
+- [ ] CSV e meteo com datas diferentes e horarios compativeis funcionam no modo por horario.
+- [ ] Checkbox aparece apenas quando necessario.
+- [ ] Escolha fica salva no teste ativo.
+- [ ] Page 3 e page 4 usam o mesmo comportamento.
+- [ ] Correcao climatica nao sofreu regressao.
+- [ ] Diff revisado antes do commit.
+
+### Cuidados
+- Nao modificar `core/`.
+- Nao alterar logica F0/F2.
+- Nao misturar com outras features.
+- Se falhar, revisar primeiro `find_closest_weather_record()` e `sync_meteo_by_time_only`.

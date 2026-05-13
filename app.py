@@ -399,6 +399,7 @@ TEST_STATE_KEYS = [
     "current_page", "pair_analysis_subtab",
     # Alertas
     "date_mismatch_warning",
+    "sync_meteo_by_time_only",
     # Estado auxiliar do teste
     "current_pair_results", "excel_buffer",
 ]
@@ -441,6 +442,7 @@ TEST_DEFAULTS = {
     "current_page": "2_dados_veiculo",
     "pair_analysis_subtab": "calculos",
     "date_mismatch_warning": None,
+    "sync_meteo_by_time_only": False,
     "current_pair_results": None,
     "excel_buffer": None,
 }
@@ -574,15 +576,49 @@ def _build_date_mismatch_warning(csv_date, weather_data, t):
     if not weather_data or csv_date is None:
         return None
 
-    meteo_date = weather_data[0]["timestamp"].date()
-    if abs((meteo_date - csv_date).days) > 1:
-        return t(
-            "date_mismatch_warning",
-            data_csv=csv_date.strftime("%d/%m/%Y"),
-            data_meteo=meteo_date.strftime("%d/%m/%Y")
-        )
+    meteo_dates = sorted({
+        item["timestamp"].date()
+        for item in weather_data
+        if item.get("timestamp") is not None
+    })
+    if not meteo_dates or csv_date in meteo_dates:
+        return None
 
-    return None
+    meteo_date_text = ", ".join(date.strftime("%d/%m/%Y") for date in meteo_dates[:3])
+    if len(meteo_dates) > 3:
+        meteo_date_text += "..."
+
+    return t(
+        "date_mismatch_warning",
+        data_csv=csv_date.strftime("%d/%m/%Y"),
+        data_meteo=meteo_date_text
+    )
+
+
+def _sync_meteo_mode_changed(test_id, sync_enabled):
+    """Salva modo de sincronizacao meteo e invalida resultados dependentes."""
+    test_data = st.session_state.tests.get(test_id)
+    if test_data is None:
+        return
+
+    previous = bool(test_data.get("sync_meteo_by_time_only", False))
+    if previous == sync_enabled:
+        return
+
+    test_data["sync_meteo_by_time_only"] = sync_enabled
+    _clear_test_data_for_meteo_change(test_data)
+
+    for key in (
+        "calculated_pairs",
+        "pares_finais_selecionados",
+        "final_results",
+        "algorithm_results",
+        "pairs_calculated",
+        "current_pair_results",
+        "excel_buffer",
+    ):
+        value = test_data.get(key, TEST_DEFAULTS.get(key))
+        st.session_state[key] = copy.deepcopy(value) if isinstance(value, (dict, list)) else value
 
 
 def _load_uploaded_csv_file(uploaded_csv, t):
@@ -684,12 +720,17 @@ def _apply_test_edits(test_id, new_name, uploaded_csv, uploaded_meteo, remove_me
 
             if meteo_changed:
                 _clear_test_data_for_meteo_change(updated_test)
+                updated_test["sync_meteo_by_time_only"] = False
+            elif csv_changed:
+                updated_test["sync_meteo_by_time_only"] = False
 
             updated_test["date_mismatch_warning"] = _build_date_mismatch_warning(
                 updated_test.get("csv_test_date"),
                 updated_test.get("weather_data"),
                 t
             )
+            if not updated_test["date_mismatch_warning"]:
+                updated_test["sync_meteo_by_time_only"] = False
 
             st.session_state.tests[test_id] = updated_test
 
@@ -1197,6 +1238,14 @@ def render_test_analysis(t):
     warning_msg = st.session_state.get("date_mismatch_warning")
     if warning_msg:
         st.warning(warning_msg)
+        st.caption(t("sync_meteo_time_only_help"))
+        sync_enabled = st.checkbox(
+            t("sync_meteo_time_only_label"),
+            key="sync_meteo_by_time_only"
+        )
+        _sync_meteo_mode_changed(st.session_state.active_test_id, sync_enabled)
+        if sync_enabled:
+            st.info(t("sync_meteo_time_only_active"))
 
     tab_labels = [
         t("page_vehicle_data"),

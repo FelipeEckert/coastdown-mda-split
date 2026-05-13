@@ -744,6 +744,23 @@ TRANSLATIONS = {
         "en": "⚠️ Warning: CSV date ({data_csv}) differs from meteorological file ({data_meteo}). This may affect climatic correction."
     },
 
+    "sync_meteo_time_only_label": {
+        "pt": "Sincronizar usando apenas os horários",
+        "en": "Synchronize using times only"
+    },
+    "sync_meteo_time_only_help": {
+        "pt": "As datas dos arquivos não coincidem. Deseja sincronizar usando apenas os horários, assumindo que os arquivos correspondem ao mesmo dia de teste?",
+        "en": "The file dates do not match. Use this option if the dates are inconsistent but the times correspond to the same test."
+    },
+    "sync_meteo_time_only_active": {
+        "pt": "Sincronização por horário ativada: a data será ignorada ao escolher o registro meteorológico mais próximo.",
+        "en": "Time-only synchronization is active: the date will be ignored when choosing the nearest meteorological record."
+    },
+    "meteo_sync_no_valid_time": {
+        "pt": "Não foi possível sincronizar o arquivo meteorológico porque as passadas não têm horário válido. Verifique o campo de horário no CSV ou use condições fixas.",
+        "en": "The meteorological file could not be synchronized because the runs do not have valid times. Check the time field in the CSV or use fixed conditions."
+    },
+
     # ===== TAMANHO DE FONTE =====
     "font_size": {
         "pt": "Tamanho da fonte",

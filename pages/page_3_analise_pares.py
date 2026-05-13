@@ -23,6 +23,7 @@ from core.calculations import (
     calculate_single_pair_corrected_data2
 )
 from core.corrections import apply_climate_correction
+from data.loaders import find_closest_weather_record
 
 
 def _run_sort_key(run_id):
@@ -698,25 +699,25 @@ def render_traditional_pair_selection(t):
                 elif correction_mode == "Arquivo Meteorológico":
                     # Busca dados meteo mais próximos do timestamp de cada run
                     if st.session_state.weather_data:
-                        from datetime import datetime
-                        
-                        # Pega timestamps das runs
-                        ts_ida = run_ida_info.get("start_timestamp")
-                        ts_volta = run_volta_info.get("start_timestamp")
-                        
-                        if ts_ida and ts_volta:
+                        sync_by_time_only = bool(st.session_state.get("sync_meteo_by_time_only", False))
+                        has_valid_time = (
+                            run_ida_info.get("start_timestamp") or run_ida_info.get("start_time_str")
+                        ) and (
+                            run_volta_info.get("start_timestamp") or run_volta_info.get("start_time_str")
+                        )
+
+                        if has_valid_time:
                             # Busca registro meteo mais próximo para cada run
-                            def find_closest_weather(target_time, weather_data):
-                                if not target_time or not weather_data:
-                                    return None
-                                closest = min(
-                                    weather_data,
-                                    key=lambda x: abs((x['timestamp'] - target_time).total_seconds())
-                                )
-                                return closest
-                            
-                            weather_ida = find_closest_weather(ts_ida, st.session_state.weather_data)
-                            weather_volta = find_closest_weather(ts_volta, st.session_state.weather_data)
+                            weather_ida = find_closest_weather_record(
+                                run_ida_info,
+                                st.session_state.weather_data,
+                                time_only=sync_by_time_only
+                            )
+                            weather_volta = find_closest_weather_record(
+                                run_volta_info,
+                                st.session_state.weather_data,
+                                time_only=sync_by_time_only
+                            )
                             
                             if weather_ida and weather_volta:
                                 temp_ida_used = weather_ida.get('temp_c')

@@ -19,6 +19,7 @@ import statistics
 import itertools
 from math import comb
 from statistics import mean, stdev
+from datetime import datetime
 import sys
 import os
 
@@ -32,6 +33,7 @@ from core.calculations import (
     calculate_single_pair_corrected_data2
 )
 from core.corrections import apply_climate_correction
+from data.loaders import find_closest_weather_record
 
 
 # ===== FUNÇÕES AUXILIARES (idênticas ao PyQt5 original) =====
@@ -94,6 +96,51 @@ def _mean_or_none(vals):
         except Exception:
             pass
     return float(sum(nums) / len(nums)) if nums else None
+
+
+def _run_has_weather_sync_time(run_data, time_only):
+    """Verifica se a passada tem horario suficiente para sincronizar meteo."""
+    if not run_data:
+        return False
+    if time_only:
+        return bool(run_data.get("start_timestamp") or run_data.get("start_time_str"))
+    return isinstance(run_data.get("start_timestamp"), datetime)
+
+
+def _has_algorithm_weather_sync_times(time_only):
+    """Confirma que ha passadas com horario valido para o algoritmo atual."""
+    if st.session_state.using_split_method:
+        all_run_data_alta = st.session_state.get("all_run_data_alta", {})
+        all_run_data_baixa = st.session_state.get("all_run_data_baixa", {})
+
+        alta_ida = [
+            run for run in all_run_data_alta.values()
+            if run.get("heading") == "+" and _run_has_weather_sync_time(run, time_only)
+        ]
+        alta_volta = [
+            run for run in all_run_data_alta.values()
+            if run.get("heading") == "-" and _run_has_weather_sync_time(run, time_only)
+        ]
+        baixa_ida = [
+            run for run in all_run_data_baixa.values()
+            if run.get("heading") == "+" and _run_has_weather_sync_time(run, time_only)
+        ]
+        baixa_volta = [
+            run for run in all_run_data_baixa.values()
+            if run.get("heading") == "-" and _run_has_weather_sync_time(run, time_only)
+        ]
+        return bool(alta_ida and alta_volta and baixa_ida and baixa_volta)
+
+    all_run_data = st.session_state.get("all_run_data", {})
+    ida_runs = [
+        run for run in all_run_data.values()
+        if run.get("heading") == "+" and _run_has_weather_sync_time(run, time_only)
+    ]
+    volta_runs = [
+        run for run in all_run_data.values()
+        if run.get("heading") == "-" and _run_has_weather_sync_time(run, time_only)
+    ]
+    return bool(ida_runs and volta_runs)
 
 
 def _topk_by_energy(pairs, k):
@@ -287,6 +334,7 @@ def generate_all_candidate_pairs_traditional(weather_data, temp_fixed, press_fix
     """
     all_run_data = st.session_state.all_run_data
     individual_coeffs = st.session_state.individual_coeffs
+    sync_by_time_only = bool(st.session_state.get("sync_meteo_by_time_only", False))
 
     # Separa runs por heading
     all_runs_ids = sorted([r_id for r_id in all_run_data.keys()], key=lambda x: int(x) if str(x).isdigit() else 0)
@@ -323,14 +371,28 @@ def generate_all_candidate_pairs_traditional(weather_data, temp_fixed, press_fix
 
             if current_temp is None and weather_data:
                 try:
-                    ts1 = all_run_data[run_ida_id].get("start_timestamp")
-                    ts2 = all_run_data[run_volta_id].get("start_timestamp")
+                    run_ida_info = all_run_data[run_ida_id]
+                    run_volta_info = all_run_data[run_volta_id]
+                    has_valid_time = (
+                        _run_has_weather_sync_time(run_ida_info, sync_by_time_only)
+                        and _run_has_weather_sync_time(run_volta_info, sync_by_time_only)
+                    )
 
-                    if not ts1 or not ts2:
+                    if not has_valid_time:
                         continue
 
-                    closest1 = min(weather_data, key=lambda x: abs(x["timestamp"] - ts1))
-                    closest2 = min(weather_data, key=lambda x: abs(x["timestamp"] - ts2))
+                    closest1 = find_closest_weather_record(
+                        run_ida_info,
+                        weather_data,
+                        time_only=sync_by_time_only
+                    )
+                    closest2 = find_closest_weather_record(
+                        run_volta_info,
+                        weather_data,
+                        time_only=sync_by_time_only
+                    )
+                    if not closest1 or not closest2:
+                        continue
 
                     temp1 = closest1.get("temp_c")
                     press1 = closest1.get("baro_kpa")
@@ -449,6 +511,7 @@ def generate_all_candidate_pairs_split(weather_data, temp_fixed, press_fixed, cv
     ref_vel_baixa = st.session_state.ref_vel_baixa
     df_raw_alta = st.session_state.df_raw_alta
     df_raw_baixa = st.session_state.df_raw_baixa
+    sync_by_time_only = bool(st.session_state.get("sync_meteo_by_time_only", False))
 
     # Separa runs por heading
     alta_runs = sorted([r_id for r_id in all_run_data_alta.keys()], key=lambda x: int(x) if str(x).isdigit() else 0)
@@ -523,18 +586,40 @@ def generate_all_candidate_pairs_split(weather_data, temp_fixed, press_fixed, cv
 
                     if current_temp is None and weather_data:
                         try:
-                            ts_alta_ida = all_run_data_alta[id_alta_ida].get("start_timestamp")
-                            ts_baixa_ida = all_run_data_baixa[id_baixa_ida].get("start_timestamp")
-                            ts_alta_volta = all_run_data_alta[id_alta_volta].get("start_timestamp")
-                            ts_baixa_volta = all_run_data_baixa[id_baixa_volta].get("start_timestamp")
+                            run_alta_ida = all_run_data_alta[id_alta_ida]
+                            run_baixa_ida = all_run_data_baixa[id_baixa_ida]
+                            run_alta_volta = all_run_data_alta[id_alta_volta]
+                            run_baixa_volta = all_run_data_baixa[id_baixa_volta]
+                            has_valid_time = all(
+                                _run_has_weather_sync_time(run_data, sync_by_time_only)
+                                for run_data in (run_alta_ida, run_baixa_ida, run_alta_volta, run_baixa_volta)
+                            )
 
-                            if not all([ts_alta_ida, ts_baixa_ida, ts_alta_volta, ts_baixa_volta]):
+                            if not has_valid_time:
                                 continue
 
-                            closest_alta_ida = min(weather_data, key=lambda x: abs(x["timestamp"] - ts_alta_ida))
-                            closest_baixa_ida = min(weather_data, key=lambda x: abs(x["timestamp"] - ts_baixa_ida))
-                            closest_alta_volta = min(weather_data, key=lambda x: abs(x["timestamp"] - ts_alta_volta))
-                            closest_baixa_volta = min(weather_data, key=lambda x: abs(x["timestamp"] - ts_baixa_volta))
+                            closest_alta_ida = find_closest_weather_record(
+                                run_alta_ida,
+                                weather_data,
+                                time_only=sync_by_time_only
+                            )
+                            closest_baixa_ida = find_closest_weather_record(
+                                run_baixa_ida,
+                                weather_data,
+                                time_only=sync_by_time_only
+                            )
+                            closest_alta_volta = find_closest_weather_record(
+                                run_alta_volta,
+                                weather_data,
+                                time_only=sync_by_time_only
+                            )
+                            closest_baixa_volta = find_closest_weather_record(
+                                run_baixa_volta,
+                                weather_data,
+                                time_only=sync_by_time_only
+                            )
+                            if not all([closest_alta_ida, closest_baixa_ida, closest_alta_volta, closest_baixa_volta]):
+                                continue
 
                             # Vento
                             wind_alta_ida = closest_alta_ida.get("wind_ms")
@@ -731,8 +816,13 @@ def render(t):
 
     temp_fixed = None
     press_fixed = None
+    sync_by_time_only = bool(st.session_state.get("sync_meteo_by_time_only", False))
+    meteo_sync_times_ok = True
 
     if weather_data:
+        meteo_sync_times_ok = _has_algorithm_weather_sync_times(sync_by_time_only)
+        if not meteo_sync_times_ok:
+            st.warning(t("meteo_sync_no_valid_time"))
         st.success(f"✅ Dados meteorológicos carregados ({len(weather_data)} registros). Serão usados automaticamente por passada.")
     else:
         st.warning("⚠️ Não há dados meteorológicos carregados.")
@@ -775,6 +865,9 @@ def render(t):
 
     # ===== BOTÃO EXECUTAR =====
     if st.button("🚀 Executar Seleção Automática", type="primary", use_container_width=True, key="algo_execute"):
+        if weather_data and not meteo_sync_times_ok:
+            st.error(t("meteo_sync_no_valid_time"))
+            return
         run_algorithm(
             algorithm_mode, num_pairs, cv_max,
             weather_data, temp_fixed, press_fixed,
