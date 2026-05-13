@@ -27,6 +27,39 @@ def _get(pair, *keys, default=0):
     return default
 
 
+def normalize_selected_pairs():
+    """Resolve os pares finais para uma lista de dicts, aceitando estados antigos."""
+    selected = st.session_state.get("pares_finais_selecionados", [])
+    calculated = st.session_state.get("calculated_pairs", {})
+    normalized = []
+    ignored = 0
+
+    if isinstance(selected, dict):
+        selected_items = selected.values()
+    elif isinstance(selected, str):
+        selected_items = [selected]
+    else:
+        try:
+            selected_items = list(selected)
+        except TypeError:
+            selected_items = []
+            ignored += 1
+
+    for item in selected_items:
+        if isinstance(item, dict):
+            normalized.append(item)
+        elif isinstance(item, str):
+            pair = calculated.get(item) if isinstance(calculated, dict) else None
+            if isinstance(pair, dict):
+                normalized.append(pair)
+            else:
+                ignored += 1
+        else:
+            ignored += 1
+
+    return normalized, ignored
+
+
 def render(t):
     """Renderiza a página de resultados finais."""
     
@@ -38,6 +71,7 @@ def render(t):
         return
     
     results = st.session_state.final_results
+    selected_pairs, ignored_pairs = normalize_selected_pairs()
     
     # ===== RESUMO DOS RESULTADOS =====
     st.subheader(f"📊 {t('summary')}")
@@ -90,9 +124,12 @@ def render(t):
     # ===== TABELA DE PARES SELECIONADOS =====
     st.subheader(f"📋 {t('selected_pairs')}")
     
-    if st.session_state.pares_finais_selecionados:
+    if ignored_pairs:
+        st.warning(f"⚠️ {ignored_pairs} par(es) selecionado(s) não foram encontrados e foram ignorados.")
+
+    if selected_pairs:
         pairs_data = []
-        for pair in st.session_state.pares_finais_selecionados:
+        for pair in selected_pairs:
             f0 = _get(pair, "f0_corr", "mean_f0_corrected", "f0corr_mean", "f0_mean")
             f2 = _get(pair, "f2_corr", "mean_f2_corrected", "f2corr_mean", "f2_mean")
             energy = _get(pair, "energy", "mean_energy_corrected")
@@ -178,7 +215,7 @@ def prepare_export_data(t):
         "cv_f2": results.get("cv_f2", 0),
         "mean_energy": results.get("mean_energy", 0),
         "num_pairs": results.get("num_pairs", 0),
-        "pairs": st.session_state.pares_finais_selecionados,
+        "pairs": normalize_selected_pairs()[0],
     }
     
     return export_data
@@ -329,7 +366,7 @@ Número de Pares:     {results.get('num_pairs', 0)}
 
 """
     
-    for i, pair in enumerate(st.session_state.pares_finais_selecionados, 1):
+    for i, pair in enumerate(normalize_selected_pairs()[0], 1):
         f0 = _get(pair, "f0_corr", "mean_f0_corrected", "f0corr_mean", "f0_mean")
         f2 = _get(pair, "f2_corr", "mean_f2_corrected", "f2corr_mean", "f2_mean")
         energy = _get(pair, "energy", "mean_energy_corrected")
