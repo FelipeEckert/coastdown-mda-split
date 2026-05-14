@@ -193,3 +193,15 @@
 - Nao alterar logica F0/F2.
 - Nao misturar com outras features.
 - Se falhar, revisar primeiro `find_closest_weather_record()` e `sync_meteo_by_time_only`.
+
+### Review final antes do merge (2026-05-14)
+- [x] Modo normal preservado: sincronizacao por data + horario.
+- [x] Modo flexivel preservado: sincronizacao somente por horario quando confirmado.
+- [x] Tabela de auditoria exibida para arquivo meteo carregado, com horario CSV,
+  horario meteo, diferenca, modo usado, temperatura, pressao e vento.
+- [x] Alerta/destaque para vento > 3.0 m/s incluido na auditoria e nos coeficientes
+  corrigidos.
+- [x] Testes manuais realizados pelo usuario confirmaram a exibicao correta do vento
+  e da sincronizacao meteorologica.
+- [x] Antes do merge: revisar status, confirmar working tree limpo e confirmar que
+  `core/` nao foi modificado.

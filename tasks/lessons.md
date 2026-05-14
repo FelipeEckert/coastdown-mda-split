@@ -716,3 +716,32 @@ Nao commitar/pushar antes de testar com dados reais.
 - nao misturar esta alteracao com outras features;
 - se o teste manual falhar, revisar primeiro `find_closest_weather_record()` e
   o uso de `sync_meteo_by_time_only`.
+
+---
+
+## 2026-05-14 - Sincronizacao CSV/Meteo: Auditoria e Vento
+
+### Contexto:
+Finalizacao da sincronizacao meteorologica flexivel entre CSV e meteo.
+
+### Implementacao:
+- modo normal continua sincronizando por data + horario;
+- modo flexivel, quando confirmado pelo usuario, sincroniza somente pelo horario
+  do dia;
+- tabela de auditoria mostra, por passada, horario CSV, horario meteo, diferenca,
+  modo usado, temperatura, pressao e vento;
+- vento meteorologico exibido vem do campo `wind_ms`, derivado de `Wind Speed`
+  ou dos componentes `Crosswind`/`Headwind` quando necessario;
+- vento acima de 3.0 m/s recebe destaque visual e aviso por ser criterio de
+  atencao/exclusao pela norma.
+
+### Validacao manual:
+Testes manuais realizados pelo usuario confirmaram a exibicao correta da
+sincronizacao e do vento na auditoria. Antes de novas alteracoes, preservar a
+logica de escolha do registro meteo e mudar apenas apresentacao quando o pedido
+for visual.
+
+### Licao:
+Auditoria de dados ambientais deve mostrar o dado realmente usado no calculo,
+sem fallback silencioso para zero. Quando um valor e criterio normativo, ele
+precisa aparecer na mesma tabela operacional e receber destaque visual.
