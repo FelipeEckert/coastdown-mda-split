@@ -396,6 +396,35 @@ TRANSLATIONS = {
         "en": "Runs skipped due to missing valid interval data: {runs}"
     },
     
+    "time_conformity_measured_value": {
+        "pt": "Valor medido",
+        "en": "Measured value"
+    },
+    "time_conformity_mean_detail": {
+        "pt": "Média do intervalo",
+        "en": "Interval mean"
+    },
+    "time_conformity_std_time": {
+        "pt": "Desvio padrão",
+        "en": "Standard deviation"
+    },
+    "time_conformity_difference_s": {
+        "pt": "Diferença",
+        "en": "Difference"
+    },
+    "time_conformity_status": {
+        "pt": "Status",
+        "en": "Status"
+    },
+    "time_conformity_status_conforming": {
+        "pt": "Conforme",
+        "en": "Conforming"
+    },
+    "time_conformity_status_non_conforming": {
+        "pt": "Não conforme",
+        "en": "Non-conforming"
+    },
+
     # ===== PÁGINA 4: COMPARATIVO FINAL =====
     "calculated_pairs": {
         "pt": "Pares Calculados",

@@ -11,6 +11,7 @@ import pandas as pd
 import numpy as np
 from statistics import mean, stdev
 from datetime import datetime
+from html import escape
 import os
 import sys
 
@@ -282,6 +283,281 @@ def _get_selected_pair_run_ids():
     return sorted(selected_runs, key=_run_sort_key)
 
 
+def _format_detail_number(value, decimals=2, suffix=""):
+    """Formata numero para detalhes da matriz de conformidade."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return "N/A"
+
+    if not np.isfinite(number):
+        return "N/A"
+    return f"{number:.{decimals}f}{suffix}"
+
+
+def _format_signed_detail_number(value, decimals=2, suffix=""):
+    """Formata numero com sinal explicito para diferencas."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return "N/A"
+
+    if not np.isfinite(number):
+        return "N/A"
+    return f"{number:+.{decimals}f}{suffix}"
+
+
+def _build_time_conformity_tooltip_lookup(detailed_df, t):
+    """Indexa detalhes por intervalo/run para a tabela HTML."""
+    tooltip_lookup = {}
+    for _, row in detailed_df.iterrows():
+        is_non_conforming = bool(row["_is_non_conforming"])
+        status_key = (
+            "time_conformity_status_non_conforming"
+            if is_non_conforming
+            else "time_conformity_status_conforming"
+        )
+        details = [
+            (
+                t("time_conformity_measured_value"),
+                _format_detail_number(row["_time_s"], 2, " s"),
+            ),
+            (
+                t("time_conformity_mean_detail"),
+                _format_detail_number(row["_mean_time_s"], 2, " s"),
+            ),
+            (
+                t("time_conformity_std_time"),
+                _format_detail_number(row["_std_time_s"], 2, " s"),
+            ),
+            (
+                t("time_conformity_difference_s"),
+                _format_signed_detail_number(row["_deviation_s"], 2, " s"),
+            ),
+            (
+                t("time_conformity_deviation_pct"),
+                _format_signed_detail_number(row["_deviation_pct"], 1, "%"),
+            ),
+            (t("time_conformity_status"), t(status_key)),
+        ]
+        tooltip_items = "".join(
+            (
+                '<li>'
+                f'<span class="mda-time-conf-tooltip-label">{escape(label)}:</span> '
+                f"{escape(value)}"
+                "</li>"
+            )
+            for label, value in details
+        )
+        tooltip_lookup[
+            (
+                row[t("time_conformity_interval")],
+                row["_interval_start"],
+                row["_interval_end"],
+                row["_run_label"],
+            )
+        ] = f'<ul class="mda-time-conf-tooltip-list">{tooltip_items}</ul>'
+
+    return tooltip_lookup
+
+
+def render_time_conformity_html_table(
+    matrix_df,
+    matrix_status_display,
+    ordered_run_columns,
+    detailed_df,
+    t,
+):
+    """Renderiza matriz HTML com tooltip CSS por celula."""
+    interval_col = t("time_conformity_interval")
+    tooltip_lookup = _build_time_conformity_tooltip_lookup(detailed_df, t)
+    headers = [interval_col] + ordered_run_columns
+
+    header_html = "".join(
+        f"<th>{escape(str(column))}</th>" for column in headers
+    )
+    body_rows = []
+    last_right_aligned_index = max(len(ordered_run_columns) - 2, 0)
+    row_count = len(matrix_df)
+    first_above_row = max(row_count // 2, 1)
+    for row_position, (_, row) in enumerate(matrix_df.iterrows()):
+        tooltip_direction_class = (
+            "mda-time-conf-tooltip-above"
+            if row_position >= first_above_row
+            else "mda-time-conf-tooltip-below"
+        )
+        cells = [
+            (
+                '<td class="mda-time-conf-interval">'
+                f"{escape(str(row[interval_col]))}"
+                "</td>"
+            )
+        ]
+        for column_index, column in enumerate(ordered_run_columns):
+            raw_value = row.get(column)
+            value_text = f"{raw_value:.2f} s" if pd.notna(raw_value) else ""
+            tooltip_key = (
+                row[interval_col],
+                row["_interval_start"],
+                row["_interval_end"],
+                column,
+            )
+            tooltip_html = tooltip_lookup.get(tooltip_key, "")
+            is_non_conforming = (
+                bool(matrix_status_display.iloc[row_position][column])
+                if column in matrix_status_display.columns
+                else False
+            )
+            cell_classes = "mda-time-conf-cell"
+            if is_non_conforming:
+                cell_classes += " mda-time-conf-nonconforming"
+            if column_index <= 1:
+                cell_classes += " mda-time-conf-edge-left"
+            elif column_index >= last_right_aligned_index:
+                cell_classes += " mda-time-conf-edge-right"
+            cell_classes += f" {tooltip_direction_class}"
+
+            tooltip_span = (
+                f'<span class="mda-time-conf-tooltip">{tooltip_html}</span>'
+                if tooltip_html
+                else ""
+            )
+            cells.append(
+                f'<td class="{cell_classes}">'
+                f'<span class="mda-time-conf-value">{escape(value_text)}</span>'
+                f"{tooltip_span}"
+                "</td>"
+            )
+        body_rows.append(f"<tr>{''.join(cells)}</tr>")
+
+    table_html = f"""
+<style>
+.mda-time-conf-scroll {{
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    max-height: none;
+    border: 1px solid #3d3d3d;
+    border-radius: 6px;
+}}
+.mda-time-conf-inner {{
+    display: inline-block;
+    min-width: 100%;
+    overflow: visible;
+}}
+.mda-time-conf-table {{
+    width: max-content;
+    min-width: 100%;
+    border-collapse: collapse;
+    background: #1e1e1e;
+    color: #ffffff;
+    font-size: 0.9rem;
+}}
+.mda-time-conf-table th {{
+    background: #111827;
+    color: #ffffff;
+    border: 1px solid #3d3d3d;
+    padding: 8px 10px;
+    text-align: center;
+    white-space: nowrap;
+    font-weight: 600;
+}}
+.mda-time-conf-table td {{
+    border: 1px solid #3d3d3d;
+    padding: 7px 10px;
+    text-align: center;
+    white-space: nowrap;
+}}
+.mda-time-conf-table .mda-time-conf-interval {{
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    min-width: 130px;
+    background: #151922;
+    text-align: left;
+    font-weight: 600;
+}}
+.mda-time-conf-table th:first-child {{
+    position: sticky;
+    left: 0;
+    z-index: 2;
+}}
+.mda-time-conf-cell {{
+    position: relative;
+    min-width: 86px;
+    background: #1e1e1e;
+}}
+.mda-time-conf-cell:hover {{
+    background: #263247;
+}}
+.mda-time-conf-nonconforming,
+.mda-time-conf-nonconforming:hover {{
+    background: #902626;
+    color: #ffffff;
+}}
+.mda-time-conf-tooltip {{
+    visibility: hidden;
+    opacity: 0;
+    position: absolute;
+    z-index: 20;
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: min(320px, 70vw);
+    padding: 10px 12px;
+    border: 1px solid #4a9eff;
+    border-radius: 6px;
+    background: #0e1117;
+    color: #ffffff;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    text-align: left;
+    line-height: 1.45;
+    pointer-events: none;
+    white-space: normal;
+}}
+.mda-time-conf-tooltip-below .mda-time-conf-tooltip {{
+    top: calc(100% + 8px);
+}}
+.mda-time-conf-tooltip-above .mda-time-conf-tooltip {{
+    bottom: calc(100% + 8px);
+}}
+.mda-time-conf-edge-left .mda-time-conf-tooltip {{
+    left: 0;
+    transform: none;
+}}
+.mda-time-conf-edge-right .mda-time-conf-tooltip {{
+    right: 0;
+    left: auto;
+    transform: none;
+}}
+.mda-time-conf-tooltip-list {{
+    margin: 0;
+    padding-left: 1.1rem;
+}}
+.mda-time-conf-tooltip-list li {{
+    margin: 2px 0;
+}}
+.mda-time-conf-tooltip-label {{
+    font-weight: 700;
+    color: #ffffff;
+}}
+.mda-time-conf-cell:hover .mda-time-conf-tooltip {{
+    visibility: visible;
+    opacity: 1;
+}}
+</style>
+<div class="mda-time-conf-scroll">
+  <div class="mda-time-conf-inner">
+    <table class="mda-time-conf-table">
+      <thead><tr>{header_html}</tr></thead>
+      <tbody>{''.join(body_rows)}</tbody>
+    </table>
+  </div>
+</div>
+"""
+    st.markdown(table_html, unsafe_allow_html=True)
+
+
 def render_time_conformity_analysis(t):
     """Renderiza a análise de conformidade dos tempos por intervalo de velocidade."""
     if st.session_state.using_split_method:
@@ -298,6 +574,15 @@ def render_time_conformity_analysis(t):
 
     control_col1, control_col2 = st.columns([2, 1])
     with control_col1:
+        st.markdown(
+            (
+                "<div style='font-size:1.02rem; font-weight:600; "
+                "margin-bottom:0.2rem;'>"
+                f"{escape(t('time_conformity_source'))}"
+                "</div>"
+            ),
+            unsafe_allow_html=True,
+        )
         source_mode = st.radio(
             t("time_conformity_source"),
             options=[
@@ -306,6 +591,7 @@ def render_time_conformity_analysis(t):
             ],
             horizontal=True,
             key="time_conformity_source_mode",
+            label_visibility="collapsed",
         )
     with control_col2:
         tolerance_pct = st.number_input(
@@ -376,7 +662,7 @@ def render_time_conformity_analysis(t):
             [t("time_conformity_interval"), "_interval_start", "_interval_end"],
             as_index=False,
         )["_time_s"]
-        .agg(["mean", "min", "max", "count"])
+        .agg(["mean", "min", "max", "count", "std"])
         .reset_index()
         .rename(
             columns={
@@ -384,9 +670,11 @@ def render_time_conformity_analysis(t):
                 "min": "_min_time_s",
                 "max": "_max_time_s",
                 "count": "_run_count",
+                "std": "_std_time_s",
             }
         )
     )
+    interval_stats["_std_time_s"] = interval_stats["_std_time_s"].fillna(0.0)
     interval_stats["_spread_s"] = (
         interval_stats["_max_time_s"] - interval_stats["_min_time_s"]
     )
@@ -398,6 +686,7 @@ def render_time_conformity_analysis(t):
                 "_interval_start",
                 "_interval_end",
                 "_mean_time_s",
+                "_std_time_s",
             ]
         ],
         on=[t("time_conformity_interval"), "_interval_start", "_interval_end"],
@@ -485,13 +774,6 @@ def render_time_conformity_analysis(t):
         for run_id in sorted(run_ids, key=_run_sort_key)
         if run_labels[run_id] in matrix_df.columns
     ]
-    matrix_display = matrix_df[
-        [t("time_conformity_interval")] + ordered_run_columns
-    ].copy()
-    for column in ordered_run_columns:
-        matrix_display[column] = matrix_display[column].map(
-            lambda value: f"{value:.2f} s" if pd.notna(value) else ""
-        )
     matrix_status_display = matrix_status_df[
         [t("time_conformity_interval")] + ordered_run_columns
     ].copy()
@@ -499,25 +781,6 @@ def render_time_conformity_analysis(t):
         matrix_status_display[column] = (
             matrix_status_display[column].fillna(False).astype(bool)
         )
-
-    def _highlight_non_conforming_cells(_):
-        styles = pd.DataFrame(
-            "",
-            index=matrix_display.index,
-            columns=matrix_display.columns,
-        )
-        for column in ordered_run_columns:
-            non_conforming_mask = matrix_status_display[column]
-            styles.loc[non_conforming_mask, column] = (
-                "background-color: #902626; color: #ffffff;"
-            )
-        return styles
-
-    matrix_styler = (
-        matrix_display.style
-        .apply(_highlight_non_conforming_cells, axis=None)
-        .hide(axis="index")
-    )
 
     total_non_conforming = int(detailed_df["_is_non_conforming"].sum())
     intervals_with_non_conforming = int(
@@ -549,7 +812,13 @@ def render_time_conformity_analysis(t):
 
     st.markdown("---")
     st.subheader(t("time_conformity_matrix"))
-    st.dataframe(matrix_styler, use_container_width=True)
+    render_time_conformity_html_table(
+        matrix_df,
+        matrix_status_display,
+        ordered_run_columns,
+        detailed_df,
+        t,
+    )
 
     st.markdown("---")
     st.subheader(t("time_conformity_summary"))
@@ -557,8 +826,8 @@ def render_time_conformity_analysis(t):
     summary_display = interval_stats[
         [
             t("time_conformity_interval"),
-            "_run_count",
             "_mean_time_s",
+            "_std_time_s",
             "_min_time_s",
             "_max_time_s",
             "_cv_pct",
@@ -567,8 +836,8 @@ def render_time_conformity_analysis(t):
         ]
     ].rename(
         columns={
-            "_run_count": t("time_conformity_runs_count"),
             "_mean_time_s": t("time_conformity_mean_time"),
+            "_std_time_s": t("time_conformity_std_time"),
             "_min_time_s": t("time_conformity_min_time"),
             "_max_time_s": t("time_conformity_max_time"),
             "_cv_pct": t("time_conformity_cv_pct"),
@@ -579,13 +848,14 @@ def render_time_conformity_analysis(t):
 
     for column in (
         t("time_conformity_mean_time"),
+        t("time_conformity_std_time"),
         t("time_conformity_min_time"),
         t("time_conformity_max_time"),
         t("time_conformity_cv_pct"),
         t("time_conformity_max_deviation_pct"),
     ):
         summary_display[column] = summary_display[column].map(
-            lambda value: round(value, 3)
+            lambda value: _format_detail_number(value, 2)
         )
 
     st.dataframe(summary_display, use_container_width=True, hide_index=True)

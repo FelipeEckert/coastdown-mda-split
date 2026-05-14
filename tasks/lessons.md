@@ -745,3 +745,34 @@ for visual.
 Auditoria de dados ambientais deve mostrar o dado realmente usado no calculo,
 sem fallback silencioso para zero. Quando um valor e criterio normativo, ele
 precisa aparecer na mesma tabela operacional e receber destaque visual.
+
+---
+
+## 2026-05-14 - Tabelas Matriz com Detalhe por Celula
+
+### Contexto:
+Melhoria da aba `Conformidade de Tempos` para explicar cada celula da matriz
+intervalo x run sem mudar criterios de conformidade nem calculos.
+
+### Tentativas descartadas:
+- `plotly.graph_objects.Table` nao entregou tooltip por celula de forma
+  confiavel no Streamlit.
+- Selectbox de detalhes funcionava tecnicamente, mas piorava a experiencia
+  porque tirava o usuario do contexto visual da celula.
+
+### Solucao:
+- renderizar a matriz como HTML/CSS escopado com `st.markdown(...,
+  unsafe_allow_html=True)`;
+- escapar textos dinamicos com `html.escape`;
+- manter a mesma matriz de tempos e a mesma matriz de status ja calculadas;
+- colocar o detalhe no hover da propria celula;
+- usar classes por posicao: primeiras linhas abrem tooltip para baixo,
+  ultimas linhas abrem para cima;
+- manter apenas scroll horizontal e evitar scroll vertical que corta tooltip.
+
+### Licao:
+Quando a necessidade e detalhe por celula em uma matriz, preferir uma tabela
+HTML escopada a widgets auxiliares ou Plotly Table. O detalhe deve aparecer no
+ponto de atencao do usuario, sem clique extra e sem transformar a matriz em
+formato longo. Para tooltips em tabelas com scroll, definir a direcao por linha
+e alinhar bordas esquerda/direita explicitamente para evitar cortes.

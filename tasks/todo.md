@@ -205,3 +205,29 @@
   e da sincronizacao meteorologica.
 - [x] Antes do merge: revisar status, confirmar working tree limpo e confirmar que
   `core/` nao foi modificado.
+
+---
+
+## Review - Conformidade de Tempos com Tooltip (2026-05-14)
+
+### Implementado
+- [x] Tabela matriz de Conformidade de Tempos renderizada em HTML/CSS customizado.
+- [x] Mantida a estrutura matriz: intervalo nas linhas, runs/passadas nas colunas e tempo em cada celula.
+- [x] Tooltip por celula no hover, sem Plotly Table, sem JavaScript e sem selectbox.
+- [x] Tooltip mostra valor medido, media do intervalo, desvio padrao, diferenca, desvio percentual e status.
+- [x] Celulas nao conformes destacadas em vermelho escuro `#902626` com texto branco.
+- [x] Scroll horizontal preservado para muitas runs; scroll vertical removido para mostrar todos os intervalos.
+- [x] Tooltip abre para baixo nas primeiras linhas e para cima nas ultimas, evitando corte no topo/fim da tabela.
+- [x] Primeira coluna destacada/fixa visualmente durante scroll horizontal.
+- [x] Resumo por intervalo ajustado: removida coluna `Qtde. de Passadas`, incluido desvio padrao e numeros formatados com 2 casas decimais.
+- [x] Label `Fonte das passadas` levemente aumentado para melhorar leitura.
+
+### Validacao
+- [x] `python -m py_compile pages/page_3_analise_pares.py`
+- [x] `python -m py_compile translations.py`
+
+### Escopo preservado
+- [x] Sem alteracao em `core/`.
+- [x] Sem alteracao em F0/F2.
+- [x] Sem alteracao em sidebar/cards/modal.
+- [x] Sem alteracao na sincronizacao meteorologica.
