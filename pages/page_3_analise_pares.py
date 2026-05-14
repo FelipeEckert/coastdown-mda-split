@@ -10,6 +10,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from statistics import mean, stdev
+from datetime import datetime
 import os
 import sys
 
@@ -24,6 +25,147 @@ from core.calculations import (
 )
 from core.corrections import apply_climate_correction
 from data.loaders import find_closest_weather_record
+
+
+def _sync_mode_label(time_only, t):
+    """Retorna o rotulo do modo de sincronizacao meteo."""
+    return t("meteo_sync_mode_time_only") if time_only else t("meteo_sync_mode_full_datetime")
+
+
+def _seconds_since_midnight(value):
+    """Converte datetime ou texto HH:MM[:SS] em segundos desde meia-noite."""
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        time_obj = value.time()
+    else:
+        text = str(value).strip().replace(",", ".")
+        if not text:
+            return None
+
+        time_obj = None
+        for fmt in ("%H:%M:%S.%f", "%H:%M:%S", "%H:%M"):
+            try:
+                time_obj = datetime.strptime(text, fmt).time()
+                break
+            except ValueError:
+                continue
+        if time_obj is None:
+            return None
+
+    return (
+        time_obj.hour * 3600
+        + time_obj.minute * 60
+        + time_obj.second
+        + time_obj.microsecond / 1_000_000
+    )
+
+
+def _format_sync_time(value):
+    """Formata horario/timestamp para exibicao na auditoria."""
+    if value is None:
+        return "N/A"
+    if isinstance(value, datetime):
+        return value.strftime("%d/%m/%Y %H:%M:%S")
+    return str(value)
+
+
+def _format_sync_number(value):
+    """Formata numeros da auditoria meteo com uma casa decimal."""
+    if value is None:
+        return "N/A"
+    try:
+        return f"{float(value):.1f}"
+    except (TypeError, ValueError):
+        return "N/A"
+
+
+def _weather_sync_delta_seconds(run_data, weather_record, time_only):
+    """Calcula a diferenca usada apenas para auditoria visual."""
+    if not run_data or not weather_record:
+        return None
+
+    target_time = run_data.get("start_timestamp") or run_data.get("start_time_str")
+    meteo_time = weather_record.get("timestamp")
+
+    if time_only:
+        target_seconds = _seconds_since_midnight(target_time)
+        meteo_seconds = _seconds_since_midnight(meteo_time)
+        if target_seconds is None or meteo_seconds is None:
+            return None
+        return abs(meteo_seconds - target_seconds)
+
+    target_timestamp = run_data.get("start_timestamp")
+    if not isinstance(target_timestamp, datetime) or not isinstance(meteo_time, datetime):
+        return None
+    return abs((meteo_time - target_timestamp).total_seconds())
+
+
+def render_weather_sync_audit(run_items, weather_data, time_only, t):
+    """Exibe auditoria da sincronizacao meteo sem alterar a escolha dos registros."""
+    if not weather_data:
+        return
+
+    mode_label = _sync_mode_label(time_only, t)
+    wind_col = t("meteo_sync_col_wind")
+    high_wind_runs = []
+
+    audit_rows = []
+    for run_label, run_data in run_items:
+        weather_record = find_closest_weather_record(
+            run_data,
+            weather_data,
+            time_only=time_only
+        )
+        delta_seconds = _weather_sync_delta_seconds(run_data, weather_record, time_only)
+        wind_ms = weather_record.get("wind_ms") if weather_record else None
+        wind_display = _format_sync_number(wind_ms)
+        if wind_ms is not None and float(wind_ms) > 3.0:
+            high_wind_runs.append(f"{run_label}: {float(wind_ms):.2f} m/s")
+
+        audit_rows.append({
+            t("meteo_sync_col_run"): run_label,
+            t("meteo_sync_col_csv_time"): _format_sync_time(
+                run_data.get("start_timestamp") or run_data.get("start_time_str")
+            ),
+            t("meteo_sync_col_meteo_time"): _format_sync_time(
+                weather_record.get("timestamp") if weather_record else None
+            ),
+            t("meteo_sync_col_delta_s"): (
+                _format_sync_number(delta_seconds)
+            ),
+            t("meteo_sync_col_mode"): mode_label,
+            t("meteo_sync_col_temp"): (
+                _format_sync_number(weather_record.get("temp_c") if weather_record else None)
+            ),
+            t("meteo_sync_col_press"): (
+                _format_sync_number(weather_record.get("baro_kpa") if weather_record else None)
+            ),
+            wind_col: wind_display,
+        })
+
+    with st.expander(t("meteo_sync_details_expander")):
+        if high_wind_runs:
+            st.warning(t("meteo_wind_above_limit_warning", runs=", ".join(high_wind_runs)))
+
+        audit_df = pd.DataFrame(audit_rows)
+
+        def highlight_high_wind(row):
+            try:
+                high_wind = float(row[wind_col]) > 3.0
+            except (TypeError, ValueError):
+                high_wind = False
+            return [
+                "background-color: #fff3cd; color: #000000" if high_wind and col == wind_col else ""
+                for col in row.index
+            ]
+
+        st.dataframe(
+            audit_df.style.apply(highlight_high_wind, axis=1),
+            use_container_width=True,
+            hide_index=True
+        )
 
 
 def _run_sort_key(run_id):
@@ -532,8 +674,6 @@ def render_traditional_pair_selection(t):
     # ===== CONDIÇÕES AMBIENTAIS =====
     st.subheader(f"🌡️ Correção Climática")
     
-    st.info("💡 **Importante:** A correção climática é aplicada INDIVIDUALMENTE em cada passada (ida e volta) usando as condições meteorológicas específicas de cada uma.")
-    
     # Opções de fonte de dados meteorológicos
     correction_mode = st.radio(
         "Fonte dos Dados Meteorológicos:",
@@ -612,10 +752,21 @@ def render_traditional_pair_selection(t):
     elif correction_mode == "Arquivo Meteorológico":
         if st.session_state.weather_data:
             st.success(f"✅ Arquivo meteorológico carregado com {len(st.session_state.weather_data)} registros")
-            st.info("Os dados de T/P serão buscados automaticamente com base no timestamp de cada run")
         else:
             st.warning("⚠️ Nenhum arquivo meteorológico foi carregado. Volte para a Página 1 para carregar.")
             correction_mode = "Sem Correção"
+
+    if st.session_state.weather_data:
+        sync_by_time_only = bool(st.session_state.get("sync_meteo_by_time_only", False))
+        render_weather_sync_audit(
+            [
+                (f"{selected_ida} (+)", st.session_state.all_run_data.get(selected_ida, {})),
+                (f"{selected_volta} (-)", st.session_state.all_run_data.get(selected_volta, {})),
+            ],
+            st.session_state.weather_data,
+            sync_by_time_only,
+            t
+        )
     
     st.markdown("---")
     
@@ -854,6 +1005,11 @@ def render_traditional_pair_selection(t):
                         background-color: #ff6b6b;
                         color: #000;
                     }}
+                    .warning-wind {{
+                        background-color: #fff3cd;
+                        color: #000;
+                        font-weight: bold;
+                    }}
                 </style>
                 <table class="results-table">
                     <thead>
@@ -891,6 +1047,24 @@ def render_traditional_pair_selection(t):
                 # Tabela de coeficientes CORRIGIDOS (se houver)
                 if corrected:
                     st.markdown("#### Coeficientes CORRIGIDOS")
+
+                    def _format_optional_float(value, decimals=1):
+                        try:
+                            if value is None or pd.isna(value):
+                                return "N/A"
+                            return f"{float(value):.{decimals}f}"
+                        except (TypeError, ValueError):
+                            return "N/A"
+
+                    wind_vals_corr = [
+                        w for w in (wind_ida_ms, wind_volta_ms)
+                        if w is not None and not pd.isna(w)
+                    ]
+                    wind_mean_corr = mean(wind_vals_corr) if wind_vals_corr else None
+                    wind_ida_class = "warning-wind" if wind_ida_ms is not None and float(wind_ida_ms) > 3.0 else ""
+                    wind_volta_class = "warning-wind" if wind_volta_ms is not None and float(wind_volta_ms) > 3.0 else ""
+                    wind_mean_class = "warning-wind" if wind_mean_corr is not None and float(wind_mean_corr) > 3.0 else ""
+                    energy_display = _format_optional_float(energy, 2)
                     
                     html_corr = f"""
                     <table class="results-table">
@@ -899,33 +1073,39 @@ def render_traditional_pair_selection(t):
                                 <th>Run</th>
                                 <th>T (°C)</th>
                                 <th>P (kPa)</th>
+                                <th>Vento (m/s)</th>
                                 <th>f0 (N)</th>
                                 <th>f2 (N/(km/h)²)</th>
                                 <th>CV f0 (%)</th>
                                 <th>CV f2 (%)</th>
+                                <th>Energia</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
                                 <td>{selected_ida} ↑ [+]</td>
                                 <td>{temp_ida_used:.1f}</td>
-                                <td>{press_ida_used:.2f}</td>
+                                <td>{press_ida_used:.1f}</td>
+                                <td class="{wind_ida_class}">{_format_optional_float(wind_ida_ms, 1)}</td>
                                 <td>{f0_ida_corr:.4f}</td>
                                 <td>{f2_ida_corr:.6f}</td>
                                 <td rowspan="3" class="cv-cell {'warning-cv' if cv_f0_corr > 10 else ''}">{cv_f0_corr:.2f}</td>
                                 <td rowspan="3" class="cv-cell {'warning-cv' if cv_f2_corr > 10 else ''}">{cv_f2_corr:.2f}</td>
+                                <td rowspan="3" class="cv-cell">{energy_display}</td>
                             </tr>
                             <tr>
                                 <td>{selected_volta} ↓ [-]</td>
                                 <td>{temp_volta_used:.1f}</td>
-                                <td>{press_volta_used:.2f}</td>
+                                <td>{press_volta_used:.1f}</td>
+                                <td class="{wind_volta_class}">{_format_optional_float(wind_volta_ms, 1)}</td>
                                 <td>{f0_volta_corr:.4f}</td>
                                 <td>{f2_volta_corr:.6f}</td>
                             </tr>
                             <tr>
                                 <td><strong>Média</strong></td>
                                 <td><strong>{(temp_ida_used + temp_volta_used)/2:.1f}</strong></td>
-                                <td><strong>{(press_ida_used + press_volta_used)/2:.2f}</strong></td>
+                                <td><strong>{(press_ida_used + press_volta_used)/2:.1f}</strong></td>
+                                <td class="{wind_mean_class}"><strong>{_format_optional_float(wind_mean_corr, 1)}</strong></td>
                                 <td><strong>{f0corr_mean:.4f}</strong></td>
                                 <td><strong>{f2corr_mean:.6f}</strong></td>
                             </tr>
@@ -934,8 +1114,6 @@ def render_traditional_pair_selection(t):
                     """
                     st.markdown(html_corr, unsafe_allow_html=True)
                     
-                    st.markdown("---")
-                    st.metric("⚡ Energia", f"{energy:.2f} MJ/km")
                     
                     # Avisos de CV alto
                     if cv_f0_corr > 10.0:

@@ -566,7 +566,7 @@ def read_weather_station_csv(file_path):
     df['Time'] = pd.to_datetime(df['Time'], errors='coerce', dayfirst=True)
 
     # Converte numéricos com segurança
-    for col in ['Temp', 'Baro.', 'Wind Speed']:
+    for col in ['Temp', 'Baro.', 'Wind Speed', 'Crosswind', 'Headwind']:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce')
 
@@ -577,6 +577,27 @@ def read_weather_station_csv(file_path):
     # Filtra linhas válidas (precisamos pelo menos de timestamp, temp e baro para correção)
     df = df.dropna(subset=['Time', 'Temp', 'Baro.'])
 
+    def _weather_wind_ms(row):
+        """Retorna vento em m/s, preferindo Wind Speed e usando componentes como fallback."""
+        wind_speed = row.get('Wind Speed')
+        if wind_speed is not None and not pd.isna(wind_speed) and float(wind_speed) != 0.0:
+            return float(wind_speed)
+
+        crosswind = row.get('Crosswind')
+        headwind = row.get('Headwind')
+        if (
+            crosswind is not None and not pd.isna(crosswind)
+            and headwind is not None and not pd.isna(headwind)
+        ):
+            wind_from_components = float(np.hypot(float(crosswind), float(headwind)))
+            if wind_from_components != 0.0:
+                return wind_from_components
+
+        if wind_speed is not None and not pd.isna(wind_speed):
+            return float(wind_speed)
+
+        return None
+
     # Monta a lista de dicionários, incluindo wind_ms (pode ser None)
     weather_data = []
     for _, row in df.iterrows():
@@ -584,7 +605,7 @@ def read_weather_station_csv(file_path):
             'timestamp': row['Time'].to_pydatetime(),
             'baro_kpa' : float(row['Baro.']),
             'temp_c'   : float(row['Temp']),
-            'wind_ms'  : None if 'Wind Speed' not in row or pd.isna(row['Wind Speed']) else float(row['Wind Speed'])
+            'wind_ms'  : _weather_wind_ms(row)
         })
 
     # Ordena por tempo (bom para buscas por "mais próximo")

@@ -760,6 +760,58 @@ TRANSLATIONS = {
         "pt": "Não foi possível sincronizar o arquivo meteorológico porque as passadas não têm horário válido. Verifique o campo de horário no CSV ou use condições fixas.",
         "en": "The meteorological file could not be synchronized because the runs do not have valid times. Check the time field in the CSV or use fixed conditions."
     },
+    "meteo_sync_mode_full_datetime": {
+        "pt": "data + horário",
+        "en": "date + time"
+    },
+    "meteo_sync_mode_time_only": {
+        "pt": "somente horário",
+        "en": "time only"
+    },
+    "meteo_sync_current_mode": {
+        "pt": "Sincronização meteorológica atual: {mode}.",
+        "en": "Current meteorological synchronization: {mode}."
+    },
+    "meteo_sync_details_expander": {
+        "pt": "Ver detalhes da sincronização meteorológica",
+        "en": "View meteorological synchronization details"
+    },
+    "meteo_sync_col_run": {
+        "pt": "Run/passada",
+        "en": "Run"
+    },
+    "meteo_sync_col_csv_time": {
+        "pt": "Horário CSV",
+        "en": "CSV time"
+    },
+    "meteo_sync_col_meteo_time": {
+        "pt": "Horário Meteo sincronizado",
+        "en": "Synchronized meteo time"
+    },
+    "meteo_sync_col_delta_s": {
+        "pt": "Diferença (s)",
+        "en": "Difference (s)"
+    },
+    "meteo_sync_col_mode": {
+        "pt": "Modo usado",
+        "en": "Mode used"
+    },
+    "meteo_sync_col_temp": {
+        "pt": "Temperatura",
+        "en": "Temperature"
+    },
+    "meteo_sync_col_press": {
+        "pt": "Pressão",
+        "en": "Pressure"
+    },
+    "meteo_sync_col_wind": {
+        "pt": "Vento",
+        "en": "Wind"
+    },
+    "meteo_wind_above_limit_warning": {
+        "pt": "Atenção: vento acima de 3,0 m/s em {runs}. Vento acima desse limite é critério de atenção/exclusão pela norma.",
+        "en": "Warning: wind above 3.0 m/s in {runs}. Wind above this limit is an attention/exclusion criterion under the standard."
+    },
 
     # ===== TAMANHO DE FONTE =====
     "font_size": {

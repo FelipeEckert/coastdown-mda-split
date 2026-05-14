@@ -143,6 +143,169 @@ def _has_algorithm_weather_sync_times(time_only):
     return bool(ida_runs and volta_runs)
 
 
+def _sync_mode_label(time_only, t):
+    """Retorna o rotulo do modo de sincronizacao meteo."""
+    return t("meteo_sync_mode_time_only") if time_only else t("meteo_sync_mode_full_datetime")
+
+
+def _seconds_since_midnight(value):
+    """Converte datetime ou texto HH:MM[:SS] em segundos desde meia-noite."""
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        time_obj = value.time()
+    else:
+        text = str(value).strip().replace(",", ".")
+        if not text:
+            return None
+
+        time_obj = None
+        for fmt in ("%H:%M:%S.%f", "%H:%M:%S", "%H:%M"):
+            try:
+                time_obj = datetime.strptime(text, fmt).time()
+                break
+            except ValueError:
+                continue
+        if time_obj is None:
+            return None
+
+    return (
+        time_obj.hour * 3600
+        + time_obj.minute * 60
+        + time_obj.second
+        + time_obj.microsecond / 1_000_000
+    )
+
+
+def _format_sync_time(value):
+    """Formata horario/timestamp para exibicao na auditoria."""
+    if value is None:
+        return "N/A"
+    if isinstance(value, datetime):
+        return value.strftime("%d/%m/%Y %H:%M:%S")
+    return str(value)
+
+
+def _format_sync_number(value):
+    """Formata numeros da auditoria meteo com uma casa decimal."""
+    if value is None:
+        return "N/A"
+    try:
+        return f"{float(value):.1f}"
+    except (TypeError, ValueError):
+        return "N/A"
+
+
+def _weather_sync_delta_seconds(run_data, weather_record, time_only):
+    """Calcula a diferenca usada apenas para auditoria visual."""
+    if not run_data or not weather_record:
+        return None
+
+    target_time = run_data.get("start_timestamp") or run_data.get("start_time_str")
+    meteo_time = weather_record.get("timestamp")
+
+    if time_only:
+        target_seconds = _seconds_since_midnight(target_time)
+        meteo_seconds = _seconds_since_midnight(meteo_time)
+        if target_seconds is None or meteo_seconds is None:
+            return None
+        return abs(meteo_seconds - target_seconds)
+
+    target_timestamp = run_data.get("start_timestamp")
+    if not isinstance(target_timestamp, datetime) or not isinstance(meteo_time, datetime):
+        return None
+    return abs((meteo_time - target_timestamp).total_seconds())
+
+
+def _algorithm_weather_sync_run_items():
+    """Monta a lista de passadas auditadas na sincronizacao meteo do algoritmo."""
+    if st.session_state.using_split_method:
+        items = []
+        for prefix, all_run_data in (
+            ("Alta", st.session_state.get("all_run_data_alta", {})),
+            ("Baixa", st.session_state.get("all_run_data_baixa", {})),
+        ):
+            for run_id, run_data in sorted(all_run_data.items(), key=lambda item: str(item[0])):
+                heading = run_data.get("heading", "")
+                items.append((f"{prefix} {run_id} ({heading})", run_data))
+        return items
+
+    return [
+        (f"{run_id} ({run_data.get('heading', '')})", run_data)
+        for run_id, run_data in sorted(
+            st.session_state.get("all_run_data", {}).items(),
+            key=lambda item: str(item[0])
+        )
+    ]
+
+
+def render_weather_sync_audit(run_items, weather_data, time_only, t):
+    """Exibe auditoria da sincronizacao meteo sem alterar a escolha dos registros."""
+    if not weather_data:
+        return
+
+    mode_label = _sync_mode_label(time_only, t)
+    wind_col = t("meteo_sync_col_wind")
+    high_wind_runs = []
+
+    audit_rows = []
+    for run_label, run_data in run_items:
+        weather_record = find_closest_weather_record(
+            run_data,
+            weather_data,
+            time_only=time_only
+        )
+        delta_seconds = _weather_sync_delta_seconds(run_data, weather_record, time_only)
+        wind_ms = weather_record.get("wind_ms") if weather_record else None
+        wind_display = _format_sync_number(wind_ms)
+        if wind_ms is not None and float(wind_ms) > 3.0:
+            high_wind_runs.append(f"{run_label}: {float(wind_ms):.2f} m/s")
+
+        audit_rows.append({
+            t("meteo_sync_col_run"): run_label,
+            t("meteo_sync_col_csv_time"): _format_sync_time(
+                run_data.get("start_timestamp") or run_data.get("start_time_str")
+            ),
+            t("meteo_sync_col_meteo_time"): _format_sync_time(
+                weather_record.get("timestamp") if weather_record else None
+            ),
+            t("meteo_sync_col_delta_s"): (
+                _format_sync_number(delta_seconds)
+            ),
+            t("meteo_sync_col_mode"): mode_label,
+            t("meteo_sync_col_temp"): (
+                _format_sync_number(weather_record.get("temp_c") if weather_record else None)
+            ),
+            t("meteo_sync_col_press"): (
+                _format_sync_number(weather_record.get("baro_kpa") if weather_record else None)
+            ),
+            wind_col: wind_display,
+        })
+
+    with st.expander(t("meteo_sync_details_expander")):
+        if high_wind_runs:
+            st.warning(t("meteo_wind_above_limit_warning", runs=", ".join(high_wind_runs)))
+
+        audit_df = pd.DataFrame(audit_rows)
+
+        def highlight_high_wind(row):
+            try:
+                high_wind = float(row[wind_col]) > 3.0
+            except (TypeError, ValueError):
+                high_wind = False
+            return [
+                "background-color: #fff3cd; color: #000000" if high_wind and col == wind_col else ""
+                for col in row.index
+            ]
+
+        st.dataframe(
+            audit_df.style.apply(highlight_high_wind, axis=1),
+            use_container_width=True,
+            hide_index=True
+        )
+
+
 def _topk_by_energy(pairs, k):
     """Seleciona os k pares de menor energia usando heap (O(n log k))."""
     import heapq
@@ -824,6 +987,12 @@ def render(t):
         if not meteo_sync_times_ok:
             st.warning(t("meteo_sync_no_valid_time"))
         st.success(f"✅ Dados meteorológicos carregados ({len(weather_data)} registros). Serão usados automaticamente por passada.")
+        render_weather_sync_audit(
+            _algorithm_weather_sync_run_items(),
+            weather_data,
+            sync_by_time_only,
+            t
+        )
     else:
         st.warning("⚠️ Não há dados meteorológicos carregados.")
         use_fixed = st.checkbox("Usar temperatura e pressão fixas", value=True, key="algo_use_fixed")
