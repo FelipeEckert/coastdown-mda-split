@@ -283,6 +283,97 @@ def _get_selected_pair_run_ids():
     return sorted(selected_runs, key=_run_sort_key)
 
 
+_TIME_CONFORMITY_LABEL_FALLBACKS = {
+    "time_conformity_interval": {
+        "pt": "Intervalo",
+        "en": "Interval",
+    },
+    "time_conformity_measured_value": {
+        "pt": "Valor medido",
+        "en": "Measured value",
+    },
+    "time_conformity_mean_detail": {
+        "pt": "Média do intervalo",
+        "en": "Interval mean",
+    },
+    "time_conformity_std_time": {
+        "pt": "Desvio padrão",
+        "en": "Standard deviation",
+    },
+    "time_conformity_difference_s": {
+        "pt": "Diferença",
+        "en": "Difference",
+    },
+    "time_conformity_deviation_pct": {
+        "pt": "Desvio (%)",
+        "en": "Deviation (%)",
+    },
+    "time_conformity_status": {
+        "pt": "Status",
+        "en": "Status",
+    },
+    "time_conformity_status_conforming": {
+        "pt": "Conforme",
+        "en": "Conforming",
+    },
+    "time_conformity_status_non_conforming": {
+        "pt": "Não conforme",
+        "en": "Non-conforming",
+    },
+    "time_conformity_mean_time": {
+        "pt": "Tempo Médio (s)",
+        "en": "Mean Time (s)",
+    },
+    "time_conformity_min_time": {
+        "pt": "Tempo Mínimo (s)",
+        "en": "Min Time (s)",
+    },
+    "time_conformity_max_time": {
+        "pt": "Tempo Máximo (s)",
+        "en": "Max Time (s)",
+    },
+    "time_conformity_cv_pct": {
+        "pt": "CV (%)",
+        "en": "CV (%)",
+    },
+    "time_conformity_max_deviation_pct": {
+        "pt": "Maior Desvio (%)",
+        "en": "Max Deviation (%)",
+    },
+    "time_conformity_non_conforming_count": {
+        "pt": "Não Conformes",
+        "en": "Non-conforming",
+    },
+}
+
+
+def _translator_language(t):
+    """Infere o idioma capturado pelo tradutor para fallbacks locais."""
+    for cell in getattr(t, "__closure__", None) or []:
+        try:
+            value = cell.cell_contents
+        except ValueError:
+            continue
+        if value in ("pt", "en"):
+            return value
+    return "pt"
+
+
+def _tc_text(t, key, **kwargs):
+    """Traduz label da conformidade sem deixar key interna vazar na UI."""
+    text = t(key, **kwargs)
+    if text == key:
+        language = _translator_language(t)
+        fallback = _TIME_CONFORMITY_LABEL_FALLBACKS.get(key, {})
+        text = fallback.get(language, fallback.get("pt", key))
+        if kwargs:
+            try:
+                text = text.format(**kwargs)
+            except (KeyError, ValueError):
+                pass
+    return text
+
+
 def _format_detail_number(value, decimals=2, suffix=""):
     """Formata numero para detalhes da matriz de conformidade."""
     try:
@@ -310,6 +401,7 @@ def _format_signed_detail_number(value, decimals=2, suffix=""):
 def _build_time_conformity_tooltip_lookup(detailed_df, t):
     """Indexa detalhes por intervalo/run para a tabela HTML."""
     tooltip_lookup = {}
+    interval_col = t("time_conformity_interval")
     for _, row in detailed_df.iterrows():
         is_non_conforming = bool(row["_is_non_conforming"])
         status_key = (
@@ -319,26 +411,26 @@ def _build_time_conformity_tooltip_lookup(detailed_df, t):
         )
         details = [
             (
-                t("time_conformity_measured_value"),
+                _tc_text(t, "time_conformity_measured_value"),
                 _format_detail_number(row["_time_s"], 2, " s"),
             ),
             (
-                t("time_conformity_mean_detail"),
+                _tc_text(t, "time_conformity_mean_detail"),
                 _format_detail_number(row["_mean_time_s"], 2, " s"),
             ),
             (
-                t("time_conformity_std_time"),
+                _tc_text(t, "time_conformity_std_time"),
                 _format_detail_number(row["_std_time_s"], 2, " s"),
             ),
             (
-                t("time_conformity_difference_s"),
+                _tc_text(t, "time_conformity_difference_s"),
                 _format_signed_detail_number(row["_deviation_s"], 2, " s"),
             ),
             (
-                t("time_conformity_deviation_pct"),
+                _tc_text(t, "time_conformity_deviation_pct"),
                 _format_signed_detail_number(row["_deviation_pct"], 1, "%"),
             ),
-            (t("time_conformity_status"), t(status_key)),
+            (_tc_text(t, "time_conformity_status"), _tc_text(t, status_key)),
         ]
         tooltip_items = "".join(
             (
@@ -351,7 +443,7 @@ def _build_time_conformity_tooltip_lookup(detailed_df, t):
         )
         tooltip_lookup[
             (
-                row[t("time_conformity_interval")],
+                row[interval_col],
                 row["_interval_start"],
                 row["_interval_end"],
                 row["_run_label"],
@@ -371,7 +463,7 @@ def render_time_conformity_html_table(
     """Renderiza matriz HTML com tooltip CSS por celula."""
     interval_col = t("time_conformity_interval")
     tooltip_lookup = _build_time_conformity_tooltip_lookup(detailed_df, t)
-    headers = [interval_col] + ordered_run_columns
+    headers = [_tc_text(t, "time_conformity_interval")] + ordered_run_columns
 
     header_html = "".join(
         f"<th>{escape(str(column))}</th>" for column in headers
@@ -823,9 +915,21 @@ def render_time_conformity_analysis(t):
     st.markdown("---")
     st.subheader(t("time_conformity_summary"))
 
+    summary_interval_col = t("time_conformity_interval")
+    summary_interval_label = _tc_text(t, "time_conformity_interval")
+    summary_mean_label = _tc_text(t, "time_conformity_mean_time")
+    summary_std_label = _tc_text(t, "time_conformity_std_time")
+    summary_min_label = _tc_text(t, "time_conformity_min_time")
+    summary_max_label = _tc_text(t, "time_conformity_max_time")
+    summary_cv_label = _tc_text(t, "time_conformity_cv_pct")
+    summary_max_dev_label = _tc_text(t, "time_conformity_max_deviation_pct")
+    summary_non_conforming_label = _tc_text(
+        t,
+        "time_conformity_non_conforming_count",
+    )
     summary_display = interval_stats[
         [
-            t("time_conformity_interval"),
+            summary_interval_col,
             "_mean_time_s",
             "_std_time_s",
             "_min_time_s",
@@ -836,23 +940,24 @@ def render_time_conformity_analysis(t):
         ]
     ].rename(
         columns={
-            "_mean_time_s": t("time_conformity_mean_time"),
-            "_std_time_s": t("time_conformity_std_time"),
-            "_min_time_s": t("time_conformity_min_time"),
-            "_max_time_s": t("time_conformity_max_time"),
-            "_cv_pct": t("time_conformity_cv_pct"),
-            "_max_deviation_pct": t("time_conformity_max_deviation_pct"),
-            "_non_conforming_count": t("time_conformity_non_conforming_count"),
+            summary_interval_col: summary_interval_label,
+            "_mean_time_s": summary_mean_label,
+            "_std_time_s": summary_std_label,
+            "_min_time_s": summary_min_label,
+            "_max_time_s": summary_max_label,
+            "_cv_pct": summary_cv_label,
+            "_max_deviation_pct": summary_max_dev_label,
+            "_non_conforming_count": summary_non_conforming_label,
         }
     ).copy()
 
     for column in (
-        t("time_conformity_mean_time"),
-        t("time_conformity_std_time"),
-        t("time_conformity_min_time"),
-        t("time_conformity_max_time"),
-        t("time_conformity_cv_pct"),
-        t("time_conformity_max_deviation_pct"),
+        summary_mean_label,
+        summary_std_label,
+        summary_min_label,
+        summary_max_label,
+        summary_cv_label,
+        summary_max_dev_label,
     ):
         summary_display[column] = summary_display[column].map(
             lambda value: _format_detail_number(value, 2)
