@@ -20,7 +20,14 @@ import uuid
 import streamlit as st
 
 # Adiciona o diretório raiz ao path para imports
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ASSETS_DIR = os.path.join(BASE_DIR, "assets")
+APP_LOGO_SVG_PATH = os.path.join(ASSETS_DIR, "app_logo.svg")
+APP_LOGO_PNG_PATH = os.path.join(ASSETS_DIR, "app_logo.png")
+HYUNDAI_LOGO_SVG_PATH = os.path.join(ASSETS_DIR, "hyundai_logo.svg")
+HYUNDAI_LOGO_PNG_PATH = os.path.join(ASSETS_DIR, "hyundai_logo.png")
+
+sys.path.insert(0, BASE_DIR)
 
 from translations import get_translator, get_available_languages
 from data.loaders import carregar_dados_csv_robusto, read_weather_station_csv
@@ -271,6 +278,11 @@ def apply_font_size_css(font_size_option):
         padding-bottom: 0.5rem;
     }}
 
+    section[data-testid="stSidebar"] [class*="st-key-sidebar_brand_app_logo"],
+    section[data-testid="stSidebar"] [class*="st-key-sidebar_brand_hyundai_logo"] {{
+        margin-bottom: -0.35rem;
+    }}
+
     .main .block-container {{
         padding-top: 1rem !important;
     }}
@@ -365,6 +377,40 @@ def apply_font_size_css(font_size_option):
 </style>
         """,
         unsafe_allow_html=True,
+    )
+
+
+def get_first_existing_asset(asset_paths):
+    """Retorna o primeiro asset existente na ordem de prioridade informada."""
+    for asset_path in asset_paths:
+        if os.path.exists(asset_path):
+            return asset_path
+    return None
+
+
+def render_optional_logo(asset_paths, width, key):
+    """Renderiza um logo local opcional sem quebrar se o arquivo faltar."""
+    asset_path = get_first_existing_asset(asset_paths)
+    if asset_path:
+        with st.container(key=key):
+            st.image(asset_path, width=width)
+
+
+def render_optional_app_logo():
+    """Renderiza o logo do app no topo da sidebar, se o asset existir."""
+    render_optional_logo(
+        (APP_LOGO_SVG_PATH, APP_LOGO_PNG_PATH),
+        width=64,
+        key="sidebar_brand_app_logo",
+    )
+
+
+def render_optional_hyundai_brand():
+    """Renderiza a marca Hyundai no topo da sidebar sem quebrar se o arquivo faltar."""
+    render_optional_logo(
+        (HYUNDAI_LOGO_SVG_PATH, HYUNDAI_LOGO_PNG_PATH),
+        width=160,
+        key="sidebar_brand_hyundai_logo",
     )
 
 # ===== CONSTANTES: CHAVES DO TESTE =====
@@ -903,6 +949,9 @@ def edit_test_dialog(t):
 
 def render_sidebar(t):
     """Renderiza a sidebar completa: idioma, testes e navegação."""
+
+    render_optional_app_logo()
+    render_optional_hyundai_brand()
 
     # ---- Título ----
     st.markdown("## Coastdown MDA")

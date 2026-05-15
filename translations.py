@@ -49,6 +49,10 @@ TRANSLATIONS = {
         "pt": "Simulação",
         "en": "Simulation"
     },
+    "report_plot_mode": {
+        "pt": "Modo relatorio: graficos claros",
+        "en": "Report mode: light charts"
+    },
     "pair_time_conformity_tab": {
         "pt": "Conformidade de Tempos",
         "en": "Time Conformity"

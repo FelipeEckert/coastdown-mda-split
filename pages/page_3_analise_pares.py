@@ -974,6 +974,11 @@ def render(t):
         st.warning(t("error_no_mass"))
         return
 
+    report_plot_mode = st.checkbox(
+        t("report_plot_mode"),
+        key="pair_analysis_report_plot_mode",
+    )
+
     subtab_calc, subtab_graf, subtab_sim, subtab_conf = st.tabs([
         t('pair_calculations'),
         t("pair_analysis_graphs"),
@@ -996,12 +1001,12 @@ def render(t):
 
     with subtab_graf:
         if st.session_state.all_run_data:
-            render_deceleration_graphs(t)
+            render_deceleration_graphs(t, report_plot_mode)
         else:
             st.info("💡 Carregue os dados do teste para visualizar os gráficos de desaceleração.")
 
     with subtab_sim:
-        render_simulation(t)
+        render_simulation(t, report_plot_mode)
 
     with subtab_conf:
         render_time_conformity_analysis(t)
@@ -1786,7 +1791,48 @@ def render_calculated_pairs_table(t):
     st.info("💡 Vá para **Comparativo Final** para selecionar e comparar os pares")
 
 
-def render_deceleration_graphs(t):
+def apply_report_plot_theme(fig):
+    """Aplica tema claro aos gráficos Plotly para relatório/print."""
+    fig.update_layout(
+        template="plotly_white",
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        font=dict(color="black"),
+        title_font=dict(color="black"),
+        legend=dict(
+            font=dict(color="black"),
+            bgcolor="rgba(255,255,255,0.9)",
+            bordercolor="#cccccc",
+            borderwidth=1,
+        ),
+        hoverlabel=dict(
+            bgcolor="white",
+            bordercolor="#333333",
+            font=dict(color="black"),
+        ),
+    )
+    fig.update_xaxes(
+        title_font=dict(color="black"),
+        tickfont=dict(color="black"),
+        color="black",
+        linecolor="#333333",
+        gridcolor="#dddddd",
+        zerolinecolor="#cccccc",
+        showgrid=True,
+    )
+    fig.update_yaxes(
+        title_font=dict(color="black"),
+        tickfont=dict(color="black"),
+        color="black",
+        linecolor="#333333",
+        gridcolor="#dddddd",
+        zerolinecolor="#cccccc",
+        showgrid=True,
+    )
+    return fig
+
+
+def render_deceleration_graphs(t, report_plot_mode=False):
     """Renderiza gráfico interativo de desaceleração (Velocidade × Tempo) com Plotly."""
     import re
     import plotly.graph_objects as go
@@ -1926,6 +1972,9 @@ def render_deceleration_graphs(t):
         margin=dict(l=60, r=20, t=50, b=50),
     )
 
+    if report_plot_mode:
+        apply_report_plot_theme(fig)
+
     st.plotly_chart(fig, use_container_width=True)
 
 
@@ -1938,7 +1987,7 @@ def _resolve_coeff(pair, keys):
     return None
 
 
-def render_simulation(t):
+def render_simulation(t, report_plot_mode=False):
     """Renderiza a aba de simulação: Força Resistiva e Validação Simulado vs Real."""
     import plotly.graph_objects as go
     import numpy as np
@@ -2057,6 +2106,9 @@ def render_simulation(t):
         hovermode="x unified", height=400,
         margin=dict(l=60, r=20, t=30, b=50),
     )
+    if report_plot_mode:
+        apply_report_plot_theme(fig_f)
+
     st.plotly_chart(fig_f, use_container_width=True)
 
     # Métricas pontuais
@@ -2164,6 +2216,9 @@ def render_simulation(t):
         hovermode="x unified", height=450,
         margin=dict(l=60, r=20, t=50, b=50),
     )
+    if report_plot_mode:
+        apply_report_plot_theme(fig_d)
+
     st.plotly_chart(fig_d, use_container_width=True)
 
     # ===== ERRO MÉDIO =====
