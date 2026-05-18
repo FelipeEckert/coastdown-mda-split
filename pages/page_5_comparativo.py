@@ -19,6 +19,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.calculations import calcular_energia
+from utils.pair_time_analysis import build_selected_pairs_time_analysis
 
 
 def _selection_widget_key(pair_id: str) -> str:
@@ -125,17 +126,123 @@ def _format_wind(pair):
     return "N/A"
 
 
+def _get_selected_comparison_pairs():
+    """Retorna pares corrigidos marcados na tabela comparativa atual."""
+    return [
+        pair
+        for pair in st.session_state.get("calculated_pairs", {}).values()
+        if isinstance(pair, dict) and pair.get("selected", False) and _is_corrected(pair)
+    ]
+
+
+def _format_delta_t_value(value):
+    """Formata valores percentuais da tabela Delta T."""
+    try:
+        if pd.isna(value):
+            return ""
+        return f"{float(value):.1f}%"
+    except (TypeError, ValueError):
+        return ""
+
+
+def render_time_analysis_expander_content(selected_pairs):
+    """Renderiza a tabela Delta T (%) para os pares selecionados."""
+    if not selected_pairs:
+        st.warning("Selecione pares na tabela comparativa para visualizar a análise de tempos.")
+        return
+
+    all_run_data = st.session_state.get("all_run_data", {})
+    if not all_run_data:
+        st.warning("Não há dados de runs carregados para calcular a análise de tempos.")
+        return
+
+    analysis = build_selected_pairs_time_analysis(selected_pairs, all_run_data)
+    if not analysis["intervals"] or not analysis["pairs"]:
+        st.warning("Não há tempos por intervalo suficientes para calcular o Delta T (%).")
+        return
+
+    st.caption(
+        "Esta análise mostra a diferença percentual entre os tempos de ida e volta "
+        "dos pares selecionados na tabela acima."
+    )
+
+    pair_columns = [
+        f"{pair_info['pair_label']} ({pair_info.get('run_ida')}/{pair_info.get('run_volta')})"
+        for pair_info in analysis["pairs"]
+    ]
+    pair_column_by_index = {
+        pair_info["pair_index"]: column
+        for pair_info, column in zip(analysis["pairs"], pair_columns)
+    }
+    rows = []
+    for interval in analysis["intervals"]:
+        row = {"Intervalo": interval["interval_label"]}
+        for pair_info in analysis["pairs"]:
+            row[pair_column_by_index[pair_info["pair_index"]]] = pair_info["delta_values"].get(interval["key"])
+        rows.append(row)
+
+    average_row = {"Intervalo": "Média"}
+    for pair_info in analysis["pairs"]:
+        average_row[pair_column_by_index[pair_info["pair_index"]]] = pair_info.get("mean_delta")
+    rows.append(average_row)
+
+    delta_df = pd.DataFrame(rows)
+
+    def highlight_delta_t(row):
+        is_average = row.get("Intervalo") == "Média"
+        styles = []
+        for column, value in row.items():
+            if column == "Intervalo":
+                styles.append("font-weight: 700; background-color: #151922; color: #ffffff")
+                continue
+
+            try:
+                numeric_value = float(value)
+            except (TypeError, ValueError):
+                styles.append("")
+                continue
+
+            if pd.isna(numeric_value):
+                styles.append("")
+            elif (is_average and numeric_value > 15.0) or (not is_average and numeric_value > 20.0):
+                styles.append("background-color: #902626; color: #ffffff; font-weight: 700")
+            elif is_average:
+                styles.append("background-color: #151922; color: #ffffff; font-weight: 700")
+            else:
+                styles.append("")
+
+        return styles
+
+    styled_delta = (
+        delta_df.style
+        .apply(highlight_delta_t, axis=1)
+        .format({column: _format_delta_t_value for column in pair_columns})
+        .set_table_styles([
+            {
+                "selector": "th",
+                "props": [
+                    ("background-color", "#151922"),
+                    ("color", "#ffffff"),
+                    ("font-weight", "700"),
+                    ("text-align", "center"),
+                ],
+            },
+        ])
+    )
+    st.dataframe(styled_delta, use_container_width=True, hide_index=True)
+
+
 def render(t):
     """Renderiza a página de comparativo final."""
     
+    # ===== ACOES EM LOTE =====
     st.header(t("page_final_comparison"))
-    
-    # Verifica se há pares calculados
+
+    # Verifica se ha pares calculados
     if not st.session_state.calculated_pairs:
         st.warning(t("error_no_pairs"))
         return
-    
-    # ===== ACOES EM LOTE =====
+
     st.subheader(t('auto_select_best'))
 
     col1, col2, col3 = st.columns(3)
@@ -181,17 +288,30 @@ def render(t):
     st.markdown("---")
     
     # ===== ESTATÍSTICAS DOS PARES SELECIONADOS =====
-    selected_pairs = [p for p in st.session_state.calculated_pairs.values()
-                      if p.get("selected", False) and _is_corrected(p)]
-    
+    selected_pairs = _get_selected_comparison_pairs()
+
     if selected_pairs:
         st.subheader(f"📈 Estatísticas dos Pares Selecionados ({len(selected_pairs)} pares)")
         render_selection_statistics(t, selected_pairs)
         
         st.markdown("---")
+
+        with st.expander(
+            "Análise de Tempos - Delta T (%) Ida e Volta",
+            expanded=st.session_state.get("show_page5_time_analysis", False),
+        ):
+            render_time_analysis_expander_content(selected_pairs)
         
+        st.markdown("---")
+
+        col_time_check, col_final_results = st.columns(2)
+
+        if col_time_check.button("Verificar conformidade de tempos", use_container_width=True):
+            st.session_state.show_page5_time_analysis = True
+            st.rerun()
+
         # ===== BOTÃO CALCULAR RESULTADOS FINAIS =====
-        if st.button(f"🎯 {t('calculate_final_results')}", type="primary", use_container_width=True):
+        if col_final_results.button(f"🎯 {t('calculate_final_results')}", type="primary", use_container_width=True):
             if calculate_and_store_final_results(t, selected_pairs):
                 st.session_state.navigate_to_results = True
                 st.rerun()
