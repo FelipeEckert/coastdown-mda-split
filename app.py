@@ -1296,15 +1296,37 @@ def render_test_analysis(t):
         if sync_enabled:
             st.info(t("sync_meteo_time_only_active"))
 
-    tab_labels = [
-        t("page_vehicle_data"),
-        t("page_pair_analysis"),
-        t("page_algorithm_selection"),
-        t("page_final_comparison"),
-        t("page_final_results"),
+    tab_pages = [
+        ("2_dados_veiculo", t("page_vehicle_data")),
+        ("3_analise_pares", t("page_pair_analysis")),
+        ("4_selecao_algoritmo", t("page_algorithm_selection")),
+        ("5_comparativo", t("page_final_comparison")),
+        ("6_resultados", t("page_final_results")),
     ]
+    tab_labels = [label for _, label in tab_pages]
+    page_to_label = dict(tab_pages)
+    label_to_page = {label: page_id for page_id, label in tab_pages}
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(tab_labels)
+    tab_key = f"main_analysis_tabs_{st.session_state.active_test_id}_{st.session_state.language}"
+    if st.session_state.pop("navigate_to_results", False):
+        st.session_state.current_page = "6_resultados"
+        st.session_state[tab_key] = page_to_label["6_resultados"]
+
+    current_page = st.session_state.get("current_page", "2_dados_veiculo")
+    default_label = page_to_label.get(current_page, tab_labels[0])
+    if st.session_state.get(tab_key) not in label_to_page:
+        st.session_state[tab_key] = default_label
+
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(
+        tab_labels,
+        default=st.session_state[tab_key],
+        key=tab_key,
+        on_change="rerun",
+    )
+
+    selected_page = label_to_page.get(st.session_state.get(tab_key))
+    if selected_page:
+        st.session_state.current_page = selected_page
 
     with tab1:
         from pages import page_2_dados_veiculo

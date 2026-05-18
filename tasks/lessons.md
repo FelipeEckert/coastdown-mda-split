@@ -776,3 +776,27 @@ HTML escopada a widgets auxiliares ou Plotly Table. O detalhe deve aparecer no
 ponto de atencao do usuario, sem clique extra e sem transformar a matriz em
 formato longo. Para tooltips em tabelas com scroll, definir a direcao por linha
 e alinhar bordas esquerda/direita explicitamente para evitar cortes.
+
+---
+
+## 2026-05-18 - Redirecionamento Entre Abas com `st.tabs`
+
+### Contexto:
+Melhoria de fluxo para enviar o usuario automaticamente da aba `Comparativo Final`
+para `Resultados Finais` depois que o calculo final dos pares selecionados e salvo
+com sucesso.
+
+### Solucao:
+- manter `current_page` como estado canonico da aba principal do teste ativo;
+- criar uma flag curta (`navigate_to_results`) na pagina que conclui a acao;
+- consumir a flag no `app.py` antes de criar as tabs;
+- usar `st.tabs(..., default=..., key=..., on_change="rerun")` para abrir a aba
+  correta sem refatorar a navegacao inteira;
+- fazer a funcao de calculo retornar `True` somente quando grava `final_results`,
+  evitando redirecionamento em caso de erro.
+
+### Licao:
+Quando a navegacao usa `st.tabs`, o redirecionamento deve ser feito pelo dono das
+abas, nao pela pagina filha. A pagina filha sinaliza a intencao via `session_state`;
+o `app.py` consome essa intencao, ajusta o estado do widget de tabs e rerenderiza.
+Assim a mudanca fica pequena e nao mistura fluxo de UI com logica de calculo.

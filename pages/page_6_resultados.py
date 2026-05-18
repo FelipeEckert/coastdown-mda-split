@@ -16,6 +16,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data.exporters import gerar_excel
+from utils.pair_time_analysis import build_selected_pairs_time_analysis
 
 
 def _get(pair, *keys, default=0):
@@ -25,6 +26,36 @@ def _get(pair, *keys, default=0):
         if val is not None and isinstance(val, (int, float)):
             return val
     return default
+
+
+def _to_float_or_none(value):
+    """Converte valores opcionais de vento em float."""
+    try:
+        if value is None or pd.isna(value):
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _format_pair_wind(pair):
+    """Retorna texto de vento e flag de alerta para o par exportado."""
+    wind_ida = _to_float_or_none(pair.get("wind_ida_ms"))
+    wind_volta = _to_float_or_none(pair.get("wind_volta_ms"))
+    wind_avg = _to_float_or_none(pair.get("wind_avg_ms"))
+
+    if wind_ida is not None or wind_volta is not None:
+        values = [value for value in (wind_ida, wind_volta) if value is not None]
+        display = " / ".join(
+            f"{value:.1f}" if value is not None else "N/A"
+            for value in (wind_ida, wind_volta)
+        )
+        return display, any(value > 3.0 for value in values)
+
+    if wind_avg is not None:
+        return f"{wind_avg:.1f}", wind_avg > 3.0
+
+    return "N/A", False
 
 
 def normalize_selected_pairs():
@@ -208,7 +239,6 @@ def prepare_export_data(t):
         "test_date": str(vehicle_info.get("test_date", "N/A")),
         "total_mass": results.get("total_mass", 0),
         "effective_mass": vehicle_info.get("effective_mass", 0),
-        "frontal_area": vehicle_info.get("frontal_area", 0),
         "mean_f0": results.get("mean_f0", 0),
         "mean_f2": results.get("mean_f2", 0),
         "cv_f0": results.get("cv_f0", 0),
@@ -216,6 +246,7 @@ def prepare_export_data(t):
         "mean_energy": results.get("mean_energy", 0),
         "num_pairs": results.get("num_pairs", 0),
         "pairs": normalize_selected_pairs()[0],
+        "all_run_data": st.session_state.get("all_run_data", {}),
     }
     
     return export_data
@@ -226,6 +257,7 @@ def generate_excel_report(export_data, t):
     
     import openpyxl
     from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+    from openpyxl.utils import get_column_letter
     
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -242,11 +274,15 @@ def generate_excel_report(export_data, t):
         bottom=Side(style='thin')
     )
     header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    warning_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
+    average_warning_fill = PatternFill(start_color="FFF3CD", end_color="FFF3CD", fill_type="solid")
+    wind_warning_fill = PatternFill(start_color="FFF3CD", end_color="FFF3CD", fill_type="solid")
+    neutral_fill = PatternFill(start_color="D9EAF7", end_color="D9EAF7", fill_type="solid")
     
     # Título
     ws['A1'] = "RELATÓRIO DE ANÁLISE DE COASTDOWN (ABNT 10312)"
     ws['A1'].font = title_font
-    ws.merge_cells('A1:F1')
+    ws.merge_cells('A1:G1')
     
     # Informações do veículo
     ws['A3'] = "INFORMAÇÕES DO VEÍCULO"
@@ -260,8 +296,6 @@ def generate_excel_report(export_data, t):
     ws['B6'] = export_data.get("total_mass", 0)
     ws['A7'] = "Massa Efetiva (kg):"
     ws['B7'] = export_data.get("effective_mass", 0)
-    ws['A8'] = "Área Frontal (m²):"
-    ws['B8'] = export_data.get("frontal_area", 0)
     
     # Resultados
     ws['A10'] = "RESULTADOS FINAIS"
@@ -284,7 +318,7 @@ def generate_excel_report(export_data, t):
     ws['A18'] = "PARES SELECIONADOS"
     ws['A18'].font = header_font
     
-    headers = ["ID do Par", "F0 (N)", "F2 (N/(km/h)²)", "Energia (MJ/km)", "Temp (°C)", "Pressão (kPa)"]
+    headers = ["ID do Par", "F0 (N)", "F2 (N/(km/h)²)", "Energia (MJ/km)", "Temp (°C)", "Pressão (kPa)", "Vento (m/s)"]
     for col, header in enumerate(headers, start=1):
         cell = ws.cell(row=19, column=col, value=header)
         cell.font = Font(bold=True, color="FFFFFF")
@@ -299,6 +333,7 @@ def generate_excel_report(export_data, t):
         energy = _get(pair, "energy", "mean_energy_corrected")
         temp = pair.get("temp", 25)
         press = pair.get("press", 101.325)
+        wind_display, high_wind = _format_pair_wind(pair)
         
         ws.cell(row=row, column=1, value=pair.get("pair_id", "N/A")).border = thin_border
         ws.cell(row=row, column=2, value=f"{f0:.4f}").border = thin_border
@@ -306,6 +341,10 @@ def generate_excel_report(export_data, t):
         ws.cell(row=row, column=4, value=f"{energy:.4f}").border = thin_border
         ws.cell(row=row, column=5, value=f"{temp:.1f}" if isinstance(temp, (int, float)) else str(temp)).border = thin_border
         ws.cell(row=row, column=6, value=f"{press:.3f}" if isinstance(press, (int, float)) else str(press)).border = thin_border
+        wind_cell = ws.cell(row=row, column=7, value=wind_display)
+        wind_cell.border = thin_border
+        if high_wind:
+            wind_cell.fill = wind_warning_fill
         row += 1
     
     # Ajusta largura das colunas
@@ -315,6 +354,115 @@ def generate_excel_report(export_data, t):
     ws.column_dimensions['D'].width = 15
     ws.column_dimensions['E'].width = 12
     ws.column_dimensions['F'].width = 15
+    ws.column_dimensions['G'].width = 15
+
+    # ===== ABA: DELTA T (%) IDA E VOLTA =====
+    time_analysis = build_selected_pairs_time_analysis(
+        export_data.get("pairs", []),
+        export_data.get("all_run_data", {}),
+    )
+
+    def write_cell(sheet, row, col, value, bold=False, fill=None, num_fmt=None):
+        cell = sheet.cell(row=row, column=col, value=value)
+        cell.font = Font(bold=bold, color="FFFFFF" if fill == header_fill else "000000")
+        cell.alignment = center_align
+        cell.border = thin_border
+        if fill is not None:
+            cell.fill = fill
+        if num_fmt:
+            cell.number_format = num_fmt
+        return cell
+
+    ws_delta = wb.create_sheet(title="Delta T")
+    max_delta_col = max(2, len(time_analysis["pairs"]) + 1)
+    ws_delta.merge_cells(start_row=1, start_column=1, end_row=1, end_column=max_delta_col)
+    ws_delta.cell(row=1, column=1, value="Delta T (%) Ida e Volta").font = title_font
+    ws_delta.cell(row=1, column=1).alignment = center_align
+
+    write_cell(ws_delta, 3, 1, "Intervalo", bold=True, fill=header_fill)
+    for col_idx, pair_info in enumerate(time_analysis["pairs"], start=2):
+        write_cell(ws_delta, 3, col_idx, pair_info["pair_label"], bold=True, fill=header_fill)
+
+    if not time_analysis["intervals"] or not time_analysis["pairs"]:
+        write_cell(ws_delta, 4, 1, "Sem dados de tempo para os pares selecionados.")
+    else:
+        for row_offset, interval in enumerate(time_analysis["intervals"], start=4):
+            write_cell(ws_delta, row_offset, 1, interval["interval_label"])
+            for col_idx, pair_info in enumerate(time_analysis["pairs"], start=2):
+                value = pair_info["delta_values"].get(interval["key"])
+                fill = warning_fill if isinstance(value, (int, float)) and value > 20.0 else None
+                write_cell(
+                    ws_delta,
+                    row_offset,
+                    col_idx,
+                    value if isinstance(value, (int, float)) else None,
+                    fill=fill,
+                    num_fmt='0.0"%"',
+                )
+
+        avg_row = 4 + len(time_analysis["intervals"])
+        write_cell(ws_delta, avg_row, 1, "Media", bold=True, fill=neutral_fill)
+        for col_idx, pair_info in enumerate(time_analysis["pairs"], start=2):
+            value = pair_info.get("mean_delta")
+            fill = average_warning_fill if isinstance(value, (int, float)) and value > 15.0 else neutral_fill
+            write_cell(
+                ws_delta,
+                avg_row,
+                col_idx,
+                value if isinstance(value, (int, float)) else None,
+                bold=True,
+                fill=fill,
+                num_fmt='0.0"%"',
+            )
+
+    ws_delta.freeze_panes = "B4"
+    ws_delta.column_dimensions["A"].width = 16
+    for col_idx in range(2, max_delta_col + 1):
+        ws_delta.column_dimensions[get_column_letter(col_idx)].width = 14
+
+    # ===== ABA: TEMPOS DOS PARES SELECIONADOS =====
+    ws_times = wb.create_sheet(title="Tempos Pares Selecionados")
+    time_headers = ["Velocidade"]
+    for pair_info in time_analysis["pairs"]:
+        time_headers.extend([f"{pair_info['pair_index']}A", f"{pair_info['pair_index']}B"])
+
+    max_time_col = max(1, len(time_headers))
+    ws_times.merge_cells(start_row=1, start_column=1, end_row=1, end_column=max_time_col)
+    ws_times.cell(row=1, column=1, value="Tempos de Desaceleracao dos Pares Selecionados").font = title_font
+    ws_times.cell(row=1, column=1).alignment = center_align
+
+    for col_idx, header in enumerate(time_headers, start=1):
+        write_cell(ws_times, 3, col_idx, header, bold=True, fill=header_fill)
+
+    if not time_analysis["intervals"] or not time_analysis["pairs"]:
+        write_cell(ws_times, 4, 1, "Sem dados de tempo para os pares selecionados.")
+    else:
+        for row_offset, interval in enumerate(time_analysis["intervals"], start=4):
+            write_cell(ws_times, row_offset, 1, interval["interval_label"])
+            col_idx = 2
+            for pair_info in time_analysis["pairs"]:
+                ida_value = pair_info["ida_times"].get(interval["key"])
+                volta_value = pair_info["volta_times"].get(interval["key"])
+                write_cell(
+                    ws_times,
+                    row_offset,
+                    col_idx,
+                    ida_value if isinstance(ida_value, (int, float)) else None,
+                    num_fmt="0.00",
+                )
+                write_cell(
+                    ws_times,
+                    row_offset,
+                    col_idx + 1,
+                    volta_value if isinstance(volta_value, (int, float)) else None,
+                    num_fmt="0.00",
+                )
+                col_idx += 2
+
+    ws_times.freeze_panes = "B4"
+    ws_times.column_dimensions["A"].width = 16
+    for col_idx in range(2, max_time_col + 1):
+        ws_times.column_dimensions[get_column_letter(col_idx)].width = 12
     
     # Salva em buffer
     buffer = io.BytesIO()
@@ -345,7 +493,6 @@ Modelo:              {vehicle_info.get('model', 'N/A')}
 Data do Teste:       {vehicle_info.get('test_date', 'N/A')}
 Massa Total:         {results.get('total_mass', 0):.1f} kg
 Massa Efetiva:       {vehicle_info.get('effective_mass', 0):.1f} kg
-Área Frontal:        {vehicle_info.get('frontal_area', 0):.2f} m²
 
 --------------------------------------------------------------------------------
                           RESULTADOS FINAIS

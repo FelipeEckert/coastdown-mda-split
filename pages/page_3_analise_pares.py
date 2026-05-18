@@ -26,6 +26,7 @@ from core.calculations import (
 )
 from core.corrections import apply_climate_correction
 from data.loaders import find_closest_weather_record
+from utils.pair_time_analysis import build_selected_pairs_time_analysis
 
 
 def _sync_mode_label(time_only, t):
@@ -966,6 +967,126 @@ def render_time_conformity_analysis(t):
     st.dataframe(summary_display, use_container_width=True, hide_index=True)
 
 
+def _normalize_selected_pairs_for_delta_t():
+    """Resolve os pares finais/selecionados para a tabela de Delta T."""
+    calculated_pairs = st.session_state.get("calculated_pairs", {})
+    selected_pairs = st.session_state.get("pares_finais_selecionados", [])
+
+    if not selected_pairs:
+        selected_pairs = [
+            pair
+            for pair in calculated_pairs.values()
+            if isinstance(pair, dict) and pair.get("selected", False)
+        ]
+
+    if isinstance(selected_pairs, dict):
+        selected_items = selected_pairs.values()
+    elif isinstance(selected_pairs, str):
+        selected_items = [selected_pairs]
+    else:
+        try:
+            selected_items = list(selected_pairs)
+        except TypeError:
+            selected_items = []
+
+    normalized = []
+    for item in selected_items:
+        if isinstance(item, dict):
+            normalized.append(item)
+        elif isinstance(item, str) and isinstance(calculated_pairs, dict):
+            pair = calculated_pairs.get(item)
+            if isinstance(pair, dict):
+                normalized.append(pair)
+
+    return normalized
+
+
+def _format_delta_t_value(value):
+    """Formata valores percentuais da tabela Delta T."""
+    try:
+        if pd.isna(value):
+            return ""
+        return f"{float(value):.1f}%"
+    except (TypeError, ValueError):
+        return ""
+
+
+def render_selected_pairs_delta_t_analysis(t):
+    """Renderiza Delta T (%) ida/volta para os pares finais selecionados."""
+    if st.session_state.using_split_method:
+        return
+
+    all_run_data = st.session_state.get("all_run_data", {})
+    if not all_run_data:
+        return
+
+    selected_pairs = _normalize_selected_pairs_for_delta_t()
+    if not selected_pairs:
+        st.info("Selecione os pares finais no Comparativo Final para ver o Delta T (%) ida/volta.")
+        return
+
+    analysis = build_selected_pairs_time_analysis(selected_pairs, all_run_data)
+    if not analysis["intervals"] or not analysis["pairs"]:
+        st.warning("Nao ha tempos por intervalo suficientes para calcular o Delta T (%).")
+        return
+
+    st.subheader("Delta T (%) Ida e Volta")
+    st.caption(
+        "Delta T (%) = abs(T_ida - T_volta) / media(T_ida, T_volta) * 100. "
+        "Valores acima de 20% e medias acima de 15% sao destacados."
+    )
+
+    pair_columns = [pair_info["pair_label"] for pair_info in analysis["pairs"]]
+    rows = []
+    for interval in analysis["intervals"]:
+        row = {"Intervalo": interval["interval_label"]}
+        for pair_info in analysis["pairs"]:
+            row[pair_info["pair_label"]] = pair_info["delta_values"].get(interval["key"])
+        rows.append(row)
+
+    average_row = {"Intervalo": "Media"}
+    for pair_info in analysis["pairs"]:
+        average_row[pair_info["pair_label"]] = pair_info.get("mean_delta")
+    rows.append(average_row)
+
+    delta_df = pd.DataFrame(rows)
+
+    def highlight_delta_t(row):
+        is_average = row.get("Intervalo") == "Media"
+        styles = []
+        for column, value in row.items():
+            if column == "Intervalo":
+                if is_average:
+                    styles.append("font-weight: 700; background-color: #151922; color: #ffffff")
+                else:
+                    styles.append("")
+                continue
+
+            try:
+                numeric_value = float(value)
+            except (TypeError, ValueError):
+                styles.append("")
+                continue
+
+            if pd.isna(numeric_value):
+                styles.append("")
+            elif is_average and numeric_value > 15.0:
+                styles.append("background-color: #fff3cd; color: #000000; font-weight: 700")
+            elif not is_average and numeric_value > 20.0:
+                styles.append("background-color: #902626; color: #ffffff; font-weight: 700")
+            else:
+                styles.append("")
+
+        return styles
+
+    styled_delta = (
+        delta_df.style
+        .apply(highlight_delta_t, axis=1)
+        .format({column: _format_delta_t_value for column in pair_columns})
+    )
+    st.dataframe(styled_delta, use_container_width=True, hide_index=True)
+
+
 def render(t):
     """Renderiza a página de análise de pares."""
 
@@ -1010,6 +1131,8 @@ def render(t):
 
     with subtab_conf:
         render_time_conformity_analysis(t)
+        st.markdown("---")
+        render_selected_pairs_delta_t_analysis(t)
 
 
 def render_traditional_pair_selection(t):

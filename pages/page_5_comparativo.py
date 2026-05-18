@@ -192,7 +192,9 @@ def render(t):
         
         # ===== BOTÃO CALCULAR RESULTADOS FINAIS =====
         if st.button(f"🎯 {t('calculate_final_results')}", type="primary", use_container_width=True):
-            calculate_and_store_final_results(t, selected_pairs)
+            if calculate_and_store_final_results(t, selected_pairs):
+                st.session_state.navigate_to_results = True
+                st.rerun()
     else:
         st.info("💡 Selecione pelo menos um par para ver as estatísticas e calcular os resultados finais.")
 
@@ -419,3 +421,4 @@ def calculate_and_store_final_results(t, selected_pairs):
     }
 
     st.session_state.pares_finais_selecionados = selected_pairs
+    return True
