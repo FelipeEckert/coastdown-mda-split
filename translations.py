@@ -846,6 +846,80 @@ TRANSLATIONS = {
         "en": "Warning: wind above 3.0 m/s in {runs}. Wind above this limit is an attention/exclusion criterion under the standard."
     },
 
+    # ===== SPLIT WORKFLOW =====
+    "page_split_workflow": {
+        "pt": "3. Workflow Split",
+        "en": "3. Split Workflow"
+    },
+    "page_split_results": {
+        "pt": "4. Resultados Split",
+        "en": "4. Split Results"
+    },
+    "split_upload_sources": {
+        "pt": "Arquivos CSV do metodo Split",
+        "en": "Split method CSV files"
+    },
+    "split_upload_primary_csv": {
+        "pt": "CSV principal: full coastdown, combinado ou alta velocidade",
+        "en": "Primary CSV: full coastdown, combined, or high speed"
+    },
+    "split_upload_low_csv": {
+        "pt": "CSV de baixa velocidade separado (opcional)",
+        "en": "Separate low-speed CSV (optional)"
+    },
+    "split_input_mode_two_files_complete": {
+        "pt": "Modo de entrada Split: 2 arquivos de coastdown detectados - intervalos de alta e baixa velocidade estao sendo processados separadamente.",
+        "en": "Split input mode: 2 coastdown files detected - high-speed and low-speed intervals are being processed separately."
+    },
+    "split_input_mode_two_files_high_only": {
+        "pt": "Modo de entrada Split: 2 arquivos de coastdown detectados - intervalo de alta velocidade encontrado, mas nenhum intervalo de baixa velocidade foi detectado.",
+        "en": "Split input mode: 2 coastdown files detected - high-speed interval found, but no low-speed interval was detected."
+    },
+    "split_input_mode_two_files_low_only": {
+        "pt": "Modo de entrada Split: 2 arquivos de coastdown detectados - intervalo de baixa velocidade encontrado, mas nenhum intervalo de alta velocidade foi detectado.",
+        "en": "Split input mode: 2 coastdown files detected - low-speed interval found, but no high-speed interval was detected."
+    },
+    "split_input_mode_two_files_none": {
+        "pt": "Modo de entrada Split: 2 arquivos de coastdown detectados - nenhum intervalo de alta ou baixa velocidade foi detectado.",
+        "en": "Split input mode: 2 coastdown files detected - no high-speed or low-speed interval was detected."
+    },
+    "split_input_mode_one_file_complete": {
+        "pt": "Modo de entrada Split: 1 arquivo de coastdown detectado - intervalos de alta e baixa velocidade foram extraidos do mesmo arquivo.",
+        "en": "Split input mode: 1 coastdown file detected - high-speed and low-speed intervals were extracted from the same file."
+    },
+    "split_input_mode_one_file_high_only": {
+        "pt": "Modo de entrada Split: 1 arquivo de coastdown detectado - intervalo de alta velocidade encontrado, mas nenhum intervalo de baixa velocidade foi detectado.",
+        "en": "Split input mode: 1 coastdown file detected - high-speed interval found, but no low-speed interval was detected."
+    },
+    "split_input_mode_one_file_low_only": {
+        "pt": "Modo de entrada Split: 1 arquivo de coastdown detectado - intervalo de baixa velocidade encontrado, mas nenhum intervalo de alta velocidade foi detectado.",
+        "en": "Split input mode: 1 coastdown file detected - low-speed interval found, but no high-speed interval was detected."
+    },
+    "split_input_mode_one_file_none": {
+        "pt": "Modo de entrada Split: 1 arquivo de coastdown detectado - nenhum intervalo de alta ou baixa velocidade foi detectado.",
+        "en": "Split input mode: 1 coastdown file detected - no high-speed or low-speed interval was detected."
+    },
+    "split_confirm_vehicle_data": {
+        "pt": "Confirmar dados do veiculo para Split",
+        "en": "Confirm vehicle data for Split"
+    },
+    "split_vehicle_data_ready": {
+        "pt": "Dados do veiculo prontos para o workflow Split.",
+        "en": "Vehicle data is ready for the Split workflow."
+    },
+    "split_vehicle_data_required": {
+        "pt": "Confirme os dados do veiculo e a massa efetiva antes do workflow Split.",
+        "en": "Confirm vehicle data and effective mass before the Split workflow."
+    },
+    "split_saved_results": {
+        "pt": "resultado(s) Split salvo(s)",
+        "en": "saved Split result(s)"
+    },
+    "split_final_summary": {
+        "pt": "resultado(s) no resumo Split",
+        "en": "result(s) in Split summary"
+    },
+
     # ===== TAMANHO DE FONTE =====
     "font_size": {
         "pt": "Tamanho da fonte",

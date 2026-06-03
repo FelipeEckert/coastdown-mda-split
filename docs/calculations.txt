@@ -1,0 +1,159 @@
+# Referência técnica — Método Split para cálculo de f'0 e f'2
+
+## Visão geral
+
+O método Split determina os coeficientes de resistência ao deslocamento \(f'0\) e \(f'2\) a partir de dois intervalos específicos da curva de desaceleração do veículo.
+
+Diferentemente do método Standard, que utiliza múltiplos intervalos ao longo da curva de desaceleração, o método Split utiliza dois períodos de desaceleração centrados em duas velocidades de referência.
+
+A norma recomenda, como referência inicial, os seguintes intervalos:
+
+- intervalo de alta velocidade: 90 km/h a 70 km/h, centrado em 80 km/h;
+- intervalo de baixa velocidade: 45 km/h a 35 km/h, centrado em 40 km/h.
+
+No software, esses valores devem ser tratados como valores padrão sugeridos pela norma, mas não como valores fixos. O usuário deve poder configurar:
+
+- velocidade inicial do intervalo de alta;
+- velocidade final do intervalo de alta;
+- velocidade de referência alta;
+- velocidade inicial do intervalo de baixa;
+- velocidade final do intervalo de baixa;
+- velocidade de referência baixa.
+
+Os placeholders recomendados são:
+
+```text
+Alta velocidade:
+  início: 90 km/h
+  fim: 70 km/h
+  referência: 80 km/h
+
+Baixa velocidade:
+  início: 45 km/h
+  fim: 35 km/h
+  referência: 40 km/h
+```
+
+---
+
+## Definição das velocidades de referência
+
+Para o cálculo, define-se:
+
+- \(V1\) = velocidade de referência baixa  
+- \(V2\) = velocidade de referência alta  
+
+As velocidades devem ser convertidas de km/h para m/s:
+
+```text
+V1 = V1_kmh / 3.6
+V2 = V2_kmh / 3.6
+```
+
+---
+
+## Definição dos intervalos de velocidade
+
+Os intervalos de velocidade são definidos como amplitudes positivas, isto é, como o módulo da diferença entre as velocidades inicial e final de cada intervalo.
+
+No método Split, **Delta V não deve ser interpretado como variação algébrica**, mas como largura positiva do intervalo:
+
+```text
+Delta V = abs(V_inicial - V_final)
+```
+
+Assim:
+
+```text
+Delta V1 = abs(V1_interval_start - V1_interval_end) / 3.6
+Delta V2 = abs(V2_interval_start - V2_interval_end) / 3.6
+```
+
+---
+
+## Tempos de desaceleração
+
+Para cada intervalo:
+
+- \(\Delta t1\): tempo médio no intervalo de baixa velocidade  
+- \(\Delta t2\): tempo médio no intervalo de alta velocidade  
+
+Exemplo:
+
+```text
+Delta t2 = t(90–85) + t(85–80) + t(80–75) + t(75–70)
+Delta t1 = t(45–40) + t(40–35)
+```
+
+---
+
+## Massa efetiva
+
+\(Me\) = massa efetiva do veículo
+
+---
+
+## Equacionamento dos coeficientes
+
+```text
+f'0,n =
+Me / (V2² - V1²)
+×
+[
+  (Delta V2 / Delta t2) × V1²
+  -
+  (Delta V1 / Delta t1) × V2²
+]
+
+f'2,n =
+Me / (V2² - V1²)
+×
+[
+  (Delta V1 / Delta t1)
+  -
+  (Delta V2 / Delta t2)
+]
+```
+
+---
+
+## Exemplo de função
+
+O exemplo abaixo usa Delta V como amplitude positiva e retorna coeficientes
+positivos de road load. Ele é equivalente a usar `dv/dt` assinado como
+desaceleração na equação normativa, sem aplicar inversão final escondida.
+
+```python
+def calculate_split_coefficients(
+    delta_t1: float,
+    delta_t2: float,
+    v1_kmh: float,
+    v2_kmh: float,
+    delta_v1_kmh: float,
+    delta_v2_kmh: float,
+    effective_mass: float,
+) -> tuple[float, float]:
+
+    v1 = v1_kmh / 3.6
+    v2 = v2_kmh / 3.6
+
+    delta_v1 = abs(delta_v1_kmh) / 3.6
+    delta_v2 = abs(delta_v2_kmh) / 3.6
+
+    a1 = delta_v1 / delta_t1
+    a2 = delta_v2 / delta_t2
+
+    denominator = v2**2 - v1**2
+
+    f0 = (
+        effective_mass / denominator
+        * (a1 * v2**2 - a2 * v1**2)
+    )
+
+    f2 = (
+        effective_mass / denominator
+        * (a2 - a1)
+    )
+
+    return f0, f2
+```

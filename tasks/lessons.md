@@ -33,6 +33,14 @@
 ---
 
 
+## Split-specific lessons
+
+Ainda vazio. Registrar aqui decisões e aprendizados específicos do método Split.
+
+## Imported lessons from Coastdown MDA Standard
+
+As lições abaixo foram herdadas do projeto Standard e devem ser usadas apenas quando forem metodologicamente neutras.
+Não aplicar diretamente regras específicas do método Standard ao método Split.
 
 ## 2026-04-24 - Correção Climática Muda Unidades, Não Só Valores
 
@@ -800,3 +808,21 @@ Quando a navegacao usa `st.tabs`, o redirecionamento deve ser feito pelo dono da
 abas, nao pela pagina filha. A pagina filha sinaliza a intencao via `session_state`;
 o `app.py` consome essa intencao, ajusta o estado do widget de tabs e rerenderiza.
 Assim a mudanca fica pequena e nao mistura fluxo de UI com logica de calculo.
+## 2026-06-03 - Split: Quarantine Standard Before Reusing Logic
+
+### Contexto:
+Implementacao inicial da migracao do Coastdown MDA Split a partir da base Standard.
+
+### Decisao:
+O fluxo visivel passou a usar paginas e modulos Split especificos. As paginas Standard
+permanecem no repositorio como legado herdado, mas sairam da navegacao principal.
+As antigas funcoes Split misturadas em `core/calculations.py`, `page_3` e `page_4`
+nao sao usadas pelo novo workflow.
+
+### Licao:
+Antes de reaproveitar qualquer logica herdada, separar a superficie visivel e criar
+contratos Split puros para parser, calculo, validacao e export. Reaproveitar somente
+infraestrutura neutra ou trechos revisados, como conversao de unidades e estrutura
+algebrica das equacoes.
+
+---

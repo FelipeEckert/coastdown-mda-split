@@ -31,10 +31,11 @@ sys.path.insert(0, BASE_DIR)
 
 from translations import get_translator, get_available_languages
 from data.loaders import carregar_dados_csv_robusto, read_weather_station_csv
+from data.split_parser import default_split_interval_config, parse_split_sources
 
 # ===== CONFIGURAÇÃO DA PÁGINA =====
 st.set_page_config(
-    page_title="Coastdown MDA",
+    page_title="Coastdown MDA Split",
     page_icon="🚗",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -421,6 +422,7 @@ TEST_STATE_KEYS = [
     # Arquivos
     "coastdown_csv_path", "meteo_csv_path",
     "split_alta_csv_path", "split_baixa_csv_path", "split_meteo_csv_path",
+    "split_source_files", "split_input_sources",
     # DataFrames
     "df_raw", "df_raw_alta", "df_raw_baixa",
     # Dados processados
@@ -431,23 +433,23 @@ TEST_STATE_KEYS = [
     "vehicle_info", "total_mass", "mass_input_mode",
     "vehicle_model_input", "test_date_input",
     # Coeficientes e pares
-    "individual_coeffs", "calculated_pairs", "split_coefficients",
+    "split_interval_config", "split_parsed_runs", "split_results",
     # Resultados
-    "pares_finais_selecionados", "final_results", "algorithm_results",
+    "split_final_results",
     # Flags de controle
     "using_split_method", "test_method",
-    "data_loaded", "vehicle_data_complete", "pairs_calculated",
+    "data_loaded", "vehicle_data_complete",
     # Velocidades de referência
-    "ref_vel_alta", "ref_vel_baixa",
     # Informações
     "data_info",
     # Navegação interna do teste
-    "current_page", "pair_analysis_subtab",
+    "current_page",
     # Alertas
     "date_mismatch_warning",
     "sync_meteo_by_time_only",
+    "fixed_temperature", "fixed_pressure",
     # Estado auxiliar do teste
-    "current_pair_results", "excel_buffer",
+    "excel_buffer",
 ]
 
 # Valores padrão para um teste novo/vazio
@@ -457,6 +459,8 @@ TEST_DEFAULTS = {
     "split_alta_csv_path": None,
     "split_baixa_csv_path": None,
     "split_meteo_csv_path": None,
+    "split_source_files": [],
+    "split_input_sources": [],
     "df_raw": None,
     "df_raw_alta": None,
     "df_raw_baixa": None,
@@ -471,25 +475,23 @@ TEST_DEFAULTS = {
     "mass_input_mode": "total",
     "vehicle_model_input": "",
     "test_date_input": None,
-    "individual_coeffs": {},
-    "calculated_pairs": {},
-    "split_coefficients": {},
-    "pares_finais_selecionados": [],
-    "final_results": {},
-    "algorithm_results": None,
+    "split_interval_config": {
+        "high": {"start": 90.0, "end": 70.0, "reference": 80.0},
+        "low": {"start": 45.0, "end": 35.0, "reference": 40.0},
+    },
+    "split_parsed_runs": {},
+    "split_results": [],
+    "split_final_results": {},
     "using_split_method": False,
     "test_method": "traditional",
     "data_loaded": False,
     "vehicle_data_complete": False,
-    "pairs_calculated": False,
-    "ref_vel_alta": 80.0,
-    "ref_vel_baixa": 40.0,
     "data_info": {},
     "current_page": "2_dados_veiculo",
-    "pair_analysis_subtab": "calculos",
     "date_mismatch_warning": None,
     "sync_meteo_by_time_only": False,
-    "current_pair_results": None,
+    "fixed_temperature": 25.0,
+    "fixed_pressure": 101.3,
     "excel_buffer": None,
 }
 
@@ -655,26 +657,25 @@ def _sync_meteo_mode_changed(test_id, sync_enabled):
     _clear_test_data_for_meteo_change(test_data)
 
     for key in (
-        "calculated_pairs",
-        "pares_finais_selecionados",
-        "final_results",
-        "algorithm_results",
-        "pairs_calculated",
-        "current_pair_results",
+        "split_final_results",
         "excel_buffer",
     ):
         value = test_data.get(key, TEST_DEFAULTS.get(key))
         st.session_state[key] = copy.deepcopy(value) if isinstance(value, (dict, list)) else value
 
 
-def _load_uploaded_csv_file(uploaded_csv, t):
+def _load_uploaded_csv_file(uploaded_csv, t, using_split_method=False, is_alta=True):
     """Valida e carrega um CSV de coastdown em estruturas temporárias."""
     with tempfile.NamedTemporaryFile(mode="wb", suffix=".csv", delete=False) as tmp:
         tmp.write(uploaded_csv.getvalue())
         tmp_path = tmp.name
 
     try:
-        df_raw, all_run_data, csv_date = carregar_dados_csv_robusto(tmp_path)
+        df_raw, all_run_data, csv_date = carregar_dados_csv_robusto(
+            tmp_path,
+            using_split_method=using_split_method,
+            is_alta=is_alta,
+        )
     finally:
         try:
             os.unlink(tmp_path)
@@ -709,19 +710,15 @@ def _load_uploaded_meteo_file(uploaded_meteo, t):
 
 def _clear_test_data_for_csv_change(test_data):
     """Limpa estruturas derivadas que dependem diretamente do CSV."""
-    test_data["individual_coeffs"] = {}
+    test_data["split_parsed_runs"] = {}
+    test_data["split_results"] = []
     test_data["vehicle_data_complete"] = False
     _clear_test_data_for_meteo_change(test_data)
 
 
 def _clear_test_data_for_meteo_change(test_data):
     """Limpa estruturas derivadas que dependem de correções climáticas e pares."""
-    test_data["calculated_pairs"] = {}
-    test_data["pares_finais_selecionados"] = []
-    test_data["final_results"] = {}
-    test_data["algorithm_results"] = None
-    test_data["pairs_calculated"] = False
-    test_data["current_pair_results"] = None
+    test_data["split_final_results"] = {}
     test_data["excel_buffer"] = None
 
 
@@ -954,7 +951,7 @@ def render_sidebar(t):
     render_optional_hyundai_brand()
 
     # ---- Título ----
-    st.markdown("## Coastdown MDA")
+    st.markdown("## Coastdown MDA Split")
 
     # ---- Seletor de idioma ----
     languages = get_available_languages()
@@ -1093,19 +1090,19 @@ def render_sidebar_status(t):
             unsafe_allow_html=True
         )
 
-    if st.session_state.calculated_pairs:
-        n = len(st.session_state.calculated_pairs)
+    if st.session_state.split_results:
+        n = len(st.session_state.split_results)
         st.markdown(
             f"<div class='mda-sidebar-status-item' style='color:#4caf50'>"
-            f"✅ {n} {t('calculated_pairs')}</div>",
+            f"✅ {n} {t('split_saved_results')}</div>",
             unsafe_allow_html=True
         )
 
-    if st.session_state.pares_finais_selecionados:
-        n = len(st.session_state.pares_finais_selecionados)
+    if st.session_state.split_final_results:
+        n = st.session_state.split_final_results.get("num_results", 0)
         st.markdown(
             f"<div class='mda-sidebar-status-item' style='color:#4a9eff'>"
-            f"{n} {t('selected_pairs')}</div>",
+            f"{n} {t('split_final_summary')}</div>",
             unsafe_allow_html=True
         )
 
@@ -1114,7 +1111,7 @@ def render_sidebar_status(t):
 
 def render_welcome(t):
     """Renderiza a tela de boas-vindas quando não há testes ativos."""
-    st.title("Coastdown MDA")
+    st.title("Coastdown MDA Split")
     st.markdown("---")
 
     _, col, _ = st.columns([1, 2, 1])
@@ -1150,13 +1147,17 @@ def new_test_dialog(t):
 
     st.markdown("---")
 
-    # Upload do arquivo CSV de coastdown
-    st.subheader(f"📁 {t('upload_coastdown_csv')}")
+    # Upload dos arquivos CSV do Split
+    st.subheader(t("split_upload_sources"))
     uploaded_csv = st.file_uploader(
-        t("upload_coastdown_csv"),
+        t("split_upload_primary_csv"),
         type=["csv"],
         key="new_test_csv_upload",
-        label_visibility="collapsed"
+    )
+    uploaded_low_csv = st.file_uploader(
+        t("split_upload_low_csv"),
+        type=["csv"],
+        key="new_test_low_csv_upload",
     )
 
     st.markdown("---")
@@ -1206,6 +1207,7 @@ def new_test_dialog(t):
             _process_new_test(
                 test_name.strip(),
                 uploaded_csv,
+                uploaded_low_csv,
                 uploaded_meteo,
                 fixed_temp,
                 fixed_pressure,
@@ -1213,15 +1215,82 @@ def new_test_dialog(t):
             )
 
 
-def _process_new_test(name, uploaded_csv, uploaded_meteo, fixed_temp, fixed_pressure, t):
+def _process_new_test(name, uploaded_csv, uploaded_low_csv, uploaded_meteo, fixed_temp, fixed_pressure, t):
     """
     Processa os arquivos carregados e cria o novo teste no session_state.
     Salva o estado do teste ativo atual antes de criar o novo.
     """
     with st.spinner(t("loading_files")):
         try:
-            # Processa arquivo CSV de coastdown
-            df_raw, all_run_data, csv_date = _load_uploaded_csv_file(uploaded_csv, t)
+            has_low_source = uploaded_low_csv is not None
+            df_raw, all_run_data, csv_date = _load_uploaded_csv_file(
+                uploaded_csv,
+                t,
+                using_split_method=has_low_source,
+                is_alta=True,
+            )
+            split_input_sources = [
+                {
+                    "filename": uploaded_csv.name,
+                    "role": "high" if has_low_source else "full_or_combined",
+                    "all_run_data": all_run_data,
+                }
+            ]
+            split_source_files = [uploaded_csv.name]
+            df_raw_baixa = None
+            df_raw_alta = df_raw if has_low_source else None
+            all_run_data_alta = all_run_data if has_low_source else {}
+            all_run_data_baixa = {}
+            combined_run_data = {f"main:{run_id}": data for run_id, data in all_run_data.items()}
+
+            if uploaded_low_csv is not None:
+                df_raw_baixa, all_run_data_baixa, _ = _load_uploaded_csv_file(
+                    uploaded_low_csv,
+                    t,
+                    using_split_method=True,
+                    is_alta=False,
+                )
+                split_input_sources.append(
+                    {
+                        "filename": uploaded_low_csv.name,
+                        "role": "low",
+                        "all_run_data": all_run_data_baixa,
+                    }
+                )
+                split_source_files.append(uploaded_low_csv.name)
+                combined_run_data.update(
+                    {f"low:{run_id}": data for run_id, data in all_run_data_baixa.items()}
+                )
+            else:
+                parsed_primary = parse_split_sources(split_input_sources, default_split_interval_config())
+                if not parsed_primary.get("high"):
+                    df_raw_alta, all_run_data_alta, _ = _load_uploaded_csv_file(
+                        uploaded_csv,
+                        t,
+                        using_split_method=True,
+                        is_alta=True,
+                    )
+                    split_input_sources.append(
+                        {
+                            "filename": uploaded_csv.name,
+                            "role": "high",
+                            "all_run_data": all_run_data_alta,
+                        }
+                    )
+                if not parsed_primary.get("low"):
+                    df_raw_baixa, all_run_data_baixa, _ = _load_uploaded_csv_file(
+                        uploaded_csv,
+                        t,
+                        using_split_method=True,
+                        is_alta=False,
+                    )
+                    split_input_sources.append(
+                        {
+                            "filename": uploaded_csv.name,
+                            "role": "low",
+                            "all_run_data": all_run_data_baixa,
+                        }
+                    )
 
             # Processa arquivo meteorológico se fornecido
             weather_data = None
@@ -1245,18 +1314,31 @@ def _process_new_test(name, uploaded_csv, uploaded_meteo, fixed_temp, fixed_pres
                 "name": name,
                 # Dados carregados
                 "df_raw": df_raw,
-                "all_run_data": all_run_data,
+                "df_raw_alta": df_raw_alta,
+                "df_raw_baixa": df_raw_baixa,
+                "all_run_data": combined_run_data,
+                "all_run_data_alta": all_run_data_alta,
+                "all_run_data_baixa": all_run_data_baixa,
+                "split_input_sources": split_input_sources,
+                "split_source_files": split_source_files,
                 "coastdown_csv_path": uploaded_csv.name,
+                "split_alta_csv_path": uploaded_csv.name if has_low_source else None,
+                "split_baixa_csv_path": uploaded_low_csv.name if uploaded_low_csv else None,
                 "data_loaded": True,
                 "data_info": {
                     "filename": uploaded_csv.name,
+                    "split_files": ", ".join(split_source_files),
                     "rows": len(df_raw),
-                    "runs": len(all_run_data),
+                    "runs": len(combined_run_data),
                 },
                 # Dados meteorológicos
                 "weather_data": weather_data,
                 "meteo_csv_path": meteo_name,
                 "csv_test_date": csv_date,
+                "fixed_temperature": fixed_temp,
+                "fixed_pressure": fixed_pressure,
+                "using_split_method": True,
+                "test_method": "split",
                 # Alerta de data incompatível (None se datas coincidem)
                 "date_mismatch_warning": date_mismatch_warning,
                 # Começa pela página de dados do veículo
@@ -1298,10 +1380,8 @@ def render_test_analysis(t):
 
     tab_pages = [
         ("2_dados_veiculo", t("page_vehicle_data")),
-        ("3_analise_pares", t("page_pair_analysis")),
-        ("4_selecao_algoritmo", t("page_algorithm_selection")),
-        ("5_comparativo", t("page_final_comparison")),
-        ("6_resultados", t("page_final_results")),
+        ("split_workflow", t("page_split_workflow")),
+        ("split_results", t("page_split_results")),
     ]
     tab_labels = [label for _, label in tab_pages]
     page_to_label = dict(tab_pages)
@@ -1309,15 +1389,15 @@ def render_test_analysis(t):
 
     tab_key = f"main_analysis_tabs_{st.session_state.active_test_id}_{st.session_state.language}"
     if st.session_state.pop("navigate_to_results", False):
-        st.session_state.current_page = "6_resultados"
-        st.session_state[tab_key] = page_to_label["6_resultados"]
+        st.session_state.current_page = "split_results"
+        st.session_state[tab_key] = page_to_label["split_results"]
 
     current_page = st.session_state.get("current_page", "2_dados_veiculo")
     default_label = page_to_label.get(current_page, tab_labels[0])
     if st.session_state.get(tab_key) not in label_to_page:
         st.session_state[tab_key] = default_label
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(
+    tab1, tab2, tab3 = st.tabs(
         tab_labels,
         default=st.session_state[tab_key],
         key=tab_key,
@@ -1333,20 +1413,12 @@ def render_test_analysis(t):
         page_2_dados_veiculo.render(t)
 
     with tab2:
-        from pages import page_3_analise_pares
-        page_3_analise_pares.render(t)
+        from pages import page_split_workflow
+        page_split_workflow.render(t)
 
     with tab3:
-        from pages import page_4_selecao_algoritmo
-        page_4_selecao_algoritmo.render(t)
-
-    with tab4:
-        from pages import page_5_comparativo
-        page_5_comparativo.render(t)
-
-    with tab5:
-        from pages import page_6_resultados
-        page_6_resultados.render(t)
+        from pages import page_split_results
+        page_split_results.render(t)
 
 
 # ===== PONTO DE ENTRADA =====

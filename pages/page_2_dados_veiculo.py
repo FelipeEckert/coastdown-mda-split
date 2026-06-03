@@ -6,13 +6,9 @@ Permite ao usuário inserir informações do veículo e calcular a massa efetiva
 """
 
 import streamlit as st
-import os
-import sys
 
 # Adiciona o diretório raiz ao path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.calculations import calcular_coeficientes_individuais
 
 
 def render(t):
@@ -87,45 +83,13 @@ def render(t):
     
     st.markdown("---")
     
-    # ===== BOTÕES DE AÇÃO =====
-    if st.button(f"🔢 {t('calculate_uncorrected_coefficients')}", type="primary"):
+    # ===== ACAO SPLIT =====
+    if st.button(t("split_confirm_vehicle_data"), type="primary"):
         if st.session_state.total_mass > 0:
-            with st.spinner(t("calculating_uncorrected_coefficients")):
-                try:
-                    individual_coeffs = calcular_coeficientes_individuais(
-                        st.session_state.all_run_data,
-                        st.session_state.total_mass
-                    )
-
-                    st.session_state.individual_coeffs = individual_coeffs
-                    st.session_state.vehicle_data_complete = True
-
-                    st.success(f"✅ {t('uncorrected_coefficients_success', count=len(individual_coeffs))}")
-
-                except Exception as e:
-                    st.error(f"{t('error_calculation')}: {str(e)}")
+            st.session_state.vehicle_data_complete = True
+            st.success(t("split_vehicle_data_ready"))
         else:
             st.warning(t("error_no_mass"))
-    
-    # ===== MOSTRA COEFICIENTES CALCULADOS =====
-    if st.session_state.individual_coeffs:
-        st.markdown("---")
-        st.subheader(f"📈 {t('individual_uncorrected_coefficients')}")
-        st.caption(t("uncorrected_coefficients_note"))
-        
-        import pandas as pd
-        
-        coeffs_data = []
-        for run_id, coeffs in st.session_state.individual_coeffs.items():
-            coeffs_data.append({
-                t("run_id"): run_id,
-                t("heading"): coeffs.get("heading", "N/A"),
-                t("individual_f0_coefficient"): f"{coeffs.get('f0', 0):.4f}",
-                t("individual_f2_coefficient"): f"{coeffs.get('f2', 0):.6f}",
-            })
-        
-        df_coeffs = pd.DataFrame(coeffs_data)
-        st.dataframe(df_coeffs, use_container_width=True, hide_index=True)
 
 
 def render_total_mass_input(t):
