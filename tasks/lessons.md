@@ -826,3 +826,25 @@ infraestrutura neutra ou trechos revisados, como conversao de unidades e estrutu
 algebrica das equacoes.
 
 ---
+
+## 2026-06-03 - Split: Slot Role Controls Interval Extraction
+
+### Contexto:
+Um arquivo apenas de alta velocidade estava sendo reinterpretado como baixa quando o
+workflow tentava preencher automaticamente o intervalo faltante.
+
+### Decisao:
+O papel do arquivo passa a ser parte do contrato Split:
+- slot high gera somente registros high;
+- slot low gera somente registros low;
+- arquivo unico/combinado tenta high e low apenas quando ambos os intervalos existem.
+
+Substituicao de arquivos no editor tambem deve reconstruir `split_input_sources` e
+limpar resultados derivados, usando hash de conteudo para rastreabilidade.
+
+### Licao:
+No metodo Split, fallback por posicao ou por "primeiras colunas disponiveis" cria
+resultado plausivel e errado. O parser deve ser conservador e o fluxo deve avisar
+quando falta high ou low, bloqueando calculo incompleto.
+
+---

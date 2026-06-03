@@ -12,6 +12,7 @@ Arquitetura:
 """
 
 import copy
+import hashlib
 import os
 import sys
 import tempfile
@@ -31,7 +32,6 @@ sys.path.insert(0, BASE_DIR)
 
 from translations import get_translator, get_available_languages
 from data.loaders import carregar_dados_csv_robusto, read_weather_station_csv
-from data.split_parser import default_split_interval_config, parse_split_sources
 
 # ===== CONFIGURAÇÃO DA PÁGINA =====
 st.set_page_config(
@@ -422,7 +422,7 @@ TEST_STATE_KEYS = [
     # Arquivos
     "coastdown_csv_path", "meteo_csv_path",
     "split_alta_csv_path", "split_baixa_csv_path", "split_meteo_csv_path",
-    "split_source_files", "split_input_sources",
+    "split_source_files", "split_input_sources", "split_input_layout", "split_input_version",
     # DataFrames
     "df_raw", "df_raw_alta", "df_raw_baixa",
     # Dados processados
@@ -461,6 +461,8 @@ TEST_DEFAULTS = {
     "split_meteo_csv_path": None,
     "split_source_files": [],
     "split_input_sources": [],
+    "split_input_layout": "separate",
+    "split_input_version": 0,
     "df_raw": None,
     "df_raw_alta": None,
     "df_raw_baixa": None,
@@ -521,6 +523,13 @@ def init_session_state():
         st.session_state.edit_test_dialog_context = None
     if "edit_test_dialog_token" not in st.session_state:
         st.session_state.edit_test_dialog_token = None
+    for key in (
+        "split_high_uploader_key_version",
+        "split_low_uploader_key_version",
+        "split_weather_uploader_key_version",
+    ):
+        if key not in st.session_state:
+            st.session_state[key] = 0
 
     # Flat keys de compatibilidade com páginas 2-6
     for key, default in TEST_DEFAULTS.items():
@@ -708,11 +717,172 @@ def _load_uploaded_meteo_file(uploaded_meteo, t):
     return weather_data
 
 
+def _uploaded_file_sha256(uploaded_file):
+    """Return a content hash for uploaded files used in Split traceability."""
+    if uploaded_file is None:
+        return None
+    return hashlib.sha256(uploaded_file.getvalue()).hexdigest()
+
+
+def _build_split_coastdown_state(high_or_combined_csv, low_csv, input_layout, t):
+    """Load Split coastdown files and return state fields for the active test."""
+    is_combined = input_layout == "single_combined"
+    df_raw, high_or_combined_runs, csv_date = _load_uploaded_csv_file(
+        high_or_combined_csv,
+        t,
+        using_split_method=not is_combined,
+        is_alta=True,
+    )
+
+    split_input_sources = []
+    split_source_files = [high_or_combined_csv.name]
+    combined_run_data = {
+        f"main:{run_id}": data
+        for run_id, data in high_or_combined_runs.items()
+    }
+    df_raw_alta = None
+    df_raw_baixa = None
+    all_run_data_alta = {}
+    all_run_data_baixa = {}
+
+    if is_combined:
+        split_input_sources.append(
+            {
+                "filename": high_or_combined_csv.name,
+                "content_sha256": _uploaded_file_sha256(high_or_combined_csv),
+                "role": "full_or_combined",
+                "all_run_data": high_or_combined_runs,
+            }
+        )
+    else:
+        df_raw_alta = df_raw
+        all_run_data_alta = high_or_combined_runs
+        split_input_sources.append(
+            {
+                "filename": high_or_combined_csv.name,
+                "content_sha256": _uploaded_file_sha256(high_or_combined_csv),
+                "role": "high",
+                "all_run_data": all_run_data_alta,
+            }
+        )
+
+        if low_csv is not None:
+            df_raw_baixa, all_run_data_baixa, _ = _load_uploaded_csv_file(
+                low_csv,
+                t,
+                using_split_method=True,
+                is_alta=False,
+            )
+            split_input_sources.append(
+                {
+                    "filename": low_csv.name,
+                    "content_sha256": _uploaded_file_sha256(low_csv),
+                    "role": "low",
+                    "all_run_data": all_run_data_baixa,
+                }
+            )
+            split_source_files.append(low_csv.name)
+            combined_run_data.update(
+                {f"low:{run_id}": data for run_id, data in all_run_data_baixa.items()}
+            )
+
+    return {
+        "df_raw": df_raw,
+        "df_raw_alta": df_raw_alta,
+        "df_raw_baixa": df_raw_baixa,
+        "all_run_data": combined_run_data,
+        "all_run_data_alta": all_run_data_alta,
+        "all_run_data_baixa": all_run_data_baixa,
+        "split_input_sources": split_input_sources,
+        "split_source_files": split_source_files,
+        "coastdown_csv_path": high_or_combined_csv.name,
+        "split_alta_csv_path": high_or_combined_csv.name if not is_combined else None,
+        "split_baixa_csv_path": low_csv.name if low_csv is not None else None,
+        "split_input_layout": input_layout,
+        "data_loaded": True,
+        "data_info": {
+            "filename": high_or_combined_csv.name,
+            "split_files": ", ".join(split_source_files),
+            "rows": len(df_raw),
+            "runs": len(combined_run_data),
+        },
+        "csv_test_date": csv_date,
+    }
+
+
+def _find_split_source(test_data, role):
+    """Return the stored Split source for a given role."""
+    for source in test_data.get("split_input_sources", []) or []:
+        if source.get("role") == role:
+            return source
+    return None
+
+
+def _build_split_state_from_loaded(
+    high_filename,
+    high_hash,
+    high_df,
+    high_runs,
+    low_filename=None,
+    low_hash=None,
+    low_df=None,
+    low_runs=None,
+    csv_date=None,
+):
+    """Build separate high/low Split state from already-loaded run data."""
+    low_runs = low_runs or {}
+    split_input_sources = [
+        {
+            "filename": high_filename,
+            "content_sha256": high_hash,
+            "role": "high",
+            "all_run_data": high_runs,
+        }
+    ]
+    split_source_files = [high_filename]
+    combined_run_data = {f"main:{run_id}": data for run_id, data in high_runs.items()}
+
+    if low_filename and low_runs:
+        split_input_sources.append(
+            {
+                "filename": low_filename,
+                "content_sha256": low_hash,
+                "role": "low",
+                "all_run_data": low_runs,
+            }
+        )
+        split_source_files.append(low_filename)
+        combined_run_data.update({f"low:{run_id}": data for run_id, data in low_runs.items()})
+
+    return {
+        "df_raw": high_df,
+        "df_raw_alta": high_df,
+        "df_raw_baixa": low_df if low_filename else None,
+        "all_run_data": combined_run_data,
+        "all_run_data_alta": high_runs,
+        "all_run_data_baixa": low_runs if low_filename else {},
+        "split_input_sources": split_input_sources,
+        "split_source_files": split_source_files,
+        "coastdown_csv_path": high_filename,
+        "split_alta_csv_path": high_filename,
+        "split_baixa_csv_path": low_filename,
+        "split_input_layout": "separate",
+        "data_loaded": True,
+        "data_info": {
+            "filename": high_filename,
+            "split_files": ", ".join(split_source_files),
+            "rows": len(high_df),
+            "runs": len(combined_run_data),
+        },
+        "csv_test_date": csv_date,
+    }
+
+
 def _clear_test_data_for_csv_change(test_data):
     """Limpa estruturas derivadas que dependem diretamente do CSV."""
     test_data["split_parsed_runs"] = {}
     test_data["split_results"] = []
-    test_data["vehicle_data_complete"] = False
+    test_data["split_input_version"] = int(test_data.get("split_input_version") or 0) + 1
     _clear_test_data_for_meteo_change(test_data)
 
 
@@ -722,7 +892,16 @@ def _clear_test_data_for_meteo_change(test_data):
     test_data["excel_buffer"] = None
 
 
-def _apply_test_edits(test_id, new_name, uploaded_csv, uploaded_meteo, remove_meteo, t):
+def _apply_test_edits(
+    test_id,
+    new_name,
+    uploaded_high_csv,
+    uploaded_low_csv,
+    remove_low,
+    uploaded_meteo,
+    remove_meteo,
+    t,
+):
     """Aplica edição segura do teste somente após validar novos arquivos."""
     with st.spinner(t("loading_files")):
         try:
@@ -736,30 +915,100 @@ def _apply_test_edits(test_id, new_name, uploaded_csv, uploaded_meteo, remove_me
             updated_test = copy.deepcopy(original_test)
             updated_test["name"] = new_name
 
-            csv_changed = uploaded_csv is not None
+            input_layout = updated_test.get("split_input_layout")
+            if input_layout not in {"separate", "single_combined"}:
+                input_layout = "separate" if updated_test.get("split_baixa_csv_path") else "single_combined"
+
+            csv_changed = any((uploaded_high_csv is not None, uploaded_low_csv is not None, remove_low))
             meteo_removed = bool(remove_meteo and original_test.get("meteo_csv_path"))
             meteo_changed = uploaded_meteo is not None or meteo_removed
 
             if csv_changed:
-                df_raw, all_run_data, csv_date = _load_uploaded_csv_file(uploaded_csv, t)
-                updated_test["df_raw"] = df_raw
-                updated_test["all_run_data"] = all_run_data
-                updated_test["coastdown_csv_path"] = uploaded_csv.name
-                updated_test["data_info"] = {
-                    "filename": uploaded_csv.name,
-                    "rows": len(df_raw),
-                    "runs": len(all_run_data),
-                }
-                updated_test["csv_test_date"] = csv_date
-                updated_test["data_loaded"] = True
+                if input_layout == "single_combined":
+                    if uploaded_low_csv is not None or remove_low:
+                        raise ValueError(t("split_combined_low_edit_not_available"))
+                    if uploaded_high_csv is None:
+                        raise ValueError(t("split_replace_combined_required"))
+                    updated_test.update(
+                        _build_split_coastdown_state(uploaded_high_csv, None, "single_combined", t)
+                    )
+                else:
+                    high_source = _find_split_source(updated_test, "high")
+                    if uploaded_high_csv is not None:
+                        high_df, high_runs, csv_date = _load_uploaded_csv_file(
+                            uploaded_high_csv,
+                            t,
+                            using_split_method=True,
+                            is_alta=True,
+                        )
+                        high_filename = uploaded_high_csv.name
+                        high_hash = _uploaded_file_sha256(uploaded_high_csv)
+                    else:
+                        high_df = updated_test.get("df_raw_alta") or updated_test.get("df_raw")
+                        high_runs = updated_test.get("all_run_data_alta") or (
+                            high_source.get("all_run_data") if high_source else {}
+                        )
+                        high_filename = updated_test.get("split_alta_csv_path") or updated_test.get("coastdown_csv_path")
+                        high_hash = high_source.get("content_sha256") if high_source else None
+                        csv_date = updated_test.get("csv_test_date")
+
+                    if not high_filename or high_df is None or not high_runs:
+                        raise ValueError(t("split_high_file_required"))
+
+                    low_source = _find_split_source(updated_test, "low")
+                    if remove_low:
+                        low_filename = None
+                        low_hash = None
+                        low_df = None
+                        low_runs = {}
+                    elif uploaded_low_csv is not None:
+                        low_df, low_runs, _ = _load_uploaded_csv_file(
+                            uploaded_low_csv,
+                            t,
+                            using_split_method=True,
+                            is_alta=False,
+                        )
+                        low_filename = uploaded_low_csv.name
+                        low_hash = _uploaded_file_sha256(uploaded_low_csv)
+                    else:
+                        low_filename = updated_test.get("split_baixa_csv_path")
+                        low_hash = low_source.get("content_sha256") if low_source else None
+                        low_df = updated_test.get("df_raw_baixa")
+                        low_runs = updated_test.get("all_run_data_baixa") or (
+                            low_source.get("all_run_data") if low_source else {}
+                        )
+
+                    updated_test.update(
+                        _build_split_state_from_loaded(
+                            high_filename,
+                            high_hash,
+                            high_df,
+                            high_runs,
+                            low_filename=low_filename,
+                            low_hash=low_hash,
+                            low_df=low_df,
+                            low_runs=low_runs,
+                            csv_date=csv_date,
+                        )
+                    )
+
                 _clear_test_data_for_csv_change(updated_test)
+                if uploaded_high_csv is not None:
+                    st.session_state.split_high_uploader_key_version += 1
+                if uploaded_low_csv is not None or remove_low:
+                    st.session_state.split_low_uploader_key_version += 1
 
             if uploaded_meteo is not None:
                 updated_test["weather_data"] = _load_uploaded_meteo_file(uploaded_meteo, t)
                 updated_test["meteo_csv_path"] = uploaded_meteo.name
+                updated_test["split_meteo_csv_path"] = uploaded_meteo.name
+                st.session_state.split_weather_uploader_key_version += 1
             elif meteo_removed:
                 updated_test["weather_data"] = None
                 updated_test["meteo_csv_path"] = None
+                updated_test["split_meteo_csv_path"] = None
+                updated_test["weather_data_split"] = None
+                st.session_state.split_weather_uploader_key_version += 1
 
             if meteo_changed:
                 _clear_test_data_for_meteo_change(updated_test)
@@ -838,15 +1087,27 @@ def edit_test_dialog(t):
 
     dialog_token = _prepare_edit_test_dialog_state(test_id)
     current_name = test_data.get("name", test_id)
-    current_csv = test_data.get("coastdown_csv_path") or "N/A"
+    input_layout = test_data.get("split_input_layout")
+    if input_layout not in {"separate", "single_combined"}:
+        input_layout = "separate" if test_data.get("split_baixa_csv_path") else "single_combined"
+    current_high = test_data.get("split_alta_csv_path")
+    current_combined = test_data.get("coastdown_csv_path")
+    current_low = test_data.get("split_baixa_csv_path")
     current_meteo = test_data.get("meteo_csv_path") or t("no_meteo_file")
+    high_key_version = st.session_state.get("split_high_uploader_key_version", 0)
+    low_key_version = st.session_state.get("split_low_uploader_key_version", 0)
+    weather_key_version = st.session_state.get("split_weather_uploader_key_version", 0)
     has_current_meteo = bool(test_data.get("meteo_csv_path"))
 
     @st.dialog(t("edit_test_title"), width="large", on_dismiss=_close_edit_test_dialog)
     def _edit_test_dialog():
         st.write(f"**{t('test_name')}:** {current_name}")
-        st.write(f"**{t('current_csv')}:** {current_csv}")
-        st.write(f"**{t('current_meteo')}:** {current_meteo}")
+        if input_layout == "single_combined":
+            st.write(f"**{t('split_current_combined_file')}:** {current_combined or 'N/A'}")
+        else:
+            st.write(f"**{t('split_current_high_file')}:** {current_high or 'N/A'}")
+            st.write(f"**{t('split_current_low_file')}:** {current_low or t('split_no_low_file')}")
+        st.write(f"**{t('split_current_weather_file')}:** {current_meteo}")
 
         st.markdown("---")
 
@@ -858,17 +1119,37 @@ def edit_test_dialog(t):
 
         st.markdown("---")
 
-        uploaded_csv = st.file_uploader(
-            t("replace_csv"),
-            type=["csv"],
-            key=f"edit_test_csv_{dialog_token}"
+        high_label = (
+            t("split_replace_combined_csv")
+            if input_layout == "single_combined"
+            else t("split_replace_high_csv")
         )
+        uploaded_high_csv = st.file_uploader(
+            high_label,
+            type=["csv"],
+            key=f"edit_split_high_{dialog_token}_{high_key_version}"
+        )
+
+        uploaded_low_csv = None
+        remove_low = False
+        if input_layout == "separate":
+            uploaded_low_csv = st.file_uploader(
+                t("split_replace_low_csv") if current_low else t("split_add_low_csv"),
+                type=["csv"],
+                key=f"edit_split_low_{dialog_token}_{low_key_version}",
+            )
+            if current_low:
+                remove_low = st.checkbox(
+                    t("split_remove_low_file"),
+                    key=f"edit_split_remove_low_{dialog_token}_{low_key_version}",
+                    disabled=uploaded_low_csv is not None,
+                )
 
         meteo_label = t("replace_meteo") if has_current_meteo else t("add_meteo")
         uploaded_meteo = st.file_uploader(
             meteo_label,
             type=["csv"],
-            key=f"edit_test_meteo_{dialog_token}"
+            key=f"edit_test_meteo_{dialog_token}_{weather_key_version}"
         )
 
         remove_meteo = False
@@ -879,7 +1160,7 @@ def edit_test_dialog(t):
                 disabled=uploaded_meteo is not None
             )
 
-        csv_changed = uploaded_csv is not None
+        csv_changed = uploaded_high_csv is not None or uploaded_low_csv is not None or remove_low
         meteo_changed = uploaded_meteo is not None or remove_meteo
         name_changed = updated_name.strip() != current_name
 
@@ -933,7 +1214,9 @@ def edit_test_dialog(t):
                 _apply_test_edits(
                     test_id,
                     updated_name.strip(),
-                    uploaded_csv,
+                    uploaded_high_csv,
+                    uploaded_low_csv,
+                    remove_low,
                     uploaded_meteo,
                     remove_meteo,
                     t
@@ -1149,16 +1432,30 @@ def new_test_dialog(t):
 
     # Upload dos arquivos CSV do Split
     st.subheader(t("split_upload_sources"))
+    layout_label_to_value = {
+        t("split_input_layout_separate"): "separate",
+        t("split_input_layout_combined"): "single_combined",
+    }
+    selected_layout_label = st.radio(
+        t("split_input_layout"),
+        options=list(layout_label_to_value.keys()),
+        horizontal=True,
+        key="new_test_split_input_layout",
+    )
+    split_input_layout = layout_label_to_value[selected_layout_label]
+
     uploaded_csv = st.file_uploader(
-        t("split_upload_primary_csv"),
+        t("split_upload_combined_csv") if split_input_layout == "single_combined" else t("split_upload_high_csv"),
         type=["csv"],
         key="new_test_csv_upload",
     )
-    uploaded_low_csv = st.file_uploader(
-        t("split_upload_low_csv"),
-        type=["csv"],
-        key="new_test_low_csv_upload",
-    )
+    uploaded_low_csv = None
+    if split_input_layout == "separate":
+        uploaded_low_csv = st.file_uploader(
+            t("split_upload_low_csv"),
+            type=["csv"],
+            key="new_test_low_csv_upload",
+        )
 
     st.markdown("---")
 
@@ -1208,6 +1505,7 @@ def new_test_dialog(t):
                 test_name.strip(),
                 uploaded_csv,
                 uploaded_low_csv,
+                split_input_layout,
                 uploaded_meteo,
                 fixed_temp,
                 fixed_pressure,
@@ -1215,82 +1513,19 @@ def new_test_dialog(t):
             )
 
 
-def _process_new_test(name, uploaded_csv, uploaded_low_csv, uploaded_meteo, fixed_temp, fixed_pressure, t):
+def _process_new_test(name, uploaded_csv, uploaded_low_csv, split_input_layout, uploaded_meteo, fixed_temp, fixed_pressure, t):
     """
     Processa os arquivos carregados e cria o novo teste no session_state.
     Salva o estado do teste ativo atual antes de criar o novo.
     """
     with st.spinner(t("loading_files")):
         try:
-            has_low_source = uploaded_low_csv is not None
-            df_raw, all_run_data, csv_date = _load_uploaded_csv_file(
+            coastdown_state = _build_split_coastdown_state(
                 uploaded_csv,
+                uploaded_low_csv if split_input_layout == "separate" else None,
+                split_input_layout,
                 t,
-                using_split_method=has_low_source,
-                is_alta=True,
             )
-            split_input_sources = [
-                {
-                    "filename": uploaded_csv.name,
-                    "role": "high" if has_low_source else "full_or_combined",
-                    "all_run_data": all_run_data,
-                }
-            ]
-            split_source_files = [uploaded_csv.name]
-            df_raw_baixa = None
-            df_raw_alta = df_raw if has_low_source else None
-            all_run_data_alta = all_run_data if has_low_source else {}
-            all_run_data_baixa = {}
-            combined_run_data = {f"main:{run_id}": data for run_id, data in all_run_data.items()}
-
-            if uploaded_low_csv is not None:
-                df_raw_baixa, all_run_data_baixa, _ = _load_uploaded_csv_file(
-                    uploaded_low_csv,
-                    t,
-                    using_split_method=True,
-                    is_alta=False,
-                )
-                split_input_sources.append(
-                    {
-                        "filename": uploaded_low_csv.name,
-                        "role": "low",
-                        "all_run_data": all_run_data_baixa,
-                    }
-                )
-                split_source_files.append(uploaded_low_csv.name)
-                combined_run_data.update(
-                    {f"low:{run_id}": data for run_id, data in all_run_data_baixa.items()}
-                )
-            else:
-                parsed_primary = parse_split_sources(split_input_sources, default_split_interval_config())
-                if not parsed_primary.get("high"):
-                    df_raw_alta, all_run_data_alta, _ = _load_uploaded_csv_file(
-                        uploaded_csv,
-                        t,
-                        using_split_method=True,
-                        is_alta=True,
-                    )
-                    split_input_sources.append(
-                        {
-                            "filename": uploaded_csv.name,
-                            "role": "high",
-                            "all_run_data": all_run_data_alta,
-                        }
-                    )
-                if not parsed_primary.get("low"):
-                    df_raw_baixa, all_run_data_baixa, _ = _load_uploaded_csv_file(
-                        uploaded_csv,
-                        t,
-                        using_split_method=True,
-                        is_alta=False,
-                    )
-                    split_input_sources.append(
-                        {
-                            "filename": uploaded_csv.name,
-                            "role": "low",
-                            "all_run_data": all_run_data_baixa,
-                        }
-                    )
 
             # Processa arquivo meteorológico se fornecido
             weather_data = None
@@ -1299,7 +1534,11 @@ def _process_new_test(name, uploaded_csv, uploaded_low_csv, uploaded_meteo, fixe
             if uploaded_meteo is not None:
                 weather_data = _load_uploaded_meteo_file(uploaded_meteo, t)
                 meteo_name = uploaded_meteo.name
-                date_mismatch_warning = _build_date_mismatch_warning(csv_date, weather_data, t)
+                date_mismatch_warning = _build_date_mismatch_warning(
+                    coastdown_state.get("csv_test_date"),
+                    weather_data,
+                    t,
+                )
 
             # Salva estado do teste ativo atual (se houver)
             save_active_test_state()
@@ -1313,28 +1552,11 @@ def _process_new_test(name, uploaded_csv, uploaded_low_csv, uploaded_meteo, fixe
                 # Metadados do teste
                 "name": name,
                 # Dados carregados
-                "df_raw": df_raw,
-                "df_raw_alta": df_raw_alta,
-                "df_raw_baixa": df_raw_baixa,
-                "all_run_data": combined_run_data,
-                "all_run_data_alta": all_run_data_alta,
-                "all_run_data_baixa": all_run_data_baixa,
-                "split_input_sources": split_input_sources,
-                "split_source_files": split_source_files,
-                "coastdown_csv_path": uploaded_csv.name,
-                "split_alta_csv_path": uploaded_csv.name if has_low_source else None,
-                "split_baixa_csv_path": uploaded_low_csv.name if uploaded_low_csv else None,
-                "data_loaded": True,
-                "data_info": {
-                    "filename": uploaded_csv.name,
-                    "split_files": ", ".join(split_source_files),
-                    "rows": len(df_raw),
-                    "runs": len(combined_run_data),
-                },
+                **coastdown_state,
                 # Dados meteorológicos
                 "weather_data": weather_data,
                 "meteo_csv_path": meteo_name,
-                "csv_test_date": csv_date,
+                "split_meteo_csv_path": meteo_name,
                 "fixed_temperature": fixed_temp,
                 "fixed_pressure": fixed_pressure,
                 "using_split_method": True,

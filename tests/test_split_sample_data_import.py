@@ -68,6 +68,45 @@ class SplitSampleDataImportTest(unittest.TestCase):
         self.assertEqual(parsed["low"], [])
         self.assertIn("No low-speed Split interval was found.", parsed["warnings"])
 
+    def test_high_only_combined_source_does_not_create_false_low_interval(self):
+        high_only_run = {
+            "times": [0, 4.23, 8.79, 13.6, 18.72],
+            "velocities": [90, 85, 80, 75, 70],
+            "heading": "+",
+        }
+
+        parsed = parse_split_sources(
+            [
+                {
+                    "filename": "same_name.csv",
+                    "role": "full_or_combined",
+                    "all_run_data": {1: high_only_run},
+                }
+            ],
+            default_split_interval_config(),
+        )
+
+        self.assertEqual(len(parsed["high"]), 1)
+        self.assertEqual(parsed["low"], [])
+        self.assertIn("No low-speed Split interval was found.", parsed["warnings"])
+
+    def test_low_only_csv_in_low_slot_does_not_create_false_high_interval(self):
+        low_path = SAMPLE_DIR / "split eliezer low.csv"
+        _, low_runs, _ = carregar_dados_csv_robusto(
+            str(low_path),
+            using_split_method=True,
+            is_alta=False,
+        )
+
+        parsed = parse_split_sources(
+            [{"filename": low_path.name, "role": "low", "all_run_data": low_runs}],
+            default_split_interval_config(),
+        )
+
+        self.assertEqual(parsed["high"], [])
+        self.assertGreater(len(parsed["low"]), 0)
+        self.assertIn("No high-speed Split interval was found.", parsed["warnings"])
+
     def test_single_synthetic_full_csv_source_can_extract_high_and_low(self):
         run_data = {
             "times": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
@@ -84,6 +123,44 @@ class SplitSampleDataImportTest(unittest.TestCase):
         self.assertEqual(len(parsed["low"]), 1)
         self.assertEqual(parsed["high"][0]["delta_t_s"], 4)
         self.assertEqual(parsed["low"][0]["delta_t_s"], 2)
+
+    def test_same_filename_with_different_content_is_not_reused_by_parser(self):
+        first_run = {
+            "times": [0, 4, 8, 12, 16],
+            "velocities": [90, 85, 80, 75, 70],
+            "heading": "+",
+        }
+        second_run = {
+            "times": [0, 5, 10, 15, 20],
+            "velocities": [90, 85, 80, 75, 70],
+            "heading": "+",
+        }
+
+        first = parse_split_sources(
+            [
+                {
+                    "filename": "same_name.csv",
+                    "content_sha256": "hash-a",
+                    "role": "high",
+                    "all_run_data": {1: first_run},
+                }
+            ],
+            default_split_interval_config(),
+        )
+        second = parse_split_sources(
+            [
+                {
+                    "filename": "same_name.csv",
+                    "content_sha256": "hash-b",
+                    "role": "high",
+                    "all_run_data": {1: second_run},
+                }
+            ],
+            default_split_interval_config(),
+        )
+
+        self.assertEqual(first["high"][0]["delta_t_s"], 16)
+        self.assertEqual(second["high"][0]["delta_t_s"], 20)
 
     def test_split_weather_file_loads_neutral_meteo_fields(self):
         weather_path = SAMPLE_DIR / "clima" / "AGRICULTR_SPLIT.csv"

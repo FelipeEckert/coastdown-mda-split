@@ -159,15 +159,21 @@ def render(t):
         st.info("At least one high interval and one low interval are required.")
         return
 
+    selection_key_suffix = (
+        f"{st.session_state.get('active_test_id', 'test')}_"
+        f"{st.session_state.get('split_input_version', 0)}"
+    )
     high_index = st.selectbox(
         "High interval record",
         options=list(range(len(high_records))),
         format_func=lambda idx: _record_label(high_records[idx]),
+        key=f"split_high_record_select_{selection_key_suffix}",
     )
     low_index = st.selectbox(
         "Low interval record",
         options=list(range(len(low_records))),
         format_func=lambda idx: _record_label(low_records[idx]),
+        key=f"split_low_record_select_{selection_key_suffix}",
     )
 
     effective_mass = float(st.session_state.vehicle_info.get("effective_mass") or st.session_state.total_mass)

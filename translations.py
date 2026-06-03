@@ -702,13 +702,65 @@ TRANSLATIONS = {
         "pt": "Meteo atual",
         "en": "Current meteo"
     },
+    "split_current_combined_file": {
+        "pt": "Arquivo coastdown combinado atual",
+        "en": "Current combined coastdown file"
+    },
+    "split_current_high_file": {
+        "pt": "Arquivo high-speed atual",
+        "en": "Current high-speed file"
+    },
+    "split_current_low_file": {
+        "pt": "Arquivo low-speed atual",
+        "en": "Current low-speed file"
+    },
+    "split_current_weather_file": {
+        "pt": "Arquivo meteorologico atual",
+        "en": "Current weather file"
+    },
     "no_meteo_file": {
         "pt": "Sem arquivo meteorológico",
         "en": "No meteorological file"
     },
+    "split_no_low_file": {
+        "pt": "Sem arquivo low-speed",
+        "en": "No low-speed file"
+    },
     "replace_csv": {
         "pt": "Substituir CSV",
         "en": "Replace CSV"
+    },
+    "split_replace_high_csv": {
+        "pt": "Substituir arquivo high-speed",
+        "en": "Replace high-speed file"
+    },
+    "split_replace_low_csv": {
+        "pt": "Substituir arquivo low-speed",
+        "en": "Replace low-speed file"
+    },
+    "split_add_low_csv": {
+        "pt": "Adicionar arquivo low-speed",
+        "en": "Add low-speed file"
+    },
+    "split_replace_combined_csv": {
+        "pt": "Substituir arquivo coastdown combinado",
+        "en": "Replace combined coastdown file"
+    },
+    "split_remove_low_file": {
+        "pt": "Remover arquivo low-speed atual",
+        "en": "Remove current low-speed file"
+    },
+    "split_high_file_required": {
+        "pt": "Um arquivo high-speed valido e obrigatorio para manter o teste Split.",
+        "en": "A valid high-speed file is required to keep the Split test."
+    },
+    "split_combined_low_edit_not_available": {
+        "pt": "Testes com arquivo combinado nao possuem slot low-speed separado.",
+        "en": "Combined-file tests do not have a separate low-speed slot."
+    },
+    "split_replace_combined_required": {
+        "pt": "Informe um novo arquivo combinado para substituir esta entrada Split.",
+        "en": "Provide a new combined file to replace this Split input."
     },
     "replace_meteo": {
         "pt": "Substituir meteo",
@@ -859,9 +911,29 @@ TRANSLATIONS = {
         "pt": "Arquivos CSV do metodo Split",
         "en": "Split method CSV files"
     },
+    "split_input_layout": {
+        "pt": "Formato de entrada Split",
+        "en": "Split input layout"
+    },
+    "split_input_layout_separate": {
+        "pt": "Arquivos separados",
+        "en": "Separate files"
+    },
+    "split_input_layout_combined": {
+        "pt": "Arquivo unico/combinado",
+        "en": "Single/combined file"
+    },
     "split_upload_primary_csv": {
         "pt": "CSV principal: full coastdown, combinado ou alta velocidade",
         "en": "Primary CSV: full coastdown, combined, or high speed"
+    },
+    "split_upload_high_csv": {
+        "pt": "CSV high-speed",
+        "en": "High-speed CSV"
+    },
+    "split_upload_combined_csv": {
+        "pt": "CSV unico/combinado",
+        "en": "Single/combined CSV"
     },
     "split_upload_low_csv": {
         "pt": "CSV de baixa velocidade separado (opcional)",
