@@ -70,31 +70,22 @@ def _ensure_parsed():
 
 def _split_input_mode_key(parsed: dict) -> str:
     """Resolve the input-mode message from actual parsed intervals."""
-    filenames = {
-        source.get("filename")
-        for source in st.session_state.get("split_input_sources", [])
-        if source.get("filename")
-    }
-    file_count = len(filenames)
+    input_mode = st.session_state.get("split_input_mode")
+    if input_mode in {"single_combined", "full_or_combined"}:
+        input_mode = "combined"
+    if input_mode not in {"separate", "combined"}:
+        input_mode = "separate"
     has_high = bool(parsed.get("high"))
     has_low = bool(parsed.get("low"))
 
-    if file_count >= 2:
-        if has_high and has_low:
-            return "split_input_mode_two_files_complete"
-        if has_high:
-            return "split_input_mode_two_files_high_only"
-        if has_low:
-            return "split_input_mode_two_files_low_only"
-        return "split_input_mode_two_files_none"
-
+    prefix = f"split_input_mode_{input_mode}"
     if has_high and has_low:
-        return "split_input_mode_one_file_complete"
+        return f"{prefix}_complete"
     if has_high:
-        return "split_input_mode_one_file_high_only"
+        return f"{prefix}_high_only"
     if has_low:
-        return "split_input_mode_one_file_low_only"
-    return "split_input_mode_one_file_none"
+        return f"{prefix}_low_only"
+    return f"{prefix}_none"
 
 
 def _render_split_input_mode(parsed: dict, t):

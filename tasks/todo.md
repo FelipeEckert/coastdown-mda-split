@@ -15,6 +15,7 @@
 - [x] Enforce source role: high slot only high, low slot only low
 - [x] Require complete interval coverage before accepting high/low
 - [x] Store `content_sha256` in `split_input_sources`
+- [x] Use explicit `split_input_mode` from UI: `separate` or `combined`
 - [ ] Validate parser with more real combined/full coastdown files
 
 ## Phase 3 - Split calculations
@@ -36,8 +37,11 @@
 - [x] Add separate input slots for high-speed, low-speed and meteo files
 - [x] Allow replacing/removing high, low and meteo inputs separately
 - [x] Invalidate Split-derived state when files change
+- [x] Invalidate Split-derived state when input mode changes
 - [x] Show Split input mode message based on parsed high/low records
+- [x] Show upload slots from explicit mode: separate high/low or single combined
 - [ ] Manual UX test for replacing only high, only low and only meteo in an existing test
+- [ ] Manual UX test for switching input mode in an existing test
 - [ ] Review remaining hardcoded English strings in Split workflow/results for i18n
 
 ## Phase 5 - Export and reporting
@@ -69,11 +73,13 @@
 - [x] CSV replacement clears `split_parsed_runs`, `split_results`, `split_final_results`, `excel_buffer` and increments `split_input_version`.
 - [x] Meteo replacement/removal clears derived final/export state and resets time-only sync.
 - [x] Parser blocks incomplete high/low combinations instead of generating partial or position-based intervals.
+- [x] Input mode is explicit in the UI and saved as `split_input_mode`.
 - [x] Split Results page has final summary selection and basic Excel download.
 - [ ] Run manual regression in the app before first commit: create test, replace high, replace low, remove low, replace meteo, remove meteo.
 - [ ] Run manual regression with one high-only CSV and confirm calculation remains blocked with friendly warning.
 - [ ] Run manual regression with one low-only CSV and confirm calculation remains blocked with friendly warning.
 - [ ] Run manual regression with high+low CSVs and confirm final f'0/f'2 match expected values.
+- [ ] Run manual regression with explicit combined mode and confirm high-only/low-only combined files block calculation.
 
 ## Meteo status
 - [x] Weather CSV loader remains neutral infrastructure reused by Split.

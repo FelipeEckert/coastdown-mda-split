@@ -37,6 +37,27 @@
 
 Registrar aqui decisoes e aprendizados especificos do metodo Split.
 
+## 2026-06-08 - Split: Input Mode Explicito Vem Antes Do Parser
+
+### Contexto:
+O fluxo Split precisava remover ambiguidade automatica na importacao, porque
+inferir papel de arquivo ja havia permitido reinterpretar alta como baixa.
+
+### Decisao:
+A UI deve escolher explicitamente o modo de entrada:
+- `separate`: high e low sao arquivos separados, com roles `high` e `low`;
+- `combined`: um arquivo unico recebe role `full_or_combined`.
+
+O parser pode continuar aceitando esses roles, mas nao deve decidir sozinho que
+um arquivo high tambem e low, nem que um arquivo low tambem e high.
+
+### Licao:
+Em dados Split, o papel do arquivo e informacao de entrada, nao heuristica de
+parser. Quando uma heuristica pode produzir um resultado numerico plausivel e
+errado, a UI deve tornar a decisao explicita e invalidar derivados quando ela muda.
+
+---
+
 ## 2026-06-08 - Split: Tracking Faz Parte Da Entrega
 
 ### Contexto:

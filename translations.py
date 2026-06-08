@@ -915,6 +915,18 @@ TRANSLATIONS = {
         "pt": "Formato de entrada Split",
         "en": "Split input layout"
     },
+    "split_input_mode": {
+        "pt": "Modo de entrada",
+        "en": "Input mode"
+    },
+    "split_input_mode_separate": {
+        "pt": "Dois arquivos de desaceleracao separados",
+        "en": "Two separate coastdown files"
+    },
+    "split_input_mode_combined": {
+        "pt": "Um unico arquivo de desaceleracao combinado",
+        "en": "Single combined coastdown file"
+    },
     "split_input_layout_separate": {
         "pt": "Arquivos separados",
         "en": "Separate files"
@@ -938,6 +950,46 @@ TRANSLATIONS = {
     "split_upload_low_csv": {
         "pt": "CSV de baixa velocidade separado (opcional)",
         "en": "Separate low-speed CSV (optional)"
+    },
+    "warning_change_split_input_mode": {
+        "pt": "Alterar o modo de entrada Split invalida parser, resultados, selecoes e export deste teste.",
+        "en": "Changing the Split input mode invalidates parser output, results, selections, and export for this test."
+    },
+    "split_input_mode_change_requires_file": {
+        "pt": "Para alterar o modo de entrada, carregue o arquivo principal correspondente ao novo modo.",
+        "en": "To change the input mode, upload the primary file for the new mode."
+    },
+    "split_input_mode_separate_complete": {
+        "pt": "Modo de entrada Split: dois arquivos de desaceleracao separados - intervalos de alta e baixa velocidade foram encontrados.",
+        "en": "Split input mode: two separate coastdown files - high-speed and low-speed intervals were found."
+    },
+    "split_input_mode_separate_high_only": {
+        "pt": "Modo de entrada Split: dois arquivos de desaceleracao separados - intervalo de alta velocidade encontrado, mas nenhum arquivo/intervalo de baixa velocidade valido foi fornecido.",
+        "en": "Split input mode: two separate coastdown files - high-speed interval found, but no valid low-speed file/interval was provided."
+    },
+    "split_input_mode_separate_low_only": {
+        "pt": "Modo de entrada Split: dois arquivos de desaceleracao separados - intervalo de baixa velocidade encontrado, mas nenhum arquivo/intervalo de alta velocidade valido foi fornecido.",
+        "en": "Split input mode: two separate coastdown files - low-speed interval found, but no valid high-speed file/interval was provided."
+    },
+    "split_input_mode_separate_none": {
+        "pt": "Modo de entrada Split: dois arquivos de desaceleracao separados - nenhum intervalo valido de alta ou baixa velocidade foi encontrado.",
+        "en": "Split input mode: two separate coastdown files - no valid high-speed or low-speed interval was found."
+    },
+    "split_input_mode_combined_complete": {
+        "pt": "Modo de entrada Split: um unico arquivo de desaceleracao combinado - intervalos de alta e baixa velocidade foram encontrados no mesmo arquivo.",
+        "en": "Split input mode: single combined coastdown file - high-speed and low-speed intervals were found in the same file."
+    },
+    "split_input_mode_combined_high_only": {
+        "pt": "Modo de entrada Split: um unico arquivo de desaceleracao combinado - intervalo de alta velocidade encontrado, mas nenhum intervalo de baixa velocidade valido foi detectado.",
+        "en": "Split input mode: single combined coastdown file - high-speed interval found, but no valid low-speed interval was detected."
+    },
+    "split_input_mode_combined_low_only": {
+        "pt": "Modo de entrada Split: um unico arquivo de desaceleracao combinado - intervalo de baixa velocidade encontrado, mas nenhum intervalo de alta velocidade valido foi detectado.",
+        "en": "Split input mode: single combined coastdown file - low-speed interval found, but no valid high-speed interval was detected."
+    },
+    "split_input_mode_combined_none": {
+        "pt": "Modo de entrada Split: um unico arquivo de desaceleracao combinado - nenhum intervalo valido de alta ou baixa velocidade foi encontrado.",
+        "en": "Split input mode: single combined coastdown file - no valid high-speed or low-speed interval was found."
     },
     "split_input_mode_two_files_complete": {
         "pt": "Modo de entrada Split: 2 arquivos de coastdown detectados - intervalos de alta e baixa velocidade estao sendo processados separadamente.",

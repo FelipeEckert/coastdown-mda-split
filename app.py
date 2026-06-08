@@ -32,6 +32,7 @@ sys.path.insert(0, BASE_DIR)
 
 from translations import get_translator, get_available_languages
 from data.loaders import carregar_dados_csv_robusto, read_weather_station_csv
+from core.split_state import clear_split_final_state, invalidate_split_input_state
 
 # ===== CONFIGURAÇÃO DA PÁGINA =====
 st.set_page_config(
@@ -422,7 +423,7 @@ TEST_STATE_KEYS = [
     # Arquivos
     "coastdown_csv_path", "meteo_csv_path",
     "split_alta_csv_path", "split_baixa_csv_path", "split_meteo_csv_path",
-    "split_source_files", "split_input_sources", "split_input_layout", "split_input_version",
+    "split_source_files", "split_input_sources", "split_input_mode", "split_input_layout", "split_input_version",
     # DataFrames
     "df_raw", "df_raw_alta", "df_raw_baixa",
     # Dados processados
@@ -461,6 +462,7 @@ TEST_DEFAULTS = {
     "split_meteo_csv_path": None,
     "split_source_files": [],
     "split_input_sources": [],
+    "split_input_mode": "separate",
     "split_input_layout": "separate",
     "split_input_version": 0,
     "df_raw": None,
@@ -724,9 +726,28 @@ def _uploaded_file_sha256(uploaded_file):
     return hashlib.sha256(uploaded_file.getvalue()).hexdigest()
 
 
-def _build_split_coastdown_state(high_or_combined_csv, low_csv, input_layout, t):
+def _normalize_split_input_mode(value, test_data=None):
+    """Return canonical Split input mode: separate or combined."""
+    if value in {"combined", "single_combined", "full_or_combined"}:
+        return "combined"
+    if value == "separate":
+        return "separate"
+    if test_data and (test_data.get("split_baixa_csv_path") or _find_split_source(test_data, "low")):
+        return "separate"
+    if test_data and test_data.get("coastdown_csv_path") and not test_data.get("split_alta_csv_path"):
+        return "combined"
+    return "separate"
+
+
+def _legacy_split_input_layout(input_mode):
+    """Map canonical input mode to the previous layout value for compatibility."""
+    return "single_combined" if input_mode == "combined" else "separate"
+
+
+def _build_split_coastdown_state(high_or_combined_csv, low_csv, input_mode, t):
     """Load Split coastdown files and return state fields for the active test."""
-    is_combined = input_layout == "single_combined"
+    input_mode = _normalize_split_input_mode(input_mode)
+    is_combined = input_mode == "combined"
     df_raw, high_or_combined_runs, csv_date = _load_uploaded_csv_file(
         high_or_combined_csv,
         t,
@@ -798,7 +819,8 @@ def _build_split_coastdown_state(high_or_combined_csv, low_csv, input_layout, t)
         "coastdown_csv_path": high_or_combined_csv.name,
         "split_alta_csv_path": high_or_combined_csv.name if not is_combined else None,
         "split_baixa_csv_path": low_csv.name if low_csv is not None else None,
-        "split_input_layout": input_layout,
+        "split_input_mode": input_mode,
+        "split_input_layout": _legacy_split_input_layout(input_mode),
         "data_loaded": True,
         "data_info": {
             "filename": high_or_combined_csv.name,
@@ -866,6 +888,7 @@ def _build_split_state_from_loaded(
         "coastdown_csv_path": high_filename,
         "split_alta_csv_path": high_filename,
         "split_baixa_csv_path": low_filename,
+        "split_input_mode": "separate",
         "split_input_layout": "separate",
         "data_loaded": True,
         "data_info": {
@@ -880,21 +903,18 @@ def _build_split_state_from_loaded(
 
 def _clear_test_data_for_csv_change(test_data):
     """Limpa estruturas derivadas que dependem diretamente do CSV."""
-    test_data["split_parsed_runs"] = {}
-    test_data["split_results"] = []
-    test_data["split_input_version"] = int(test_data.get("split_input_version") or 0) + 1
-    _clear_test_data_for_meteo_change(test_data)
+    invalidate_split_input_state(test_data)
 
 
 def _clear_test_data_for_meteo_change(test_data):
     """Limpa estruturas derivadas que dependem de correções climáticas e pares."""
-    test_data["split_final_results"] = {}
-    test_data["excel_buffer"] = None
+    clear_split_final_state(test_data)
 
 
 def _apply_test_edits(
     test_id,
     new_name,
+    selected_input_mode,
     uploaded_high_csv,
     uploaded_low_csv,
     remove_low,
@@ -915,24 +935,33 @@ def _apply_test_edits(
             updated_test = copy.deepcopy(original_test)
             updated_test["name"] = new_name
 
-            input_layout = updated_test.get("split_input_layout")
-            if input_layout not in {"separate", "single_combined"}:
-                input_layout = "separate" if updated_test.get("split_baixa_csv_path") else "single_combined"
+            current_input_mode = _normalize_split_input_mode(
+                updated_test.get("split_input_mode") or updated_test.get("split_input_layout"),
+                updated_test,
+            )
+            selected_input_mode = _normalize_split_input_mode(selected_input_mode, updated_test)
+            mode_changed = selected_input_mode != current_input_mode
 
-            csv_changed = any((uploaded_high_csv is not None, uploaded_low_csv is not None, remove_low))
+            csv_changed = any((uploaded_high_csv is not None, uploaded_low_csv is not None, remove_low, mode_changed))
             meteo_removed = bool(remove_meteo and original_test.get("meteo_csv_path"))
             meteo_changed = uploaded_meteo is not None or meteo_removed
 
             if csv_changed:
-                if input_layout == "single_combined":
+                if selected_input_mode == "combined":
                     if uploaded_low_csv is not None or remove_low:
                         raise ValueError(t("split_combined_low_edit_not_available"))
-                    if uploaded_high_csv is None:
+                    if uploaded_high_csv is None and mode_changed:
                         raise ValueError(t("split_replace_combined_required"))
-                    updated_test.update(
-                        _build_split_coastdown_state(uploaded_high_csv, None, "single_combined", t)
-                    )
+                    if uploaded_high_csv is not None:
+                        updated_test.update(
+                            _build_split_coastdown_state(uploaded_high_csv, None, "combined", t)
+                        )
+                    else:
+                        updated_test["split_input_mode"] = "combined"
+                        updated_test["split_input_layout"] = _legacy_split_input_layout("combined")
                 else:
+                    if mode_changed and uploaded_high_csv is None:
+                        raise ValueError(t("split_high_file_required"))
                     high_source = _find_split_source(updated_test, "high")
                     if uploaded_high_csv is not None:
                         high_df, high_runs, csv_date = _load_uploaded_csv_file(
@@ -970,6 +999,11 @@ def _apply_test_edits(
                         )
                         low_filename = uploaded_low_csv.name
                         low_hash = _uploaded_file_sha256(uploaded_low_csv)
+                    elif mode_changed:
+                        low_filename = None
+                        low_hash = None
+                        low_df = None
+                        low_runs = {}
                     else:
                         low_filename = updated_test.get("split_baixa_csv_path")
                         low_hash = low_source.get("content_sha256") if low_source else None
@@ -993,9 +1027,9 @@ def _apply_test_edits(
                     )
 
                 _clear_test_data_for_csv_change(updated_test)
-                if uploaded_high_csv is not None:
+                if uploaded_high_csv is not None or mode_changed:
                     st.session_state.split_high_uploader_key_version += 1
-                if uploaded_low_csv is not None or remove_low:
+                if uploaded_low_csv is not None or remove_low or mode_changed:
                     st.session_state.split_low_uploader_key_version += 1
 
             if uploaded_meteo is not None:
@@ -1087,9 +1121,10 @@ def edit_test_dialog(t):
 
     dialog_token = _prepare_edit_test_dialog_state(test_id)
     current_name = test_data.get("name", test_id)
-    input_layout = test_data.get("split_input_layout")
-    if input_layout not in {"separate", "single_combined"}:
-        input_layout = "separate" if test_data.get("split_baixa_csv_path") else "single_combined"
+    current_input_mode = _normalize_split_input_mode(
+        test_data.get("split_input_mode") or test_data.get("split_input_layout"),
+        test_data,
+    )
     current_high = test_data.get("split_alta_csv_path")
     current_combined = test_data.get("coastdown_csv_path")
     current_low = test_data.get("split_baixa_csv_path")
@@ -1102,7 +1137,8 @@ def edit_test_dialog(t):
     @st.dialog(t("edit_test_title"), width="large", on_dismiss=_close_edit_test_dialog)
     def _edit_test_dialog():
         st.write(f"**{t('test_name')}:** {current_name}")
-        if input_layout == "single_combined":
+        st.write(f"**{t('split_input_mode')}:** {t(f'split_input_mode_{current_input_mode}')}")
+        if current_input_mode == "combined":
             st.write(f"**{t('split_current_combined_file')}:** {current_combined or 'N/A'}")
         else:
             st.write(f"**{t('split_current_high_file')}:** {current_high or 'N/A'}")
@@ -1119,9 +1155,33 @@ def edit_test_dialog(t):
 
         st.markdown("---")
 
+        mode_label_to_value = {
+            t("split_input_mode_separate"): "separate",
+            t("split_input_mode_combined"): "combined",
+        }
+        mode_labels = list(mode_label_to_value.keys())
+        current_mode_label = next(
+            label for label, value in mode_label_to_value.items()
+            if value == current_input_mode
+        )
+        selected_mode_label = st.radio(
+            t("split_input_mode"),
+            options=mode_labels,
+            index=mode_labels.index(current_mode_label),
+            horizontal=True,
+            key=f"edit_split_input_mode_{dialog_token}",
+        )
+        selected_input_mode = mode_label_to_value[selected_mode_label]
+        mode_changed = selected_input_mode != current_input_mode
+
+        if mode_changed:
+            st.warning(t("warning_change_split_input_mode"))
+
+        st.markdown("---")
+
         high_label = (
             t("split_replace_combined_csv")
-            if input_layout == "single_combined"
+            if selected_input_mode == "combined"
             else t("split_replace_high_csv")
         )
         uploaded_high_csv = st.file_uploader(
@@ -1132,7 +1192,7 @@ def edit_test_dialog(t):
 
         uploaded_low_csv = None
         remove_low = False
-        if input_layout == "separate":
+        if selected_input_mode == "separate":
             uploaded_low_csv = st.file_uploader(
                 t("split_replace_low_csv") if current_low else t("split_add_low_csv"),
                 type=["csv"],
@@ -1160,12 +1220,15 @@ def edit_test_dialog(t):
                 disabled=uploaded_meteo is not None
             )
 
-        csv_changed = uploaded_high_csv is not None or uploaded_low_csv is not None or remove_low
+        csv_changed = uploaded_high_csv is not None or uploaded_low_csv is not None or remove_low or mode_changed
         meteo_changed = uploaded_meteo is not None or remove_meteo
         name_changed = updated_name.strip() != current_name
+        mode_change_missing_file = mode_changed and uploaded_high_csv is None
 
         if csv_changed:
             st.warning(t("warning_replace_csv"))
+        if mode_change_missing_file:
+            st.info(t("split_input_mode_change_requires_file"))
 
         if meteo_changed:
             st.warning(t("warning_replace_meteo"))
@@ -1187,7 +1250,13 @@ def edit_test_dialog(t):
 
         has_changes = name_changed or csv_changed or meteo_changed
         valid_name = bool(updated_name.strip())
-        save_disabled = (not has_changes) or (not valid_name) or (not confirm_csv) or (not confirm_meteo)
+        save_disabled = (
+            (not has_changes)
+            or (not valid_name)
+            or (not confirm_csv)
+            or (not confirm_meteo)
+            or mode_change_missing_file
+        )
 
         if not has_changes:
             st.info(t("no_changes_detected"))
@@ -1214,6 +1283,7 @@ def edit_test_dialog(t):
                 _apply_test_edits(
                     test_id,
                     updated_name.strip(),
+                    selected_input_mode,
                     uploaded_high_csv,
                     uploaded_low_csv,
                     remove_low,
@@ -1432,25 +1502,25 @@ def new_test_dialog(t):
 
     # Upload dos arquivos CSV do Split
     st.subheader(t("split_upload_sources"))
-    layout_label_to_value = {
-        t("split_input_layout_separate"): "separate",
-        t("split_input_layout_combined"): "single_combined",
+    mode_label_to_value = {
+        t("split_input_mode_separate"): "separate",
+        t("split_input_mode_combined"): "combined",
     }
-    selected_layout_label = st.radio(
-        t("split_input_layout"),
-        options=list(layout_label_to_value.keys()),
+    selected_mode_label = st.radio(
+        t("split_input_mode"),
+        options=list(mode_label_to_value.keys()),
         horizontal=True,
-        key="new_test_split_input_layout",
+        key="new_test_split_input_mode",
     )
-    split_input_layout = layout_label_to_value[selected_layout_label]
+    split_input_mode = mode_label_to_value[selected_mode_label]
 
     uploaded_csv = st.file_uploader(
-        t("split_upload_combined_csv") if split_input_layout == "single_combined" else t("split_upload_high_csv"),
+        t("split_upload_combined_csv") if split_input_mode == "combined" else t("split_upload_high_csv"),
         type=["csv"],
         key="new_test_csv_upload",
     )
     uploaded_low_csv = None
-    if split_input_layout == "separate":
+    if split_input_mode == "separate":
         uploaded_low_csv = st.file_uploader(
             t("split_upload_low_csv"),
             type=["csv"],
@@ -1505,7 +1575,7 @@ def new_test_dialog(t):
                 test_name.strip(),
                 uploaded_csv,
                 uploaded_low_csv,
-                split_input_layout,
+                split_input_mode,
                 uploaded_meteo,
                 fixed_temp,
                 fixed_pressure,
@@ -1513,7 +1583,7 @@ def new_test_dialog(t):
             )
 
 
-def _process_new_test(name, uploaded_csv, uploaded_low_csv, split_input_layout, uploaded_meteo, fixed_temp, fixed_pressure, t):
+def _process_new_test(name, uploaded_csv, uploaded_low_csv, split_input_mode, uploaded_meteo, fixed_temp, fixed_pressure, t):
     """
     Processa os arquivos carregados e cria o novo teste no session_state.
     Salva o estado do teste ativo atual antes de criar o novo.
@@ -1522,8 +1592,8 @@ def _process_new_test(name, uploaded_csv, uploaded_low_csv, split_input_layout, 
         try:
             coastdown_state = _build_split_coastdown_state(
                 uploaded_csv,
-                uploaded_low_csv if split_input_layout == "separate" else None,
-                split_input_layout,
+                uploaded_low_csv if split_input_mode == "separate" else None,
+                split_input_mode,
                 t,
             )
 

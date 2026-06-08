@@ -6,6 +6,7 @@ import math
 import unittest
 
 from core.split_calculations import calculate_split_result
+from core.split_state import invalidate_split_input_state
 from data.loaders import carregar_dados_csv_robusto, read_weather_station_csv
 from data.split_parser import default_split_interval_config, parse_split_sources
 
@@ -51,7 +52,7 @@ class SplitSampleDataImportTest(unittest.TestCase):
         self.assertTrue(math.isclose(result["f0_prime"], 139.41119395239252, rel_tol=1e-12))
         self.assertTrue(math.isclose(result["f2_prime"], 0.6461779091694823, rel_tol=1e-12))
 
-    def test_single_high_only_csv_reports_missing_low_interval(self):
+    def test_separate_mode_high_only_csv_reports_missing_low_interval(self):
         high_path = SAMPLE_DIR / "split eliezer high.csv"
         _, high_runs, _ = carregar_dados_csv_robusto(
             str(high_path),
@@ -68,7 +69,7 @@ class SplitSampleDataImportTest(unittest.TestCase):
         self.assertEqual(parsed["low"], [])
         self.assertIn("No low-speed Split interval was found.", parsed["warnings"])
 
-    def test_high_only_combined_source_does_not_create_false_low_interval(self):
+    def test_combined_mode_high_only_source_does_not_create_false_low_interval(self):
         high_only_run = {
             "times": [0, 4.23, 8.79, 13.6, 18.72],
             "velocities": [90, 85, 80, 75, 70],
@@ -105,6 +106,28 @@ class SplitSampleDataImportTest(unittest.TestCase):
 
         self.assertEqual(parsed["high"], [])
         self.assertGreater(len(parsed["low"]), 0)
+        self.assertIn("No high-speed Split interval was found.", parsed["warnings"])
+
+    def test_combined_mode_low_only_source_does_not_create_false_high_interval(self):
+        low_only_run = {
+            "times": [0, 9.44, 19.58],
+            "velocities": [45, 40, 35],
+            "heading": "+",
+        }
+
+        parsed = parse_split_sources(
+            [
+                {
+                    "filename": "combined_low_only.csv",
+                    "role": "full_or_combined",
+                    "all_run_data": {1: low_only_run},
+                }
+            ],
+            default_split_interval_config(),
+        )
+
+        self.assertEqual(parsed["high"], [])
+        self.assertEqual(len(parsed["low"]), 1)
         self.assertIn("No high-speed Split interval was found.", parsed["warnings"])
 
     def test_single_synthetic_full_csv_source_can_extract_high_and_low(self):
@@ -161,6 +184,25 @@ class SplitSampleDataImportTest(unittest.TestCase):
 
         self.assertEqual(first["high"][0]["delta_t_s"], 16)
         self.assertEqual(second["high"][0]["delta_t_s"], 20)
+
+    def test_input_mode_change_invalidates_split_derived_state(self):
+        test_data = {
+            "split_parsed_runs": {"high": [{"run_id": 1}], "low": [{"run_id": 1}]},
+            "split_results": [{"f0_prime": 1.0}],
+            "split_final_results": {"num_results": 1},
+            "excel_buffer": b"old",
+            "split_input_version": 4,
+            "sync_meteo_by_time_only": True,
+        }
+
+        invalidate_split_input_state(test_data)
+
+        self.assertEqual(test_data["split_parsed_runs"], {})
+        self.assertEqual(test_data["split_results"], [])
+        self.assertEqual(test_data["split_final_results"], {})
+        self.assertIsNone(test_data["excel_buffer"])
+        self.assertEqual(test_data["split_input_version"], 5)
+        self.assertFalse(test_data["sync_meteo_by_time_only"])
 
     def test_split_weather_file_loads_neutral_meteo_fields(self):
         weather_path = SAMPLE_DIR / "clima" / "AGRICULTR_SPLIT.csv"
