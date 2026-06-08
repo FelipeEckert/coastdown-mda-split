@@ -36,8 +36,8 @@
 - [x] Create Split results page
 - [x] Rename Split workflow tab to Interval Selection
 - [x] Add placeholder Coefficient Calculation tab
-- [x] Implement manual high/low run selection in Coefficient Calculation
-- [x] Calculate and save one selected Split pair from Coefficient Calculation
+- [x] Replace simple high/low selection with complete ida/volta pair selection in Coefficient Calculation
+- [x] Calculate and save complete Split pairs from high+, low+, high- and low-
 - [x] Add final comparison table for calculated Split pairs
 - [x] Add collapsible cards for comparison pairs
 - [x] Add remove pair and clear comparison actions
@@ -85,14 +85,16 @@
 - [x] Parser blocks incomplete high/low combinations instead of generating partial or position-based intervals.
 - [x] Input mode is explicit in the UI and saved as `split_input_mode`.
 - [x] Main Split navigation now has Vehicle Data, Interval Selection, Coefficient Calculation and Split Results.
-- [x] Coefficient Calculation tab can manually select high/low runs and calculate one pair.
-- [x] Coefficient Calculation tab can add calculated pairs to `split_comparison_pairs`.
+- [x] Coefficient Calculation tab manually selects high+, low+, high- and low- before calculating.
+- [x] Coefficient Calculation tab calculates direction +, direction - and arithmetic pair average.
+- [x] Coefficient Calculation tab can add complete ida/volta pairs to `split_comparison_pairs`.
 - [x] Comparison cards show meteo sync data when available, for traceability only.
 - [x] Split Results page has final summary selection and basic Excel download.
 - [ ] Run manual regression in the app before first commit: create test, replace high, replace low, remove low, replace meteo, remove meteo.
 - [ ] Run manual regression with one high-only CSV and confirm calculation remains blocked with friendly warning.
 - [ ] Run manual regression with one low-only CSV and confirm calculation remains blocked with friendly warning.
 - [ ] Run manual regression with high+low CSVs and confirm final f'0/f'2 match expected values.
+- [ ] Run manual regression with four selected runs and confirm ida, volta and pair-average f'0/f'2.
 - [ ] Run manual regression with explicit combined mode and confirm high-only/low-only combined files block calculation.
 
 ## Meteo status
@@ -110,7 +112,7 @@
 
 ## Excel export status
 - [x] Basic Split Excel export exists.
-- [x] Export includes summary, selected results, high/low files, runs, Delta t and subinterval traceability.
+- [x] Export includes summary, selected results, four ida/volta components, Delta t and subinterval traceability.
 - [ ] Add meteo inputs and weather sync audit when Split meteo integration is complete.
 - [ ] Review final workbook layout, labels and units before release.
 

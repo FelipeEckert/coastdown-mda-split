@@ -14,20 +14,24 @@ from core.split_calculations import coefficient_summary
 def _result_rows(results: list[dict]) -> list[dict]:
     rows = []
     for idx, result in enumerate(results, start=1):
-        high = result.get("high_record", {})
-        low = result.get("low_record", {})
+        high_plus = result.get("high_plus") or result.get("high_record", {})
+        low_plus = result.get("low_plus") or result.get("low_record", {})
+        high_minus = result.get("high_minus", {})
+        low_minus = result.get("low_minus", {})
         rows.append(
             {
                 "Index": idx,
                 "Use": result.get("selected", True),
                 "f'0 (N)": result.get("f0_prime"),
                 "f'2 (N/(m/s)^2)": result.get("f2_prime"),
-                "High file": high.get("filename"),
-                "High run": high.get("run_id"),
-                "High Delta t": high.get("delta_t_s"),
-                "Low file": low.get("filename"),
-                "Low run": low.get("run_id"),
-                "Low Delta t": low.get("delta_t_s"),
+                "High + run": high_plus.get("run_id"),
+                "Low + run": low_plus.get("run_id"),
+                "High - run": high_minus.get("run_id"),
+                "Low - run": low_minus.get("run_id"),
+                "High + Delta t": high_plus.get("delta_t_s"),
+                "Low + Delta t": low_plus.get("delta_t_s"),
+                "High - Delta t": high_minus.get("delta_t_s"),
+                "Low - Delta t": low_minus.get("delta_t_s"),
                 "Warnings": "; ".join(result.get("warnings", [])),
             }
         )
@@ -77,25 +81,46 @@ def generate_split_excel(results: list[dict], summary: dict, vehicle_info: dict,
     details = wb.create_sheet("Split Results")
     headers = [
         "Index", "f'0 (N)", "f'2 (N/(m/s)^2)",
-        "High file", "High run", "High Delta t (s)", "High subintervals",
-        "Low file", "Low run", "Low Delta t (s)", "Low subintervals", "Warnings",
+        "High + file", "High + run", "High + Delta t (s)", "High + subintervals",
+        "Low + file", "Low + run", "Low + Delta t (s)", "Low + subintervals",
+        "High - file", "High - run", "High - Delta t (s)", "High - subintervals",
+        "Low - file", "Low - run", "Low - Delta t (s)", "Low - subintervals",
+        "f'0 + (N)", "f'2 + (N/(m/s)^2)",
+        "f'0 - (N)", "f'2 - (N/(m/s)^2)",
+        "Warnings",
     ]
     _write_header(details, 1, headers)
     for row_idx, result in enumerate(results, start=2):
-        high = result.get("high_record", {})
-        low = result.get("low_record", {})
+        high_plus = result.get("high_plus") or result.get("high_record", {})
+        low_plus = result.get("low_plus") or result.get("low_record", {})
+        high_minus = result.get("high_minus", {})
+        low_minus = result.get("low_minus", {})
+        result_plus = result.get("result_plus", {})
+        result_minus = result.get("result_minus", {})
         values = [
             row_idx - 1,
             result.get("f0_prime"),
             result.get("f2_prime"),
-            high.get("filename"),
-            high.get("run_id"),
-            high.get("delta_t_s"),
-            ", ".join(high.get("subintervals", [])),
-            low.get("filename"),
-            low.get("run_id"),
-            low.get("delta_t_s"),
-            ", ".join(low.get("subintervals", [])),
+            high_plus.get("filename"),
+            high_plus.get("run_id"),
+            high_plus.get("delta_t_s"),
+            ", ".join(high_plus.get("subintervals", [])),
+            low_plus.get("filename"),
+            low_plus.get("run_id"),
+            low_plus.get("delta_t_s"),
+            ", ".join(low_plus.get("subintervals", [])),
+            high_minus.get("filename"),
+            high_minus.get("run_id"),
+            high_minus.get("delta_t_s"),
+            ", ".join(high_minus.get("subintervals", [])),
+            low_minus.get("filename"),
+            low_minus.get("run_id"),
+            low_minus.get("delta_t_s"),
+            ", ".join(low_minus.get("subintervals", [])),
+            result_plus.get("f0_prime"),
+            result_plus.get("f2_prime"),
+            result_minus.get("f0_prime"),
+            result_minus.get("f2_prime"),
             "; ".join(result.get("warnings", [])),
         ]
         for col_idx, value in enumerate(values, start=1):

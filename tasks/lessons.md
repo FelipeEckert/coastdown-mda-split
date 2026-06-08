@@ -37,6 +37,25 @@
 
 Registrar aqui decisoes e aprendizados especificos do metodo Split.
 
+## 2026-06-08 - Split: Par De Coeficientes Exige Ida E Volta
+
+### Contexto:
+A primeira versao da aba `Calculo dos Coeficientes` calculava um par a partir
+de apenas uma run high-speed e uma run low-speed.
+
+### Decisao:
+O calculo Split operacional deve selecionar quatro componentes rastreaveis:
+high+, low+, high- e low-. Cada sentido e calculado com a funcao Split revisada,
+e o resultado do par usa a media aritmetica explicita entre os resultados dos
+sentidos + e - enquanto nao houver outra regra normativa Split documentada.
+
+### Licao:
+Uma combinacao high+low simples e incompleta para representar um par Split.
+A direcao `+`/`-` e parte do contrato de calculo; registros sem direcao explicita
+devem bloquear o calculo em vez de serem pareados por inferencia.
+
+---
+
 ## 2026-06-08 - Split: Energia So E Neutra Com Contrato Explicito
 
 ### Contexto:

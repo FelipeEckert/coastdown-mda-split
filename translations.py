@@ -927,6 +927,94 @@ TRANSLATIONS = {
         "pt": "Run low-speed",
         "en": "Low-speed run"
     },
+    "split_ida_plus": {
+        "pt": "Ida (+)",
+        "en": "Ida (+)"
+    },
+    "split_volta_minus": {
+        "pt": "Volta (-)",
+        "en": "Volta (-)"
+    },
+    "split_high_speed_ida": {
+        "pt": "High-speed ida (+)",
+        "en": "High-speed ida (+)"
+    },
+    "split_low_speed_ida": {
+        "pt": "Low-speed ida (+)",
+        "en": "Low-speed ida (+)"
+    },
+    "split_high_speed_volta": {
+        "pt": "High-speed volta (-)",
+        "en": "High-speed volta (-)"
+    },
+    "split_low_speed_volta": {
+        "pt": "Low-speed volta (-)",
+        "en": "Low-speed volta (-)"
+    },
+    "split_select_high_plus_run": {
+        "pt": "High-speed ida (+)",
+        "en": "High-speed ida (+)"
+    },
+    "split_select_low_plus_run": {
+        "pt": "Low-speed ida (+)",
+        "en": "Low-speed ida (+)"
+    },
+    "split_select_high_minus_run": {
+        "pt": "High-speed volta (-)",
+        "en": "High-speed volta (-)"
+    },
+    "split_select_low_minus_run": {
+        "pt": "Low-speed volta (-)",
+        "en": "Low-speed volta (-)"
+    },
+    "split_pair_average": {
+        "pt": "Media do par",
+        "en": "Pair average"
+    },
+    "split_direction_plus_result": {
+        "pt": "Resultado direcao +",
+        "en": "Direction + result"
+    },
+    "split_direction_minus_result": {
+        "pt": "Resultado direcao -",
+        "en": "Direction - result"
+    },
+    "split_complete_ida_volta_pair_required": {
+        "pt": "E necessario um par completo ida/volta: high+, low+, high- e low-.",
+        "en": "A complete ida/volta pair is required: high+, low+, high-, and low-."
+    },
+    "split_complete_pair_missing_components": {
+        "pt": "Componentes ausentes para calcular o par completo: {components}.",
+        "en": "Missing components for the complete pair calculation: {components}."
+    },
+    "split_invalid_direction_records_warning": {
+        "pt": "{count} intervalo(s) parseado(s) nao tem direcao explicita + ou -. O calculo do par completo esta bloqueado.",
+        "en": "{count} parsed interval(s) do not have explicit + or - direction. Complete pair calculation is blocked."
+    },
+    "split_high_plus_records_available": {
+        "pt": "High +",
+        "en": "High +"
+    },
+    "split_low_plus_records_available": {
+        "pt": "Low +",
+        "en": "Low +"
+    },
+    "split_high_minus_records_available": {
+        "pt": "High -",
+        "en": "High -"
+    },
+    "split_low_minus_records_available": {
+        "pt": "Low -",
+        "en": "Low -"
+    },
+    "split_complete_pair_components": {
+        "pt": "Componentes do par completo",
+        "en": "Complete pair components"
+    },
+    "split_selected_pair_results": {
+        "pt": "Resultados ida, volta e media",
+        "en": "Ida, volta and average results"
+    },
     "split_selected_pair_inputs": {
         "pt": "Resumo técnico do par selecionado",
         "en": "Selected pair technical summary"
