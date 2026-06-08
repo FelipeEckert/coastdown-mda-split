@@ -35,7 +35,78 @@
 
 ## Split-specific lessons
 
-Ainda vazio. Registrar aqui decisões e aprendizados específicos do método Split.
+Registrar aqui decisoes e aprendizados especificos do metodo Split.
+
+## 2026-06-08 - Split: Tracking Faz Parte Da Entrega
+
+### Contexto:
+As mudancas funcionais recentes do fluxo Split nao estavam sendo refletidas em
+`tasks/todo.md`, deixando o tracker operacional atrasado em relacao ao codigo.
+
+### Decisao:
+Toda mudanca funcional deve revisar `tasks/todo.md`, e toda decisao tecnica ou
+bug importante deve revisar `tasks/lessons.md`, antes de encerrar a tarefa.
+
+### Licao:
+Em uma migracao metodologica, documentacao de tracking nao e burocracia separada
+do desenvolvimento. Ela evita que lacunas reais, como meteo, export e validacao
+manual, desaparecam atras de um codigo que ja compila.
+
+---
+
+## 2026-06-08 - Split: Delta V Positivo E Coeficientes Road-Load-Positive
+
+### Contexto:
+O software exibe e armazena `Delta V` como amplitude positiva, mas a equacao
+normativa descreve a desaceleracao como variacao assinada de velocidade.
+
+### Decisao:
+Manter `Delta V = abs(V_inicial - V_final)` na UI, rastreabilidade e testes.
+Internamente, usar a forma equivalente que retorna `f'0` e `f'2` positivos para
+road load, sem `return -f0_raw, -f2_raw` escondido.
+
+### Licao:
+Quando a convencao de exibicao difere da convencao algebrica da norma, documentar
+a ponte explicitamente e testar com caso real conhecido. Inversao de sinal sem
+justificativa e perigosa em calculos de engenharia.
+
+---
+
+## 2026-06-08 - Split: Troca De Arquivo Invalida Estado Derivado
+
+### Contexto:
+Substituir arquivos de coastdown ou meteo podia deixar resultados antigos vivos
+em `session_state`, porque o editor original foi herdado de fluxo mais generico.
+
+### Decisao:
+Troca/remocao de high, low ou meteo deve limpar resultados derivados e export:
+`split_parsed_runs`, `split_results`, `split_final_results`, `excel_buffer` e
+sincronizacao meteo aplicavel. Seletores dependentes devem mudar de chave ou
+versao quando o input muda.
+
+### Licao:
+Em Streamlit, o dado de dominio e as widget keys formam juntos o estado real.
+Ao trocar arquivos, invalidar tambem selecoes visuais e buffers, nao apenas o
+DataFrame carregado.
+
+---
+
+## 2026-06-08 - Split: Meteo Neutro Ainda Nao E Calculo Split
+
+### Contexto:
+O loader meteorologico herdado e util e aparentemente neutro, mas o metodo Split
+ainda precisa decidir como aplicar meteo/correcao/auditoria no calculo e export.
+
+### Decisao:
+Reaproveitar o loader e a sincronizacao como infraestrutura neutra, mas manter
+como pendente a integracao normativa no calculo Split e no relatorio Excel.
+
+### Licao:
+Infraestrutura neutra pode ser reutilizada; interpretacao metodologica nao pode
+ser assumida. Meteo carregar corretamente nao significa que a correcao Split ja
+esta implementada.
+
+---
 
 ## Imported lessons from Coastdown MDA Standard
 

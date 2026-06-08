@@ -64,6 +64,19 @@ Never:
 
 ---
 
+## Tracking discipline
+
+This project uses `tasks/todo.md` and `tasks/lessons.md` as active project memory.
+
+- Every functional change must review and update `tasks/todo.md` with current tasks, completed items, open bugs, pending validations and next steps.
+- Every technical decision, important bug or durable implementation lesson must review and update `tasks/lessons.md`.
+- Do not finish a task without checking both files.
+- Use `todo.md` for operational status: pending, in progress, done, discovered during development.
+- Use `lessons.md` for durable knowledge that should guide future changes.
+- Do not rewrite these files entirely unless explicitly requested. Prefer targeted edits to relevant sections.
+
+---
+
 ## Split Parser Requirements
 
 The Split parser is expected to differ from the Standard parser and must be flexible regarding input file organization.
