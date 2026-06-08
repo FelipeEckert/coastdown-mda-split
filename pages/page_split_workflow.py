@@ -4,7 +4,6 @@
 import pandas as pd
 import streamlit as st
 
-from core.split_calculations import calculate_split_result
 from data.split_parser import default_split_interval_config, parse_split_sources
 
 
@@ -12,13 +11,6 @@ def _get_config() -> dict:
     config = st.session_state.get("split_interval_config") or default_split_interval_config()
     st.session_state.split_interval_config = config
     return config
-
-
-def _record_label(record: dict) -> str:
-    return (
-        f"{record.get('filename')} | run {record.get('run_id')} | "
-        f"{record.get('heading')} | dt={record.get('delta_t_s', 0):.3f}s"
-    )
 
 
 def _records_dataframe(records: list[dict]) -> pd.DataFrame:
@@ -143,47 +135,3 @@ def render(t):
             st.dataframe(_records_dataframe(low_records), use_container_width=True, hide_index=True)
         else:
             st.info("No low interval records found.")
-
-    st.markdown("---")
-    st.subheader("Split calculation")
-    if not high_records or not low_records:
-        st.info("At least one high interval and one low interval are required.")
-        return
-
-    selection_key_suffix = (
-        f"{st.session_state.get('active_test_id', 'test')}_"
-        f"{st.session_state.get('split_input_version', 0)}"
-    )
-    high_index = st.selectbox(
-        "High interval record",
-        options=list(range(len(high_records))),
-        format_func=lambda idx: _record_label(high_records[idx]),
-        key=f"split_high_record_select_{selection_key_suffix}",
-    )
-    low_index = st.selectbox(
-        "Low interval record",
-        options=list(range(len(low_records))),
-        format_func=lambda idx: _record_label(low_records[idx]),
-        key=f"split_low_record_select_{selection_key_suffix}",
-    )
-
-    effective_mass = float(st.session_state.vehicle_info.get("effective_mass") or st.session_state.total_mass)
-    st.caption(f"Effective mass used: {effective_mass:.1f} kg")
-
-    if st.button("Calculate and save Split result", type="primary", use_container_width=True):
-        try:
-            result = calculate_split_result(
-                high_records[high_index],
-                low_records[low_index],
-                effective_mass,
-                _get_config(),
-            )
-            st.session_state.split_results.append(result)
-            st.session_state.split_final_results = {}
-            st.session_state.excel_buffer = None
-            st.success("Split result saved.")
-        except ValueError as exc:
-            st.error(str(exc))
-
-    if st.session_state.get("split_results"):
-        st.info(f"{len(st.session_state.split_results)} Split result(s) saved. Open the results tab to aggregate/export.")

@@ -189,6 +189,8 @@ class SplitSampleDataImportTest(unittest.TestCase):
         test_data = {
             "split_parsed_runs": {"high": [{"run_id": 1}], "low": [{"run_id": 1}]},
             "split_results": [{"f0_prime": 1.0}],
+            "split_comparison_pairs": [{"id": "old"}],
+            "split_last_calculated_result": {"f0_prime": 1.0},
             "split_final_results": {"num_results": 1},
             "excel_buffer": b"old",
             "split_input_version": 4,
@@ -199,6 +201,8 @@ class SplitSampleDataImportTest(unittest.TestCase):
 
         self.assertEqual(test_data["split_parsed_runs"], {})
         self.assertEqual(test_data["split_results"], [])
+        self.assertEqual(test_data["split_comparison_pairs"], [])
+        self.assertIsNone(test_data["split_last_calculated_result"])
         self.assertEqual(test_data["split_final_results"], {})
         self.assertIsNone(test_data["excel_buffer"])
         self.assertEqual(test_data["split_input_version"], 5)

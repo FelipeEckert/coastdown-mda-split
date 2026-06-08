@@ -37,6 +37,43 @@
 
 Registrar aqui decisoes e aprendizados especificos do metodo Split.
 
+## 2026-06-08 - Split: Energia So E Neutra Com Contrato Explicito
+
+### Contexto:
+A tabela comparativa Split precisava exibir energia quando disponivel. A funcao
+herdada `calcular_energia` existe, mas esta dentro do modulo Standard e usa
+constantes/ciclo sem contrato Split documentado.
+
+### Decisao:
+Nao importar energia Standard para o fluxo Split nesta rodada. Nos pares Split,
+energia fica como N/A ate existir helper puro que receba explicitamente `f0`,
+`f2`, massa e ciclo/perfil declarado, com unidade clara.
+
+### Licao:
+Split pode reaproveitar funcoes puras, mas nao workflows Standard acoplados.
+Energia so e metodologicamente neutra quando todas as entradas, ciclo/perfil e
+unidades estao explicitos no contrato da funcao.
+
+---
+
+## 2026-06-08 - Split: Intervalo Validado Antes De Coeficiente
+
+### Contexto:
+A aba de selecao de intervalos acumulava configuracao, parser, revisao e calculo
+do par, misturando validacao de entrada com decisao de engenharia.
+
+### Decisao:
+Separar o fluxo em duas etapas:
+- Seleção de Intervalos: configurar, parsear, revisar cobertura e avisos;
+- Cálculo dos Coeficientes: escolher manualmente high/low e calcular o par.
+
+### Licao:
+No metodo Split, calcular coeficientes deve depender de intervalos ja revisados.
+Manter essas etapas separadas reduz ambiguidade e evita que a tela de parser
+vire tambem uma tela de decisao de resultados.
+
+---
+
 ## 2026-06-08 - Split: Input Mode Explicito Vem Antes Do Parser
 
 ### Contexto:

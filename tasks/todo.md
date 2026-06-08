@@ -34,6 +34,13 @@
 - [x] Create Split analysis/calculation page
 - [x] Create Split validation behavior for incomplete high/low inputs
 - [x] Create Split results page
+- [x] Rename Split workflow tab to Interval Selection
+- [x] Add placeholder Coefficient Calculation tab
+- [x] Implement manual high/low run selection in Coefficient Calculation
+- [x] Calculate and save one selected Split pair from Coefficient Calculation
+- [x] Add final comparison table for calculated Split pairs
+- [x] Add collapsible cards for comparison pairs
+- [x] Add remove pair and clear comparison actions
 - [x] Add separate input slots for high-speed, low-speed and meteo files
 - [x] Allow replacing/removing high, low and meteo inputs separately
 - [x] Invalidate Split-derived state when files change
@@ -42,6 +49,9 @@
 - [x] Show upload slots from explicit mode: separate high/low or single combined
 - [ ] Manual UX test for replacing only high, only low and only meteo in an existing test
 - [ ] Manual UX test for switching input mode in an existing test
+- [x] Move high/low pair selection and coefficient calculation logic from Interval Selection to Coefficient Calculation
+- [x] Add final comparative table/cards for multiple calculated Split pairs
+- [ ] Implement neutral Split energy calculation from explicit F0/F2, mass and declared cycle/profile
 - [ ] Review remaining hardcoded English strings in Split workflow/results for i18n
 
 ## Phase 5 - Export and reporting
@@ -74,6 +84,10 @@
 - [x] Meteo replacement/removal clears derived final/export state and resets time-only sync.
 - [x] Parser blocks incomplete high/low combinations instead of generating partial or position-based intervals.
 - [x] Input mode is explicit in the UI and saved as `split_input_mode`.
+- [x] Main Split navigation now has Vehicle Data, Interval Selection, Coefficient Calculation and Split Results.
+- [x] Coefficient Calculation tab can manually select high/low runs and calculate one pair.
+- [x] Coefficient Calculation tab can add calculated pairs to `split_comparison_pairs`.
+- [x] Comparison cards show meteo sync data when available, for traceability only.
 - [x] Split Results page has final summary selection and basic Excel download.
 - [ ] Run manual regression in the app before first commit: create test, replace high, replace low, remove low, replace meteo, remove meteo.
 - [ ] Run manual regression with one high-only CSV and confirm calculation remains blocked with friendly warning.
@@ -85,8 +99,14 @@
 - [x] Weather CSV loader remains neutral infrastructure reused by Split.
 - [x] Weather file can be added, replaced and removed from the Split test editor.
 - [x] Meteo replacement/removal invalidates stale final/export state.
+- [x] Coefficient comparison cards show synchronized temp/pressure/wind when available.
 - [ ] Apply meteorological correction/sync to the Split coefficient calculation workflow.
 - [ ] Add Split-specific meteo audit details to results/export.
+
+## Energy status
+- [x] Energy is shown as N/A in Split comparison pairs.
+- [ ] Do not reuse Standard `calcular_energia` until the cycle/profile and unit contract are explicit for Split.
+- [ ] Add tests if a pure neutral Split energy helper is created.
 
 ## Excel export status
 - [x] Basic Split Excel export exists.

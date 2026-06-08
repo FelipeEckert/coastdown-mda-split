@@ -30,8 +30,8 @@ TRANSLATIONS = {
         "en": "1. Open Test"
     },
     "page_vehicle_data": {
-        "pt": "2. Dados do Veículo",
-        "en": "2. Vehicle Data"
+        "pt": "Dados do Veículo",
+        "en": "Vehicle Data"
     },
     "page_pair_analysis": {
         "pt": "3. Análise de Pares",
@@ -900,12 +900,172 @@ TRANSLATIONS = {
 
     # ===== SPLIT WORKFLOW =====
     "page_split_workflow": {
-        "pt": "3. Workflow Split",
-        "en": "3. Split Workflow"
+        "pt": "Seleção de Intervalos",
+        "en": "Interval Selection"
+    },
+    "page_split_coefficient_calculation": {
+        "pt": "Cálculo dos Coeficientes",
+        "en": "Coefficient Calculation"
     },
     "page_split_results": {
-        "pt": "4. Resultados Split",
-        "en": "4. Split Results"
+        "pt": "Resultados Split",
+        "en": "Split Results"
+    },
+    "split_coefficient_calculation_placeholder": {
+        "pt": "A seleção de high/low e o cálculo do par serão implementados na próxima rodada.",
+        "en": "High/low selection and pair coefficient calculation will be implemented in the next round."
+    },
+    "split_manual_pair_selection": {
+        "pt": "Seleção manual do par",
+        "en": "Manual pair selection"
+    },
+    "split_select_high_run": {
+        "pt": "Run high-speed",
+        "en": "High-speed run"
+    },
+    "split_select_low_run": {
+        "pt": "Run low-speed",
+        "en": "Low-speed run"
+    },
+    "split_selected_pair_inputs": {
+        "pt": "Resumo técnico do par selecionado",
+        "en": "Selected pair technical summary"
+    },
+    "split_calculate_selected_pair": {
+        "pt": "Calcular par selecionado",
+        "en": "Calculate selected pair"
+    },
+    "split_selected_pair_calculated": {
+        "pt": "Par Split calculado e salvo.",
+        "en": "Split pair calculated and saved."
+    },
+    "split_saved_results_count": {
+        "pt": "{count} resultado(s) Split salvo(s). Abra Resultados Split para agregar/exportar.",
+        "en": "{count} Split result(s) saved. Open Split Results to aggregate/export."
+    },
+    "split_add_to_final_comparison": {
+        "pt": "Adicionar à tabela comparativa final",
+        "en": "Add to final comparison"
+    },
+    "split_pair_added_to_comparison": {
+        "pt": "Par adicionado à tabela comparativa final.",
+        "en": "Pair added to final comparison."
+    },
+    "split_no_calculated_pair_to_add": {
+        "pt": "Calcule um par selecionado antes de adicionar à tabela comparativa.",
+        "en": "Calculate a selected pair before adding it to the comparison table."
+    },
+    "split_final_comparison_table": {
+        "pt": "Tabela comparativa final",
+        "en": "Final comparison table"
+    },
+    "split_comparison_empty": {
+        "pt": "Nenhum par foi adicionado à tabela comparativa final.",
+        "en": "No pair has been added to the final comparison table."
+    },
+    "split_clear_final_comparison": {
+        "pt": "Limpar tabela comparativa",
+        "en": "Clear comparison table"
+    },
+    "split_comparison_pair_cards": {
+        "pt": "Cards dos pares adicionados",
+        "en": "Added pair cards"
+    },
+    "split_remove_pair": {
+        "pt": "Remover par",
+        "en": "Remove pair"
+    },
+    "split_card_high_source": {
+        "pt": "Fonte high-speed",
+        "en": "High-speed source"
+    },
+    "split_card_low_source": {
+        "pt": "Fonte low-speed",
+        "en": "Low-speed source"
+    },
+    "split_card_coefficients": {
+        "pt": "Coeficientes e entradas",
+        "en": "Coefficients and inputs"
+    },
+    "split_card_meteo": {
+        "pt": "Meteorologia",
+        "en": "Weather/meteo"
+    },
+    "split_card_energy": {
+        "pt": "Energia",
+        "en": "Energy"
+    },
+    "split_file": {
+        "pt": "Arquivo",
+        "en": "File"
+    },
+    "split_run": {
+        "pt": "Run",
+        "en": "Run"
+    },
+    "split_direction": {
+        "pt": "Direção",
+        "en": "Direction"
+    },
+    "split_timestamp": {
+        "pt": "Horário",
+        "en": "Timestamp"
+    },
+    "split_meteo_not_synced_for_pair": {
+        "pt": "Meteo não sincronizado para este par.",
+        "en": "Meteo was not synchronized for this pair."
+    },
+    "split_meteo_display_only_warning": {
+        "pt": "Meteo exibido apenas para rastreabilidade; correção climática Split ainda não foi aplicada.",
+        "en": "Meteo is displayed for traceability only; Split climate correction has not been applied yet."
+    },
+    "split_no_parsed_records_for_calculation": {
+        "pt": "Nenhum intervalo high ou low foi parseado. Revise a aba Seleção de Intervalos.",
+        "en": "No high or low interval was parsed. Review the Interval Selection tab."
+    },
+    "split_no_high_records_for_calculation": {
+        "pt": "Nenhum intervalo high-speed foi parseado. O cálculo do par está bloqueado.",
+        "en": "No high-speed interval was parsed. Pair calculation is blocked."
+    },
+    "split_no_low_records_for_calculation": {
+        "pt": "Nenhum intervalo low-speed foi parseado. O cálculo do par está bloqueado.",
+        "en": "No low-speed interval was parsed. Pair calculation is blocked."
+    },
+    "split_effective_mass_required_for_calculation": {
+        "pt": "Informe e confirme a massa efetiva em Dados do Veículo antes de calcular.",
+        "en": "Enter and confirm the effective mass in Vehicle Data before calculating."
+    },
+    "split_meteo_not_available_warning": {
+        "pt": "Arquivo meteorológico não disponível. O par será calculado sem aplicação meteorológica.",
+        "en": "Weather/meteo file is not available. The pair will be calculated without meteo application."
+    },
+    "split_meteo_loaded_not_applied_warning": {
+        "pt": "Arquivo meteorológico carregado; sincronização atual: {mode}. A aplicação meteorológica no cálculo Split ainda não foi implementada.",
+        "en": "Weather/meteo file loaded; current synchronization: {mode}. Meteo application in the Split calculation is not implemented yet."
+    },
+    "split_high_records_available": {
+        "pt": "High parseado",
+        "en": "Parsed high"
+    },
+    "split_low_records_available": {
+        "pt": "Low parseado",
+        "en": "Parsed low"
+    },
+    "split_effective_mass_available": {
+        "pt": "Massa efetiva",
+        "en": "Effective mass"
+    },
+    "split_input_sources_summary": {
+        "pt": "Arquivos de entrada: {files}",
+        "en": "Input files: {files}"
+    },
+    "yes": {
+        "pt": "Sim",
+        "en": "Yes"
+    },
+    "no": {
+        "pt": "Não",
+        "en": "No"
     },
     "split_upload_sources": {
         "pt": "Arquivos CSV do metodo Split",

@@ -435,6 +435,7 @@ TEST_STATE_KEYS = [
     "vehicle_model_input", "test_date_input",
     # Coeficientes e pares
     "split_interval_config", "split_parsed_runs", "split_results",
+    "split_comparison_pairs", "split_last_calculated_result",
     # Resultados
     "split_final_results",
     # Flags de controle
@@ -485,6 +486,8 @@ TEST_DEFAULTS = {
     },
     "split_parsed_runs": {},
     "split_results": [],
+    "split_comparison_pairs": [],
+    "split_last_calculated_result": None,
     "split_final_results": {},
     "using_split_method": False,
     "test_method": "traditional",
@@ -1673,6 +1676,7 @@ def render_test_analysis(t):
     tab_pages = [
         ("2_dados_veiculo", t("page_vehicle_data")),
         ("split_workflow", t("page_split_workflow")),
+        ("split_coefficient_calculation", t("page_split_coefficient_calculation")),
         ("split_results", t("page_split_results")),
     ]
     tab_labels = [label for _, label in tab_pages]
@@ -1689,7 +1693,7 @@ def render_test_analysis(t):
     if st.session_state.get(tab_key) not in label_to_page:
         st.session_state[tab_key] = default_label
 
-    tab1, tab2, tab3 = st.tabs(
+    tab1, tab2, tab3, tab4 = st.tabs(
         tab_labels,
         default=st.session_state[tab_key],
         key=tab_key,
@@ -1709,6 +1713,10 @@ def render_test_analysis(t):
         page_split_workflow.render(t)
 
     with tab3:
+        from pages import page_split_coefficient_calculation
+        page_split_coefficient_calculation.render(t)
+
+    with tab4:
         from pages import page_split_results
         page_split_results.render(t)
 
