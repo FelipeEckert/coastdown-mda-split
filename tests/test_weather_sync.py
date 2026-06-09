@@ -153,7 +153,7 @@ class WeatherSyncTest(unittest.TestCase):
 
     def test_csv_loader_accepts_decimal_comma(self):
         content = (
-            "Data;Hora;Temperatura;Pressao;Velocidade Vento;Direcao Vento\n"
+            "Data;Hora;Temperatura;Pressao;Velocidade Vento [m/s];Direcao Vento\n"
             "13/05/2024;10:00:00;23,4;951,5;1,2;180\n"
         )
         with tempfile.TemporaryDirectory() as directory:
@@ -174,7 +174,7 @@ class WeatherSyncTest(unittest.TestCase):
                 "Time": [datetime(2024, 4, 22, 18, 47)],
                 "Temp": [23.6],
                 "Baro.": [951.7],
-                "Wind Speed": [0.8],
+                "Wind Speed [m/s]": [0.8],
                 "True Dir.": [81],
             }
         )
@@ -186,7 +186,93 @@ class WeatherSyncTest(unittest.TestCase):
         self.assertEqual(len(records), 1)
         self.assertEqual(records[0]["timestamp"], datetime(2024, 4, 22, 18, 47))
         self.assertAlmostEqual(records[0]["baro_kpa"], 95.17)
+        self.assertAlmostEqual(records[0]["wind_ms"], 0.8)
         self.assertEqual(records[0]["wind_direction"], 81.0)
+
+    def test_missing_wind_column_remains_none_with_warning(self):
+        content = (
+            "Time,Temp,Baro.,True Dir.\n"
+            "2024-04-22 18:47:00,23.6,951.7,81\n"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "weather_without_wind.csv"
+            path.write_text(content, encoding="utf-8")
+            record = read_weather_file(path)[0]
+
+        self.assertIsNone(record["wind_ms"])
+        self.assertTrue(any("column was not found" in item for item in record["warnings"]))
+
+    def test_missing_and_invalid_wind_values_remain_none(self):
+        content = (
+            "Time,Temp,Baro.,Wind Speed [m/s],True Dir.\n"
+            "2024-04-22 18:47:00,23.6,951.7,,81\n"
+            "2024-04-22 18:48:00,23.6,951.7,invalid,82\n"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "weather_bad_wind.csv"
+            path.write_text(content, encoding="utf-8")
+            records = read_weather_file(path)
+
+        self.assertIsNone(records[0]["wind_ms"])
+        self.assertTrue(any("missing" in item for item in records[0]["warnings"]))
+        self.assertIsNone(records[1]["wind_ms"])
+        self.assertTrue(any("invalid" in item for item in records[1]["warnings"]))
+
+    def test_real_zero_wind_is_preserved_even_with_nonzero_components(self):
+        content = (
+            "Time,Temp,Baro.,Wind Speed,Crosswind,Headwind,True Dir.\n"
+            "yyyy-MM-dd hh:mm:ss,Celsius,mb,m/s,m/s,m/s,Degrees\n"
+            "2024-04-22 18:47:00,23.6,951.7,0,3,4,81\n"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "weather_zero_wind.csv"
+            path.write_text(content, encoding="utf-8")
+            record = read_weather_file(path)[0]
+
+        self.assertEqual(record["wind_ms"], 0.0)
+        self.assertEqual(record["wind_unit"], "m/s")
+        self.assertEqual(record["warnings"], [])
+
+    def test_nonzero_ms_wind_is_preserved(self):
+        content = (
+            "Time,Temp,Baro.,Wind Speed,True Dir.\n"
+            "yyyy-MM-dd hh:mm:ss,Celsius,mb,m/s,Degrees\n"
+            "2024-04-22 18:47:00,23.6,951.7,2.5,81\n"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "weather_ms_wind.csv"
+            path.write_text(content, encoding="utf-8")
+            record = read_weather_file(path)[0]
+
+        self.assertEqual(record["wind_ms"], 2.5)
+        self.assertEqual(record["warnings"], [])
+
+    def test_kmh_wind_is_converted_to_ms(self):
+        content = (
+            "Time,Temp,Baro.,Wind Speed [km/h],True Dir.\n"
+            "2024-04-22 18:47:00,23.6,951.7,18,81\n"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "weather_kmh_wind.csv"
+            path.write_text(content, encoding="utf-8")
+            record = read_weather_file(path)[0]
+
+        self.assertAlmostEqual(record["wind_ms"], 5.0)
+        self.assertEqual(record["wind_unit"], "m/s")
+        self.assertTrue(any("converted from km/h" in item for item in record["warnings"]))
+
+    def test_unknown_wind_unit_is_not_assumed(self):
+        content = (
+            "Time,Temp,Baro.,Wind Speed,True Dir.\n"
+            "2024-04-22 18:47:00,23.6,951.7,2.5,81\n"
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "weather_unknown_wind.csv"
+            path.write_text(content, encoding="utf-8")
+            record = read_weather_file(path)[0]
+
+        self.assertIsNone(record["wind_ms"])
+        self.assertTrue(any("unit" in item and "unknown" in item for item in record["warnings"]))
 
 
 if __name__ == "__main__":

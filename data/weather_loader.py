@@ -53,6 +53,8 @@ WIND_DIRECTION_ALIASES = {
     "mag_dir",
     "mag_direction",
 }
+WIND_UNIT_MS = "m/s"
+WIND_UNIT_KMH = "km/h"
 
 
 def _normalize_column_name(value) -> str:
@@ -128,6 +130,19 @@ def _find_column(columns: dict[str, str], aliases: set[str]) -> str | None:
     return None
 
 
+def _find_column_with_unit(
+    columns: dict[str, str],
+    aliases: set[str],
+) -> str | None:
+    """Find a column whose normalized suffix may declare a unit."""
+    for normalized, original in columns.items():
+        if normalized in aliases or any(
+            normalized.startswith(f"{alias}_") for alias in aliases
+        ):
+            return original
+    return None
+
+
 def _numeric(value):
     if value is None or pd.isna(value):
         return None
@@ -145,6 +160,94 @@ def _numeric(value):
         return float(text)
     except ValueError:
         return None
+
+
+def _numeric_status(value) -> tuple[float | None, str]:
+    """Return a numeric value and distinguish missing from invalid input."""
+    if value is None or pd.isna(value) or not str(value).strip():
+        return None, "missing"
+    numeric = _numeric(value)
+    return (numeric, "valid") if numeric is not None else (None, "invalid")
+
+
+def _unit_row(frame: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, str]]:
+    """Remove an optional units row and return its values by source column."""
+    if frame.empty:
+        return frame, {}
+    first = frame.iloc[0]
+
+    def cell_text(value) -> str:
+        if value is None or pd.isna(value):
+            return ""
+        return str(value).strip()
+
+    first_values = {
+        str(column): cell_text(first.get(column))
+        for column in frame.columns
+    }
+    time_hint = next(
+        (
+            value.lower()
+            for column, value in first_values.items()
+            if _normalize_column_name(column) in DATETIME_ALIASES
+        ),
+        "",
+    )
+    unit_tokens = {
+        _normalize_column_name(value)
+        for value in first_values.values()
+        if value
+    }
+    looks_like_units = (
+        "yyyy" in time_hint
+        or bool(unit_tokens & {"m_s", "km_h", "celsius", "degrees", "mb", "kpa"})
+    )
+    if not looks_like_units:
+        return frame, {}
+    return frame.iloc[1:].copy(), first_values
+
+
+def _wind_unit(column_name: str | None, declared_unit: str | None) -> str | None:
+    """Identify supported wind units from the units row or column label."""
+    text = " ".join(
+        value for value in (declared_unit, column_name) if value
+    ).lower()
+    normalized = _normalize_column_name(text)
+    if (
+        re.search(r"\bkm\s*/\s*h\b", text)
+        or "km_h" in normalized
+        or "kmh" in normalized
+        or "kph" in normalized
+    ):
+        return WIND_UNIT_KMH
+    if re.search(r"\bm\s*/\s*s\b", text) or "m_s" in normalized or "mps" in normalized:
+        return WIND_UNIT_MS
+    return None
+
+
+def _wind_value_ms(
+    raw_value,
+    unit: str | None,
+    source_column: str | None,
+) -> tuple[float | None, list[str]]:
+    """Normalize one wind value to m/s without converting absence into zero."""
+    warnings = []
+    value, status = _numeric_status(raw_value)
+    if source_column is None:
+        return None, ["Wind speed column was not found."]
+    if status == "missing":
+        return None, ["Wind speed is missing."]
+    if status == "invalid":
+        return None, [f"Wind speed value '{raw_value}' is invalid and was not used."]
+    if unit == WIND_UNIT_MS:
+        return value, warnings
+    if unit == WIND_UNIT_KMH:
+        warnings.append("Wind speed was converted from km/h to m/s.")
+        return value / 3.6, warnings
+    return None, [
+        f"Wind speed unit for column '{source_column}' is unknown; "
+        "the value was not used."
+    ]
 
 
 def _date_is_ambiguous(value) -> bool:
@@ -180,16 +283,19 @@ def _parse_datetime(value) -> tuple[object | None, list[str]]:
 
 
 def _normalize_weather_frame(frame: pd.DataFrame) -> list[dict]:
+    frame, declared_units = _unit_row(frame)
     columns = {_normalize_column_name(column): column for column in frame.columns}
     datetime_column = _find_column(columns, DATETIME_ALIASES)
     date_column = _find_column(columns, DATE_ALIASES)
     time_column = _find_column(columns, TIME_ALIASES)
     temperature_column = _find_column(columns, TEMPERATURE_ALIASES)
     pressure_column = _find_column(columns, PRESSURE_ALIASES)
-    wind_speed_column = _find_column(columns, WIND_SPEED_ALIASES)
-    crosswind_column = _find_column(columns, CROSSWIND_ALIASES)
-    headwind_column = _find_column(columns, HEADWIND_ALIASES)
+    wind_speed_column = _find_column_with_unit(columns, WIND_SPEED_ALIASES)
     wind_direction_column = _find_column(columns, WIND_DIRECTION_ALIASES)
+    wind_speed_unit = _wind_unit(
+        wind_speed_column,
+        declared_units.get(str(wind_speed_column)),
+    )
 
     if not temperature_column or not pressure_column:
         raise ValueError("Weather file must contain temperature and pressure columns.")
@@ -211,14 +317,11 @@ def _normalize_weather_frame(frame: pd.DataFrame) -> list[dict]:
 
         # Kestrel exports Baro/Station P. in mb/hPa. Split stores pressure in kPa.
         pressure_kpa = pressure / 10.0 if pressure > 200.0 else pressure
-        wind_speed = _numeric(row.get(wind_speed_column)) if wind_speed_column else None
-        crosswind = _numeric(row.get(crosswind_column)) if crosswind_column else None
-        headwind = _numeric(row.get(headwind_column)) if headwind_column else None
-        if (wind_speed is None or wind_speed == 0.0) and crosswind is not None and headwind is not None:
-            component_speed = (crosswind**2 + headwind**2) ** 0.5
-            if component_speed != 0.0 or wind_speed is None:
-                wind_speed = component_speed
-
+        wind_speed, wind_warnings = _wind_value_ms(
+            row.get(wind_speed_column) if wind_speed_column else None,
+            wind_speed_unit,
+            wind_speed_column,
+        )
         raw_direction = row.get(wind_direction_column) if wind_direction_column else None
         wind_direction = _numeric(raw_direction)
         if wind_direction is None and raw_direction is not None and not pd.isna(raw_direction):
@@ -231,9 +334,11 @@ def _normalize_weather_frame(frame: pd.DataFrame) -> list[dict]:
                 "baro_kpa": pressure_kpa,
                 "wind_ms": wind_speed,
                 "wind_direction": wind_direction,
+                "wind_unit": WIND_UNIT_MS if wind_speed is not None else None,
+                "wind_source_column": wind_speed_column,
                 "timezone": timestamp.tzinfo.tzname(timestamp) if timestamp.tzinfo else None,
                 "date_ambiguous": bool(warnings),
-                "warnings": warnings,
+                "warnings": list(dict.fromkeys(warnings + wind_warnings)),
                 "source_row": int(row_index) + 1,
             }
         )
@@ -254,4 +359,8 @@ def read_weather_file(file_path) -> list[dict]:
         frame = _read_xlsx(path)
     else:
         raise ValueError("Unsupported weather format. Use CSV or XLSX.")
-    return _normalize_weather_frame(frame)
+    records = _normalize_weather_frame(frame)
+    source_file = path.name
+    for record in records:
+        record["source_file"] = source_file
+    return records

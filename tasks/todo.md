@@ -119,6 +119,9 @@
 - [x] Synchronize high+, low+, high- and low- independently in Coefficient Calculation.
 - [x] Preserve canonical `ambient_by_component` traceability for high+, low+, high- and low- in calculated results and comparison pairs.
 - [x] Calculate correction conditions as explicit high/low means per direction, preserving each source value and zero wind.
+- [x] Audit Split wind loading: preserve literal zero, keep missing/invalid values as `None`, and reject unknown units.
+- [x] Normalize declared wind units to m/s, including explicit km/h conversion with warning.
+- [x] Validate `AGRICULTR_SPLIT.csv`: `Wind Speed` is declared in m/s and all 9,476 records contain literal zero.
 - [x] Coefficient comparison cards show per-component sync method, timestamps, delta, weather values and warnings.
 - [x] Preserve coastdown Start Time milliseconds in parsed run timestamps.
 - [ ] Decide how declared coastdown timezone should be mapped when the weather file has no timezone metadata.

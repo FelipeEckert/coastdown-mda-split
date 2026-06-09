@@ -1,6 +1,7 @@
 # coding: utf-8
 """Integration checks for sample_data/Split imports."""
 
+from datetime import datetime
 from pathlib import Path
 import math
 import unittest
@@ -280,6 +281,9 @@ class SplitSampleDataImportTest(unittest.TestCase):
         self.assertIn("baro_kpa", first)
         self.assertIn("wind_ms", first)
         self.assertIn("wind_direction", first)
+        self.assertEqual(first["wind_source_column"], "Wind Speed")
+        self.assertEqual(first["wind_unit"], "m/s")
+        self.assertEqual(first["wind_ms"], 0.0)
 
         high_path = SAMPLE_DIR / "coastdown" / "split_MrLee_HighSpd_ctvi.csv"
         _, high_runs, _ = carregar_dados_csv_robusto(
@@ -292,6 +296,25 @@ class SplitSampleDataImportTest(unittest.TestCase):
         self.assertTrue(sync["matched"])
         self.assertEqual(sync["sync_method"], "datetime")
         self.assertLess(sync["time_delta_seconds"], 300)
+        self.assertEqual(sync["wind_speed"], 0.0)
+
+    def test_real_split_weather_wind_at_reference_time_is_literal_zero(self):
+        weather_path = SAMPLE_DIR / "meteo" / "AGRICULTR_SPLIT.csv"
+        records = read_weather_file(str(weather_path))
+        reference = datetime(2024, 4, 22, 18, 47)
+
+        matching = [
+            record for record in records
+            if record["timestamp"] == reference
+        ]
+
+        self.assertEqual(len(matching), 2)
+        self.assertTrue(all(record["wind_ms"] == 0.0 for record in matching))
+        self.assertTrue(all(record["wind_unit"] == "m/s" for record in matching))
+        self.assertEqual(
+            {record["wind_direction"] for record in matching},
+            {79.0, 80.0},
+        )
 
 
 if __name__ == "__main__":

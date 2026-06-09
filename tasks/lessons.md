@@ -222,6 +222,27 @@ valida; ausencia deve permanecer `None`.
 
 ---
 
+## 2026-06-09 - Split: Zero De Vento Nao E Ausencia
+
+### Contexto:
+Todos os ventos sincronizados apareciam como `0.0 m/s`, levantando a suspeita
+de fallback incorreto. O arquivo real `AGRICULTR_SPLIT.csv` declara a coluna
+`Wind Speed` em `m/s`; seus 9.476 registros contêm zero literal. `True Dir.`
+preserva a direção em graus.
+
+### Decisao:
+O loader diferencia valor ausente, inválido e zero real. Zero permanece `0.0`;
+ausente ou inválido vira `None` com warning. `km/h` é convertido explicitamente
+para `m/s`; unidade desconhecida não é presumida. `Crosswind/Headwind` não
+substituem automaticamente a coluna principal de vento.
+
+### Licao:
+Testes booleanos como `if not wind_speed` misturam zero válido com ausência.
+Grandezas ambientais devem preservar o valor bruto, validar a unidade antes da
+conversão e registrar qualquer transformação.
+
+---
+
 ## 2026-06-08 - Split: Intervalo Validado Antes De Coeficiente
 
 ### Contexto:
