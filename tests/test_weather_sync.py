@@ -10,6 +10,12 @@ import pandas as pd
 
 from core.weather_sync import sync_weather_to_run
 from data.weather_loader import read_weather_file
+from pages.page_split_coefficient_calculation import (
+    _translated_weather_warning,
+    _weather_sync_summary,
+    _weather_sync_warnings,
+)
+from translations import get_translator
 
 
 class WeatherSyncTest(unittest.TestCase):
@@ -86,6 +92,64 @@ class WeatherSyncTest(unittest.TestCase):
 
         self.assertTrue(result["matched"])
         self.assertTrue(any("Ambiguous run date" in warning for warning in result["warnings"]))
+
+    def test_weather_warning_messages_are_translated_to_pt_and_en(self):
+        equally_close = (
+            "Multiple weather records were equally close; "
+            "the first source record was selected."
+        )
+        timezone_missing = (
+            "Weather timezone is not declared; "
+            "timestamps were compared as local time."
+        )
+
+        self.assertEqual(
+            _translated_weather_warning(equally_close, get_translator("pt")),
+            (
+                "Foram encontrados registros meteorológicos igualmente próximos; "
+                "o primeiro registro foi usado."
+            ),
+        )
+        self.assertEqual(
+            _translated_weather_warning(timezone_missing, get_translator("pt")),
+            (
+                "O arquivo meteorológico não declara fuso horário; "
+                "os horários foram comparados como horário local."
+            ),
+        )
+        self.assertEqual(
+            _translated_weather_warning(equally_close, get_translator("en")),
+            "Multiple weather records were equally close; the first record was used.",
+        )
+        self.assertEqual(
+            _translated_weather_warning(timezone_missing, get_translator("en")),
+            timezone_missing,
+        )
+
+    def test_weather_summary_is_short_while_warnings_are_preserved(self):
+        raw_warning = (
+            "Weather timezone is not declared; "
+            "timestamps were compared as local time."
+        )
+        weather_sync = {
+            "high_plus": {
+                "matched": True,
+                "sync_method": "time_only",
+                "warnings": [raw_warning],
+            }
+        }
+        t = get_translator("pt")
+
+        self.assertIn("somente horário", _weather_sync_summary(weather_sync, t))
+        self.assertEqual(
+            _weather_sync_warnings(weather_sync, t),
+            [
+                (
+                    "O arquivo meteorológico não declara fuso horário; "
+                    "os horários foram comparados como horário local."
+                )
+            ],
+        )
 
     def test_csv_loader_accepts_decimal_comma(self):
         content = (

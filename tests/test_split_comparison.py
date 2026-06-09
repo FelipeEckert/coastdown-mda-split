@@ -13,10 +13,18 @@ from core.split_comparison import (
     remove_split_comparison_pair,
     validate_complete_split_pair_selection,
 )
-from core.split_corrections import apply_split_pair_correction, fixed_ambient_conditions
+from core.split_corrections import (
+    apply_split_pair_correction,
+    fixed_ambient_conditions,
+    weather_sync_ambient_conditions,
+)
 from data.split_parser import default_split_interval_config
-from pages.page_split_coefficient_calculation import _comparison_rows
+from pages.page_split_coefficient_calculation import (
+    _comparison_rows,
+    _weather_sync_rows,
+)
 from pages.page_split_results import _result_rows
+from translations import get_translator
 
 
 class SplitComparisonTest(unittest.TestCase):
@@ -144,21 +152,18 @@ class SplitComparisonTest(unittest.TestCase):
             effective_mass=1545.0,
             config=default_split_interval_config(),
         )
+        weather_sync = {
+            "high_plus": {"matched": True, "sync_method": "datetime", "run_datetime": "2024-04-22 18:01:00", "weather_datetime": "2024-04-22 18:01:05", "time_delta_seconds": 5.0, "temperature": 24.0, "pressure": 101.0, "wind_speed": 0.0, "source_file": "meteo.xlsx"},
+            "low_plus": {"matched": True, "sync_method": "datetime", "temperature": 26.0, "pressure": 102.0, "wind_speed": 2.0},
+            "high_minus": {"matched": True, "sync_method": "datetime", "temperature": 28.0, "pressure": 103.0, "wind_speed": 3.0},
+            "low_minus": {"matched": True, "sync_method": "datetime", "temperature": 30.0, "pressure": 104.0, "wind_speed": 4.0},
+        }
         result = apply_split_pair_correction(
             result,
-            fixed_ambient_conditions(20.0, 101.325),
+            weather_sync_ambient_conditions(weather_sync),
         )
 
-        pair = build_split_comparison_pair(
-            result,
-            weather_sync={
-                "high_plus": {"matched": True, "temperature": 24.0, "pressure": 101.0, "wind_speed": 1.0},
-                "low_plus": {"matched": True, "temperature": 26.0, "pressure": 102.0, "wind_speed": 2.0},
-                "high_minus": {"matched": True, "temperature": 28.0, "pressure": 103.0, "wind_speed": 3.0},
-                "low_minus": {"matched": True, "temperature": 30.0, "pressure": 104.0, "wind_speed": 4.0},
-            },
-            pair_id="pair-complete",
-        )
+        pair = build_split_comparison_pair(result, pair_id="pair-complete")
 
         self.assertEqual(pair["id"], "pair-complete")
         self.assertEqual(pair["high_plus_run"], 1)
@@ -167,11 +172,11 @@ class SplitComparisonTest(unittest.TestCase):
         self.assertEqual(pair["low_minus_run"], 4)
         self.assertEqual(pair["temp_c"], 27.0)
         self.assertEqual(pair["baro_kpa"], 102.5)
-        self.assertEqual(pair["wind_ms"], 2.5)
+        self.assertEqual(pair["wind_ms"], 2.25)
         self.assertEqual(pair["weather_match_count"], 4)
         self.assertEqual(len(pair["weather_sync"]), 4)
         self.assertTrue(pair["correction_available"])
-        self.assertEqual(pair["ambient_source"], "manual_fixed")
+        self.assertEqual(pair["ambient_source"], "weather_file_sync")
         self.assertAlmostEqual(pair["F0"], result["corrected_pair_mean"]["F0"])
         self.assertAlmostEqual(pair["F2"], result["corrected_pair_mean"]["F2"])
         self.assertAlmostEqual(pair["F0_mean"], result["F0_mean"])
@@ -189,10 +194,47 @@ class SplitComparisonTest(unittest.TestCase):
         self.assertIsNotNone(pair["cv_F2_percent"])
         self.assertEqual(pair["F0_unit"], "N")
         self.assertEqual(pair["F2_unit"], "N/(km/h)^2")
-        self.assertEqual(pair["wind_plus_ms"], 1.5)
+        self.assertEqual(pair["wind_plus_ms"], 1.0)
         self.assertEqual(pair["wind_minus_ms"], 3.5)
-        self.assertIsNone(pair["energy"])
-        self.assertIn("explicit corrected F0/F2", pair["energy_status"])
+        self.assertEqual(len(pair["ambient_by_component"]), 4)
+        self.assertEqual(pair["wind_high_plus"], 0.0)
+        self.assertEqual(pair["temp_low_minus"], 30.0)
+        self.assertEqual(
+            pair["ambient_by_component"]["high_plus"]["source_file"],
+            "meteo.xlsx",
+        )
+        for component in ("high_plus", "low_plus", "high_minus", "low_minus"):
+            self.assertEqual(
+                set(pair["ambient_by_component"][component]),
+                {
+                    "matched",
+                    "run_datetime",
+                    "weather_datetime",
+                    "sync_method",
+                    "time_delta_seconds",
+                    "temperature_c",
+                    "pressure_kpa",
+                    "wind_speed_ms",
+                    "wind_direction_deg",
+                    "source_file",
+                    "warnings",
+                },
+            )
+        ambient_rows = _weather_sync_rows(
+            pair["ambient_by_component"],
+            get_translator("en"),
+        )
+        self.assertEqual(len(ambient_rows), 4)
+        self.assertEqual(ambient_rows[0]["Wind (m/s)"], 0.0)
+        self.assertEqual(ambient_rows[1]["Wind direction"], "N/A")
+        self.assertAlmostEqual(pair["energy"], result["energy"])
+        self.assertEqual(pair["energy_status"], "calculated")
+        self.assertEqual(pair["energy_unit"], "MJ/km")
+        self.assertEqual(pair["energy_profile"], result["energy_profile"])
+        self.assertEqual(
+            pair["energy_origin"],
+            "core.calculations.calcular_energia",
+        )
 
         translate = lambda key, **kwargs: key.format(**kwargs) if kwargs else key
         comparison_row = _comparison_rows([pair], translate)[0]
@@ -202,7 +244,7 @@ class SplitComparisonTest(unittest.TestCase):
             comparison_row["F2 avg (N/(km/h)^2)"],
             pair["F2_mean"],
         )
-        self.assertEqual(comparison_row["Energy (MJ/km)"], "N/A")
+        self.assertEqual(comparison_row["Energy (MJ/km)"], pair["energy"])
         self.assertEqual(result_row["F0 (N)"], result["F0_mean"])
         self.assertEqual(
             result_row["F2 (N/(km/h)^2)"],

@@ -21,6 +21,7 @@ def clear_split_final_state(test_data: dict) -> dict:
     for result in test_data.get("split_results") or []:
         if isinstance(result, dict):
             result.pop("weather_sync", None)
+            result.pop("ambient_by_component", None)
             if result.get("ambient_mode") == "weather_sync":
                 result["correction_available"] = False
                 result["corrected_result_plus"] = None
@@ -30,6 +31,10 @@ def clear_split_final_state(test_data: dict) -> dict:
                 result["press_plus_used"] = None
                 result["temp_minus_used"] = None
                 result["press_minus_used"] = None
+                for component in ("high_plus", "low_plus", "high_minus", "low_minus"):
+                    result[f"temp_{component}"] = None
+                    result[f"press_{component}"] = None
+                    result[f"wind_{component}"] = None
                 result["F0_plus"] = None
                 result["F2_plus"] = None
                 result["F0_minus"] = None
@@ -37,6 +42,10 @@ def clear_split_final_state(test_data: dict) -> dict:
                 result["F0_mean"] = None
                 result["F2_mean"] = None
                 result["energy"] = None
+                result["energy_unit"] = None
+                result["energy_profile"] = None
+                result["energy_origin"] = None
+                result["energy_details"] = None
     test_data["split_final_results"] = {}
     test_data["split_comparison_pairs"] = []
     test_data["split_last_calculated_result"] = None

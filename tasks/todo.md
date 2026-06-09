@@ -57,7 +57,7 @@
 - [ ] Manual UX test for switching input mode in an existing test
 - [x] Move high/low pair selection and coefficient calculation logic from Interval Selection to Coefficient Calculation
 - [x] Add final comparative table/cards for multiple calculated Split pairs
-- [ ] Implement neutral Split energy calculation from explicit F0/F2, mass and declared cycle/profile
+- [x] Implement pure Split energy calculation from corrected F0/F2 with an explicit inherited cycle profile
 - [ ] Review remaining hardcoded English strings in Split workflow/results for i18n
 
 ## Phase 5 - Export and reporting
@@ -117,25 +117,28 @@
 - [x] Add neutral CSV/XLSX weather loader with normalized datetime, temperature, pressure, wind speed and wind direction.
 - [x] Add pure weather synchronization with full-datetime preference, configurable maximum delta and audited time-only fallback.
 - [x] Synchronize high+, low+, high- and low- independently in Coefficient Calculation.
+- [x] Preserve canonical `ambient_by_component` traceability for high+, low+, high- and low- in calculated results and comparison pairs.
+- [x] Calculate correction conditions as explicit high/low means per direction, preserving each source value and zero wind.
 - [x] Coefficient comparison cards show per-component sync method, timestamps, delta, weather values and warnings.
 - [x] Preserve coastdown Start Time milliseconds in parsed run timestamps.
 - [ ] Decide how declared coastdown timezone should be mapped when the weather file has no timezone metadata.
 - [x] Apply isolated climatic correction from f'0/f'2 to F0/F2 using fixed or synchronized conditions.
 - [ ] Complete normative validation of `Kt`, `Kp`, reference conditions and F2 unit conversion for Split.
-- [ ] Add Split-specific meteo audit details to results/export.
+- [ ] Add all four `ambient_by_component` records to Split results export/report.
 
 ## Energy status
-- [x] Energy is shown as N/A in Split comparison pairs.
-- [x] Existing Standard energy helper was reviewed and rejected for Split because its cycle constants are implicit and it has no explicit mass/profile contract.
-- [x] Save `energy=None` and an explicit unavailable status in calculated results and comparison pairs.
-- [ ] Do not reuse Standard `calcular_energia` until the cycle/profile and unit contract are explicit for Split.
-- [ ] Implement Split energy using corrected F0/F2 only after cycle/profile and normative correction validation are complete.
-- [ ] Add tests if a pure neutral Split energy helper is created.
+- [x] Energy is calculated from corrected `F0_mean/F2_mean` and shown in Split results, comparison table and cards.
+- [x] `core/split_energy.py` delegates explicitly to `core.calculations.calcular_energia(F0_mean, F2_mean)`.
+- [x] Save the inherited formula origin as `standard_formula_calcular_energia` with unit `MJ/km`.
+- [x] Save `energy=None` only when corrected F0/F2 are unavailable.
+- [x] Save calculated `energy`, `energy_unit`, `energy_profile`, `energy_origin` and `energy_status` in results and comparison pairs.
+- [x] Add tests for corrected-coefficient use, unavailable correction, comparison propagation and explicit units.
+- [ ] Validate the provenance and normative applicability of the inherited city/highway constants and 55/45 weighting.
 
 ## Excel export status
 - [x] Basic Split Excel export exists.
 - [x] Export includes summary, selected results, four ida/volta components, Delta t and subinterval traceability.
-- [ ] Add meteo inputs and weather sync audit when Split meteo integration is complete.
+- [ ] Add the four component-level ambient records and weather sync audit to Excel.
 - [ ] Review final workbook layout, labels and units before release.
 
 ## Known gaps and next steps
@@ -144,4 +147,5 @@
 - [ ] Review whether interval changes after upload should automatically reparse or show a stronger "reparse required" cue.
 - [ ] Review date/timezone policy for files with ambiguous dates or missing timezone metadata.
 - [ ] Add meteo synchronization details to Split Excel export without applying climatic correction implicitly.
+- [ ] Continue visual polish after functional validation; keep technical meteo warnings collapsed by default.
 - [ ] Keep `sample_data/Split/` and `sample_data/Standard/` separated as validation datasets for each method.

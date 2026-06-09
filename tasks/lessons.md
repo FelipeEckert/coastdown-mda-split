@@ -97,7 +97,7 @@ devem bloquear o calculo em vez de serem pareados por inferencia.
 
 ---
 
-## 2026-06-08 - Split: Energia So E Neutra Com Contrato Explicito
+## 2026-06-08 - Split: Revisar O Contrato Antes De Reusar Energia
 
 ### Contexto:
 A tabela comparativa Split precisava exibir energia quando disponivel. A funcao
@@ -105,14 +105,15 @@ herdada `calcular_energia` existe, mas esta dentro do modulo Standard e usa
 constantes/ciclo sem contrato Split documentado.
 
 ### Decisao:
-Nao importar energia Standard para o fluxo Split nesta rodada. Nos pares Split,
-energia fica como N/A ate existir helper puro que receba explicitamente `f0`,
-`f2`, massa e ciclo/perfil declarado, com unidade clara.
+Manter energia como N/A ate revisar o contrato da funcao. A revisao posterior
+confirmou que `calcular_energia(f0, f2)` e uma funcao pura baseada somente nos
+coeficientes corrigidos; a decisao atual de reutilizacao esta registrada na
+secao de 2026-06-09.
 
 ### Licao:
 Split pode reaproveitar funcoes puras, mas nao workflows Standard acoplados.
-Energia so e metodologicamente neutra quando todas as entradas, ciclo/perfil e
-unidades estao explicitos no contrato da funcao.
+Uma pendencia de proveniencia normativa das constantes deve permanecer visivel,
+mas nao transforma por si so uma funcao pura em workflow acoplado.
 
 ---
 
@@ -131,8 +132,8 @@ final e buffer Excel antes de permitir novo uso.
 ### Licao:
 Rastreabilidade visual nao substitui invalidacao de dependencia. Resultados
 corrigidos devem ser recalculados sempre que qualquer entrada ambiental muda.
-O CV ida/volta deve ser calculado a partir dos F0/F2 corrigidos de cada sentido;
-energia continua N/A enquanto massa e ciclo/perfil nao forem entradas explicitas.
+O CV ida/volta deve ser calculado a partir dos F0/F2 corrigidos de cada sentido.
+Energia depende de um perfil nomeado e de unidades explicitas.
 
 ---
 
@@ -155,6 +156,69 @@ Calcular, persistir e exibir devem compartilhar o mesmo contrato de chaves.
 Coeficientes nao corrigidos e corrigidos nunca devem usar nomes intercambiaveis.
 Ausencia de energia tambem e estado valido e deve ser salva como `energy=None`
 com justificativa, nao omitida silenciosamente.
+
+---
+
+## 2026-06-09 - Split: Energia Reutiliza A Funcao Herdada
+
+### Contexto:
+`calcular_energia(f0, f2)` usa fatores city/highway e ponderacao 55/45, mas a
+origem normativa dessas constantes nao esta documentada no repositorio. A
+aritmetica depende somente de F0/F2 corrigidos e retorna MJ/km.
+
+### Decisao:
+Usar `core/split_energy.py` como adaptador puro que valida os coeficientes e
+chama explicitamente `core.calculations.calcular_energia(F0_mean, F2_mean)`.
+O contrato exige F0 em N, F2 em N/(km/h)^2, retorna MJ/km e registra a origem
+como `standard_formula_calcular_energia`. Massa e perfil nao sao entradas dessa
+formula; as constantes continuam embutidas na funcao herdada.
+
+### Licao:
+Uma funcao herdada pode ser reutilizada quando seu contrato e realmente puro e
+explicito, sem importar o workflow Standard. Energia deve usar somente F0/F2
+corrigidos; se a correcao nao existir, o estado correto continua sendo
+`energy=None`. A origem normativa das constantes permanece uma validacao separada.
+
+---
+
+## 2026-06-09 - Split: Warnings Meteo Preservados Sem Poluir O Resultado
+
+### Contexto:
+Warnings tecnicos de sincronizacao eram exibidos em ingles e em linha aberta
+junto aos coeficientes, dificultando a leitura do resultado principal.
+
+### Decisao:
+Mostrar no fluxo principal apenas o status curto da sincronizacao. Preservar
+metodo, timestamps, delta temporal e warnings completos em expander colapsado,
+traduzindo mensagens conhecidas na camada de apresentacao sem alterar o
+sincronizador.
+
+### Licao:
+Rastreabilidade tecnica nao exige ruido permanente na tela. Warnings devem
+continuar armazenados em sua forma original, enquanto a UI apresenta resumo
+localizado e deixa os detalhes auditaveis sob demanda.
+
+---
+
+## 2026-06-09 - Split: Agregacao Por Direcao Preserva Quatro Passadas
+
+### Contexto:
+A correcao climatica usa uma condicao por sentido, mas cada sentido Split e
+composto por uma passada high e uma low. Exibir somente as duas medias escondia
+quais quatro registros meteorologicos produziram o resultado.
+
+### Decisao:
+Salvar `ambient_by_component` com high+, low+, high- e low-, mantendo timestamps,
+metodo, delta, temperatura, pressao, vento, arquivo e warnings. A ida usa a media
+de high+/low+ e a volta usa a media de high-/low-. Se uma direcao estiver
+incompleta, somente ela fica sem F0/F2 corrigidos; a media final e a energia
+exigem as duas direcoes validas.
+
+### Licao:
+Agregacao de calculo e rastreabilidade de relatorio sao contratos diferentes.
+O calculo pode usar medias por direcao, mas resultado, comparativo e futuro
+export devem preservar os quatro valores fonte. Valor de vento `0.0` e medicao
+valida; ausencia deve permanecer `None`.
 
 ---
 

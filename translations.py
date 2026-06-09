@@ -1175,6 +1175,26 @@ TRANSLATIONS = {
         "pt": "Pressão ida/volta",
         "en": "Ida/volta pressure"
     },
+    "split_temp_plus_used": {
+        "pt": "Temp ida usada (média high+/low+)",
+        "en": "Ida temperature used (high+/low+ mean)"
+    },
+    "split_temp_minus_used": {
+        "pt": "Temp volta usada (média high-/low-)",
+        "en": "Volta temperature used (high-/low- mean)"
+    },
+    "split_press_plus_used": {
+        "pt": "Pressão ida usada (média high+/low+)",
+        "en": "Ida pressure used (high+/low+ mean)"
+    },
+    "split_press_minus_used": {
+        "pt": "Pressão volta usada (média high-/low-)",
+        "en": "Volta pressure used (high-/low- mean)"
+    },
+    "split_ambient_traceability": {
+        "pt": "Rastreabilidade ambiental das quatro passadas",
+        "en": "Ambient traceability for the four runs"
+    },
     "split_card_wind_ida_volta": {
         "pt": "Vento ida/volta",
         "en": "Ida/volta wind"
@@ -1196,8 +1216,40 @@ TRANSLATIONS = {
         "en": "Corrected F2 uses an explicit conversion from N/(m/s)² to N/(km/h)²."
     },
     "split_energy_unavailable_contract": {
-        "pt": "Não calculada: falta uma função Split neutra com F0/F2 corrigidos, massa e ciclo/perfil explícitos.",
-        "en": "Not calculated: no neutral Split function has an explicit corrected F0/F2, mass and cycle/profile contract."
+        "pt": "Energia indisponível porque F0/F2 corrigidos não estão disponíveis.",
+        "en": "Energy is unavailable because corrected F0/F2 are not available."
+    },
+    "split_weather_sync_details": {
+        "pt": "Detalhes da sincronização meteorológica",
+        "en": "Weather synchronization details"
+    },
+    "split_weather_sync_summary_datetime": {
+        "pt": "Sincronização meteo: data e hora",
+        "en": "Weather sync: date and time"
+    },
+    "split_weather_sync_summary_time_only": {
+        "pt": "Sincronização meteo: somente horário ⚠️",
+        "en": "Weather sync: time only ⚠️"
+    },
+    "split_weather_sync_summary_not_found": {
+        "pt": "Sincronização meteo: não encontrada ⚠️",
+        "en": "Weather sync: not found ⚠️"
+    },
+    "split_weather_warning_equally_close": {
+        "pt": "Foram encontrados registros meteorológicos igualmente próximos; o primeiro registro foi usado.",
+        "en": "Multiple weather records were equally close; the first record was used."
+    },
+    "split_weather_warning_timezone_missing": {
+        "pt": "O arquivo meteorológico não declara fuso horário; os horários foram comparados como horário local.",
+        "en": "Weather timezone is not declared; timestamps were compared as local time."
+    },
+    "split_weather_warning_date_differs": {
+        "pt": "A data meteorológica difere da passagem; a sincronização usou somente o horário.",
+        "en": "Weather date differs from the run date; synchronization used time of day only."
+    },
+    "split_warning_count": {
+        "pt": "{count} aviso(s); consulte os detalhes do par.",
+        "en": "{count} warning(s); see pair details."
     },
     "split_file": {
         "pt": "Arquivo",
@@ -1247,6 +1299,10 @@ TRANSLATIONS = {
         "pt": "Não encontrado",
         "en": "Not found"
     },
+    "split_meteo_method_fixed": {
+        "pt": "Condição fixa",
+        "en": "Fixed condition"
+    },
     "split_meteo_sync_limit": {
         "pt": "Limite automático de sincronização: {seconds} s.",
         "en": "Automatic synchronization limit: {seconds} s."
@@ -1294,6 +1350,10 @@ TRANSLATIONS = {
     "split_meteo_wind_direction": {
         "pt": "Direção do vento",
         "en": "Wind direction"
+    },
+    "split_meteo_source_file": {
+        "pt": "Arquivo meteo",
+        "en": "Weather file"
     },
     "split_no_parsed_records_for_calculation": {
         "pt": "Nenhum intervalo high ou low foi parseado. Revise a aba Seleção de Intervalos.",

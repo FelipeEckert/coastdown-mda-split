@@ -111,12 +111,17 @@ def _input_summary(selection: dict, effective_mass: float, config: dict, t) -> p
 
 def _sync_weather(record: dict) -> dict:
     weather_data = st.session_state.get("weather_data")
-    return sync_weather_to_run(
+    sync = sync_weather_to_run(
         record,
         weather_data,
         max_time_delta_seconds=DEFAULT_MAX_TIME_DELTA_SECONDS,
         allow_time_only_fallback=bool(st.session_state.get("sync_meteo_by_time_only")),
     )
+    sync["source_file"] = (
+        st.session_state.get("split_meteo_csv_path")
+        or st.session_state.get("meteo_csv_path")
+    )
+    return sync
 
 
 def _weather_sync_for_selection(selection: dict) -> dict:
@@ -127,9 +132,32 @@ def _weather_sync_for_selection(selection: dict) -> dict:
 
 
 def _weather_sync_rows(weather_sync: dict, t) -> list[dict]:
+    def display(value):
+        return "N/A" if value is None else value
+
     rows = []
     for component in ("high_plus", "low_plus", "high_minus", "low_minus"):
         sync = weather_sync.get(component) or {}
+        temperature = (
+            sync.get("temperature_c")
+            if "temperature_c" in sync
+            else sync.get("temperature")
+        )
+        pressure = (
+            sync.get("pressure_kpa")
+            if "pressure_kpa" in sync
+            else sync.get("pressure")
+        )
+        wind_speed = (
+            sync.get("wind_speed_ms")
+            if "wind_speed_ms" in sync
+            else sync.get("wind_speed")
+        )
+        wind_direction = (
+            sync.get("wind_direction_deg")
+            if "wind_direction_deg" in sync
+            else sync.get("wind_direction")
+        )
         rows.append(
             {
                 t("split_meteo_component"): t(COMPONENT_LABEL_KEYS[component]),
@@ -141,16 +169,84 @@ def _weather_sync_rows(weather_sync: dict, t) -> list[dict]:
                 t("split_meteo_method"): t(
                     f"split_meteo_method_{sync.get('sync_method', 'not_found')}"
                 ),
-                t("split_meteo_run_datetime"): sync.get("run_datetime"),
-                t("split_meteo_weather_datetime"): sync.get("weather_datetime"),
-                t("split_meteo_delta_seconds"): sync.get("time_delta_seconds"),
-                t("split_meteo_temperature"): sync.get("temperature"),
-                t("split_meteo_pressure"): sync.get("pressure"),
-                t("split_meteo_wind_speed"): sync.get("wind_speed"),
-                t("split_meteo_wind_direction"): sync.get("wind_direction"),
+                t("split_meteo_run_datetime"): display(sync.get("run_datetime")),
+                t("split_meteo_weather_datetime"): display(sync.get("weather_datetime")),
+                t("split_meteo_delta_seconds"): display(sync.get("time_delta_seconds")),
+                t("split_meteo_temperature"): display(temperature),
+                t("split_meteo_pressure"): display(pressure),
+                t("split_meteo_wind_speed"): display(wind_speed),
+                t("split_meteo_wind_direction"): display(wind_direction),
+                t("split_meteo_source_file"): display(sync.get("source_file")),
             }
         )
     return rows
+
+
+WEATHER_WARNING_TRANSLATION_KEYS = {
+    (
+        "Multiple weather records were equally close; "
+        "the first source record was selected."
+    ): "split_weather_warning_equally_close",
+    (
+        "Weather timezone is not declared; "
+        "timestamps were compared as local time."
+    ): "split_weather_warning_timezone_missing",
+    (
+        "Weather date differs from the run date; "
+        "synchronization used time of day only."
+    ): "split_weather_warning_date_differs",
+}
+
+
+def _translated_weather_warning(warning: str, t) -> str:
+    key = WEATHER_WARNING_TRANSLATION_KEYS.get(str(warning))
+    return t(key) if key else str(warning)
+
+
+def _weather_sync_summary(weather_sync: dict, t) -> str:
+    syncs = list((weather_sync or {}).values())
+    if not syncs or any(not sync.get("matched") for sync in syncs):
+        return t("split_weather_sync_summary_not_found")
+    methods = {sync.get("sync_method") for sync in syncs}
+    if methods.intersection({"time_only", "manual_date_assumption"}):
+        return t("split_weather_sync_summary_time_only")
+    return t("split_weather_sync_summary_datetime")
+
+
+def _weather_sync_warnings(weather_sync: dict, t) -> list[str]:
+    warnings = []
+    for sync in (weather_sync or {}).values():
+        warnings.extend(sync.get("warnings") or [])
+    return [
+        _translated_weather_warning(warning, t)
+        for warning in dict.fromkeys(warnings)
+    ]
+
+
+def _render_weather_sync_details(
+    weather_sync: dict,
+    t,
+    extra_warnings: list[str] | None = None,
+):
+    if not weather_sync and not extra_warnings:
+        return
+    if weather_sync:
+        st.caption(_weather_sync_summary(weather_sync, t))
+    with st.expander(t("split_weather_sync_details"), expanded=False):
+        if weather_sync:
+            st.dataframe(
+                pd.DataFrame(_weather_sync_rows(weather_sync, t)),
+                use_container_width=True,
+                hide_index=True,
+            )
+        warnings = _weather_sync_warnings(weather_sync, t)
+        warnings.extend(
+            _translated_weather_warning(warning, t)
+            for warning in (extra_warnings or [])
+        )
+        warnings = list(dict.fromkeys(warnings))
+        if warnings:
+            st.warning("\n".join(warnings))
 
 
 def _render_weather_sync(selection: dict, t) -> dict:
@@ -172,16 +268,7 @@ def _render_weather_sync(selection: dict, t) -> dict:
             seconds=DEFAULT_MAX_TIME_DELTA_SECONDS,
         )
     )
-    st.dataframe(
-        pd.DataFrame(_weather_sync_rows(weather_sync, t)),
-        use_container_width=True,
-        hide_index=True,
-    )
-    sync_warnings = []
-    for sync in weather_sync.values():
-        sync_warnings.extend(sync.get("warnings") or [])
-    if sync_warnings:
-        st.warning("\n".join(dict.fromkeys(sync_warnings)))
+    _render_weather_sync_details(weather_sync, t)
     return weather_sync
 
 
@@ -302,13 +389,14 @@ def _ambient_mode_label(pair: dict, t) -> str:
     return "N/A"
 
 
-def _pair_warnings(pair: dict) -> str:
+def _pair_warnings(pair: dict, t) -> str:
     warnings = list(pair.get("warnings") or [])
     if (pair.get("cv_F0_percent") or 0) > 10:
         warnings.append("CV F0 > 10%")
     if (pair.get("cv_F2_percent") or 0) > 10:
         warnings.append("CV F2 > 10%")
-    return "; ".join(dict.fromkeys(warnings))
+    count = len(list(dict.fromkeys(warnings)))
+    return t("split_warning_count", count=count) if count else ""
 
 
 def _comparison_rows(pairs: list[dict], t) -> list[dict]:
@@ -347,7 +435,7 @@ def _comparison_rows(pairs: list[dict], t) -> list[dict]:
                     if pair.get("energy") is not None
                     else "N/A"
                 ),
-                t("split_card_warnings"): _pair_warnings(pair),
+                t("split_card_warnings"): _pair_warnings(pair, t),
             }
         )
     return rows
@@ -468,23 +556,34 @@ def _render_result_summary(result: dict, t):
         f"{_ambient_mode_label(result, t)}"
     )
     st.write(
-        f"{t('split_card_temp_ida_volta')}: "
-        f"{_fmt(result.get('temp_plus_used'), 1)} / "
-        f"{_fmt(result.get('temp_minus_used'), 1)} C"
+        f"{t('split_temp_plus_used')}: "
+        f"{_fmt(result.get('temp_plus_used'), 2)} C"
     )
     st.write(
-        f"{t('split_card_pressure_ida_volta')}: "
-        f"{_fmt(result.get('press_plus_used'), 2)} / "
-        f"{_fmt(result.get('press_minus_used'), 2)} kPa"
+        f"{t('split_temp_minus_used')}: "
+        f"{_fmt(result.get('temp_minus_used'), 2)} C"
+    )
+    st.write(
+        f"{t('split_press_plus_used')}: "
+        f"{_fmt(result.get('press_plus_used'), 3)} kPa"
+    )
+    st.write(
+        f"{t('split_press_minus_used')}: "
+        f"{_fmt(result.get('press_minus_used'), 3)} kPa"
     )
     st.write(
         f"{t('split_card_energy')}: "
-        f"{_fmt(result.get('energy'), 4)}"
+        f"{_fmt(result.get('energy'), 4)} "
+        f"{result.get('energy_unit') or ''}"
     )
     if result.get("energy") is None:
         st.caption(t("split_energy_unavailable_contract"))
-    if result.get("warnings"):
-        st.warning("; ".join(result["warnings"]))
+    if result.get("ambient_mode") == "weather_sync":
+        _render_weather_sync_details(
+            result.get("ambient_by_component") or result.get("weather_sync") or {},
+            t,
+            result.get("warnings") or [],
+        )
 
 
 def _render_pair_card(pair: dict, t, pair_number: int):
@@ -500,19 +599,20 @@ def _render_pair_card(pair: dict, t, pair_number: int):
         with ambient_col:
             st.markdown(f"##### {t('split_card_ambient_conditions')}")
             st.write(
-                f"{t('split_card_temp_ida_volta')}: "
-                f"{_fmt(pair.get('temp_plus_used'), 1)} / "
-                f"{_fmt(pair.get('temp_minus_used'), 1)} C"
+                f"{t('split_temp_plus_used')}: "
+                f"{_fmt(pair.get('temp_plus_used'), 2)} C"
             )
             st.write(
-                f"{t('split_card_pressure_ida_volta')}: "
-                f"{_fmt(pair.get('press_plus_used'), 2)} / "
-                f"{_fmt(pair.get('press_minus_used'), 2)} kPa"
+                f"{t('split_temp_minus_used')}: "
+                f"{_fmt(pair.get('temp_minus_used'), 2)} C"
             )
             st.write(
-                f"{t('split_card_wind_ida_volta')}: "
-                f"{_fmt(pair.get('wind_plus_ms'), 2)} / "
-                f"{_fmt(pair.get('wind_minus_ms'), 2)} m/s"
+                f"{t('split_press_plus_used')}: "
+                f"{_fmt(pair.get('press_plus_used'), 3)} kPa"
+            )
+            st.write(
+                f"{t('split_press_minus_used')}: "
+                f"{_fmt(pair.get('press_minus_used'), 3)} kPa"
             )
             st.caption(
                 f"{t('split_ambient_mode_label')}: "
@@ -579,17 +679,21 @@ def _render_pair_card(pair: dict, t, pair_number: int):
             use_container_width=True,
             hide_index=True,
         )
-        weather_sync = pair.get("weather_sync") or {}
-        if weather_sync:
-            st.dataframe(
-                pd.DataFrame(_pair_weather_rows(pair, t)),
-                use_container_width=True,
-                hide_index=True,
-            )
-
-        warnings = pair.get("warnings") or []
+        st.markdown(f"**{t('split_ambient_traceability')}**")
+        ambient_by_component = pair.get("ambient_by_component") or {}
+        st.dataframe(
+            pd.DataFrame(_weather_sync_rows(ambient_by_component, t)),
+            use_container_width=True,
+            hide_index=True,
+        )
+        warnings = _weather_sync_warnings(ambient_by_component, t)
+        warnings.extend(
+            _translated_weather_warning(warning, t)
+            for warning in (pair.get("warnings") or [])
+        )
+        warnings = list(dict.fromkeys(warnings))
         if warnings:
-            st.warning("; ".join(warnings))
+            st.warning("\n".join(warnings))
 
         if st.button(t("split_remove_pair"), key=f"remove_{pair.get('id')}"):
             st.session_state.split_comparison_pairs = remove_split_comparison_pair(

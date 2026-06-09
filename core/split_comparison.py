@@ -8,7 +8,10 @@ import statistics
 from uuid import uuid4
 
 from core.split_calculations import calculate_split_result
-from core.split_corrections import ENERGY_UNAVAILABLE_STATUS
+from core.split_corrections import (
+    ENERGY_UNAVAILABLE_STATUS,
+    normalize_ambient_by_component,
+)
 
 
 COMPLETE_PAIR_COMPONENTS = (
@@ -227,12 +230,15 @@ def _weather_summary(
     }
 
 
-def _direction_weather_average(weather_sync: dict | None, components: tuple[str, str], key: str):
+def _direction_ambient_average(
+    ambient_by_component: dict | None,
+    components: tuple[str, str],
+    key: str,
+):
     values = []
     for component in components:
-        record = (weather_sync or {}).get(component) or {}
-        value = record.get(key)
-        if record.get("matched") and isinstance(value, (int, float)):
+        value = ((ambient_by_component or {}).get(component) or {}).get(key)
+        if isinstance(value, (int, float)):
             values.append(float(value))
     return sum(values) / len(values) if values else None
 
@@ -258,6 +264,14 @@ def build_split_comparison_pair(
         corrected_minus = result.get("corrected_result_minus") or {}
         corrected_pair_mean = result.get("corrected_pair_mean") or {}
         result_weather_sync = weather_sync or result.get("weather_sync") or {}
+        source_ambient_by_component = (
+            result.get("ambient_by_component")
+            or normalize_ambient_by_component(result_weather_sync)
+        )
+        ambient_by_component = {
+            component: dict(source_ambient_by_component.get(component) or {})
+            for component in COMPLETE_PAIR_COMPONENTS
+        }
         pair = {
             "id": pair_id or f"split_pair_{uuid4().hex[:8]}",
             "high_plus": high_plus,
@@ -364,23 +378,26 @@ def build_split_comparison_pair(
             ),
             "ambient_mode": result.get("ambient_mode"),
             "ambient_source": result.get("ambient_source"),
+            "ambient_by_component": ambient_by_component,
             "temp_plus_used": result.get("temp_plus_used"),
             "press_plus_used": result.get("press_plus_used"),
             "temp_minus_used": result.get("temp_minus_used"),
             "press_minus_used": result.get("press_minus_used"),
-            "wind_plus_ms": _direction_weather_average(
-                result_weather_sync,
+            "wind_plus_ms": _direction_ambient_average(
+                ambient_by_component,
                 ("high_plus", "low_plus"),
-                "wind_speed",
+                "wind_speed_ms",
             ),
-            "wind_minus_ms": _direction_weather_average(
-                result_weather_sync,
+            "wind_minus_ms": _direction_ambient_average(
+                ambient_by_component,
                 ("high_minus", "low_minus"),
-                "wind_speed",
+                "wind_speed_ms",
             ),
             "energy": result.get("energy"),
             "energy_unit": result.get("energy_unit"),
             "energy_profile": result.get("energy_profile"),
+            "energy_origin": result.get("energy_origin"),
+            "energy_details": result.get("energy_details"),
             "energy_status": result.get(
                 "energy_status",
                 ENERGY_UNAVAILABLE_STATUS,
@@ -398,6 +415,11 @@ def build_split_comparison_pair(
             "low_delta_t_s": _record_value(low_plus, "delta_t_s"),
             "low_timestamp": _record_value(low_plus, "start_time_str") or _record_value(low_plus, "start_timestamp"),
         }
+        for component in COMPLETE_PAIR_COMPONENTS:
+            ambient = ambient_by_component.get(component) or {}
+            pair[f"temp_{component}"] = ambient.get("temperature_c")
+            pair[f"press_{component}"] = ambient.get("pressure_kpa")
+            pair[f"wind_{component}"] = ambient.get("wind_speed_ms")
         weather_summary = _weather_summary(
             weather_records=weather_records,
             weather_sync=result_weather_sync,
@@ -456,6 +478,7 @@ def build_split_comparison_pair(
         "energy": None,
         "energy_unit": None,
         "energy_profile": None,
+        "energy_origin": None,
         "energy_status": ENERGY_UNAVAILABLE_STATUS,
         "warnings": list(result.get("warnings") or []),
     }
