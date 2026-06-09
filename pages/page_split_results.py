@@ -11,6 +11,14 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from core.split_calculations import coefficient_summary
 
 
+def _first_value(data: dict, *keys):
+    for key in keys:
+        value = data.get(key)
+        if value is not None:
+            return value
+    return None
+
+
 def _result_rows(results: list[dict]) -> list[dict]:
     rows = []
     for idx, result in enumerate(results, start=1):
@@ -22,8 +30,20 @@ def _result_rows(results: list[dict]) -> list[dict]:
             {
                 "Index": idx,
                 "Use": result.get("selected", True),
-                "f'0 (N)": result.get("f0_prime"),
-                "f'2 (N/(m/s)^2)": result.get("f2_prime"),
+                "f'0 (N)": _first_value(
+                    result,
+                    "f0_prime_mean",
+                    "f0_prime",
+                ),
+                "f'2 (N/(m/s)^2)": _first_value(
+                    result,
+                    "f2_prime_mean",
+                    "f2_prime",
+                ),
+                "F0 (N)": _first_value(result, "F0_mean", "F0"),
+                "F2 (N/(km/h)^2)": _first_value(result, "F2_mean", "F2"),
+                "Ambient source": result.get("ambient_source"),
+                "Energy (MJ/km)": result.get("energy"),
                 "High + run": high_plus.get("run_id"),
                 "Low + run": low_plus.get("run_id"),
                 "High - run": high_minus.get("run_id"),
@@ -81,6 +101,8 @@ def generate_split_excel(results: list[dict], summary: dict, vehicle_info: dict,
     details = wb.create_sheet("Split Results")
     headers = [
         "Index", "f'0 (N)", "f'2 (N/(m/s)^2)",
+        "F0 (N)", "F2 (N/(km/h)^2)", "Ambient source",
+        "Temp + (C)", "Pressure + (kPa)", "Temp - (C)", "Pressure - (kPa)",
         "High + file", "High + run", "High + Delta t (s)", "High + subintervals",
         "Low + file", "Low + run", "Low + Delta t (s)", "Low + subintervals",
         "High - file", "High - run", "High - Delta t (s)", "High - subintervals",
@@ -95,12 +117,17 @@ def generate_split_excel(results: list[dict], summary: dict, vehicle_info: dict,
         low_plus = result.get("low_plus") or result.get("low_record", {})
         high_minus = result.get("high_minus", {})
         low_minus = result.get("low_minus", {})
-        result_plus = result.get("result_plus", {})
-        result_minus = result.get("result_minus", {})
         values = [
             row_idx - 1,
-            result.get("f0_prime"),
-            result.get("f2_prime"),
+            _first_value(result, "f0_prime_mean", "f0_prime"),
+            _first_value(result, "f2_prime_mean", "f2_prime"),
+            _first_value(result, "F0_mean", "F0"),
+            _first_value(result, "F2_mean", "F2"),
+            result.get("ambient_source"),
+            result.get("temp_plus_used"),
+            result.get("press_plus_used"),
+            result.get("temp_minus_used"),
+            result.get("press_minus_used"),
             high_plus.get("filename"),
             high_plus.get("run_id"),
             high_plus.get("delta_t_s"),
@@ -117,10 +144,10 @@ def generate_split_excel(results: list[dict], summary: dict, vehicle_info: dict,
             low_minus.get("run_id"),
             low_minus.get("delta_t_s"),
             ", ".join(low_minus.get("subintervals", [])),
-            result_plus.get("f0_prime"),
-            result_plus.get("f2_prime"),
-            result_minus.get("f0_prime"),
-            result_minus.get("f2_prime"),
+            result.get("f0_prime_plus"),
+            result.get("f2_prime_plus"),
+            result.get("f0_prime_minus"),
+            result.get("f2_prime_minus"),
             "; ".join(result.get("warnings", [])),
         ]
         for col_idx, value in enumerate(values, start=1):

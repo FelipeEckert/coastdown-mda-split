@@ -88,8 +88,8 @@ TRANSLATIONS = {
         "en": "Upload Coastdown CSV file"
     },
     "upload_weather_csv": {
-        "pt": "Upload do arquivo CSV de Dados Meteorológicos (opcional)",
-        "en": "Upload Weather Data CSV file (optional)"
+        "pt": "Upload do arquivo CSV/XLSX de Dados Meteorológicos (opcional)",
+        "en": "Upload Weather Data CSV/XLSX file (optional)"
     },
     "upload_high_speed_csv": {
         "pt": "Upload do arquivo CSV de Alta Velocidade",
@@ -1015,6 +1015,78 @@ TRANSLATIONS = {
         "pt": "Resultados ida, volta e media",
         "en": "Ida, volta and average results"
     },
+    "split_uncorrected_results": {
+        "pt": "Coeficientes não corrigidos",
+        "en": "Uncorrected coefficients"
+    },
+    "split_corrected_results": {
+        "pt": "Coeficientes corrigidos",
+        "en": "Corrected coefficients"
+    },
+    "split_corrected_results_unavailable": {
+        "pt": "F0/F2 corrigidos não estão disponíveis porque as condições ambientais válidas estão incompletas.",
+        "en": "Corrected F0/F2 are unavailable because valid ambient conditions are incomplete."
+    },
+    "split_ambient_conditions_title": {
+        "pt": "Condições ambientais para correção",
+        "en": "Ambient conditions for correction"
+    },
+    "split_ambient_mode_label": {
+        "pt": "Modo ambiental",
+        "en": "Ambient mode"
+    },
+    "split_ambient_mode_fixed": {
+        "pt": "Usar temperatura e pressão fixas",
+        "en": "Use fixed temperature and pressure"
+    },
+    "split_ambient_mode_weather_sync": {
+        "pt": "Usar sincronização automática com arquivo meteorológico",
+        "en": "Use automatic weather file synchronization"
+    },
+    "split_ambient_mode_fixed_short": {
+        "pt": "Fixo",
+        "en": "Fixed"
+    },
+    "split_ambient_mode_weather_sync_short": {
+        "pt": "Sincronização meteo",
+        "en": "Weather sync"
+    },
+    "split_ambient_change_invalidated": {
+        "pt": "As condições ambientais mudaram. Resultados e cards anteriores foram limpos; recalcule os coeficientes.",
+        "en": "Ambient conditions changed. Previous results and cards were cleared; recalculate the coefficients."
+    },
+    "split_fixed_temperature": {
+        "pt": "Temperatura fixa (°C)",
+        "en": "Fixed temperature (°C)"
+    },
+    "split_fixed_pressure": {
+        "pt": "Pressão fixa (kPa)",
+        "en": "Fixed pressure (kPa)"
+    },
+    "split_fixed_conditions_apply_all": {
+        "pt": "A mesma temperatura e pressão serão aplicadas às quatro passadas do par.",
+        "en": "The same temperature and pressure will be applied to all four runs in the pair."
+    },
+    "split_fixed_conditions_card": {
+        "pt": "Correção calculada com temperatura e pressão fixas. Valores exibidos como ida / volta.",
+        "en": "Correction calculated with fixed temperature and pressure. Values are shown as ida / volta."
+    },
+    "split_weather_correction_unavailable": {
+        "pt": "A sincronização meteorológica está incompleta. O cálculo não corrigido continuará disponível, mas F0/F2 não serão preenchidos.",
+        "en": "Weather synchronization is incomplete. Uncorrected calculation remains available, but F0/F2 will not be populated."
+    },
+    "split_ambient_source_summary": {
+        "pt": "Fonte das condições ambientais: {source}.",
+        "en": "Ambient condition source: {source}."
+    },
+    "split_ambient_source_manual_fixed": {
+        "pt": "temperatura e pressão fixas",
+        "en": "fixed temperature and pressure"
+    },
+    "split_ambient_source_weather_file_sync": {
+        "pt": "sincronização com arquivo meteorológico",
+        "en": "weather file synchronization"
+    },
     "split_selected_pair_inputs": {
         "pt": "Resumo técnico do par selecionado",
         "en": "Selected pair technical summary"
@@ -1022,6 +1094,10 @@ TRANSLATIONS = {
     "split_calculate_selected_pair": {
         "pt": "Calcular par selecionado",
         "en": "Calculate selected pair"
+    },
+    "split_calculate_coefficients": {
+        "pt": "Calcular Coeficientes",
+        "en": "Calculate Coefficients"
     },
     "split_selected_pair_calculated": {
         "pt": "Par Split calculado e salvo.",
@@ -1083,6 +1159,46 @@ TRANSLATIONS = {
         "pt": "Energia",
         "en": "Energy"
     },
+    "split_pair": {
+        "pt": "Par",
+        "en": "Pair"
+    },
+    "split_card_ambient_conditions": {
+        "pt": "Condições Ambientais",
+        "en": "Ambient Conditions"
+    },
+    "split_card_temp_ida_volta": {
+        "pt": "Temp ida/volta",
+        "en": "Ida/volta temp"
+    },
+    "split_card_pressure_ida_volta": {
+        "pt": "Pressão ida/volta",
+        "en": "Ida/volta pressure"
+    },
+    "split_card_wind_ida_volta": {
+        "pt": "Vento ida/volta",
+        "en": "Ida/volta wind"
+    },
+    "split_card_variations": {
+        "pt": "Variações",
+        "en": "Variations"
+    },
+    "split_card_warnings": {
+        "pt": "Avisos",
+        "en": "Warnings"
+    },
+    "split_card_traceability": {
+        "pt": "Rastreabilidade das passadas",
+        "en": "Run traceability"
+    },
+    "split_f2_explicit_conversion_note": {
+        "pt": "F2 corrigido usa conversão explícita de N/(m/s)² para N/(km/h)².",
+        "en": "Corrected F2 uses an explicit conversion from N/(m/s)² to N/(km/h)²."
+    },
+    "split_energy_unavailable_contract": {
+        "pt": "Não calculada: falta uma função Split neutra com F0/F2 corrigidos, massa e ciclo/perfil explícitos.",
+        "en": "Not calculated: no neutral Split function has an explicit corrected F0/F2, mass and cycle/profile contract."
+    },
     "split_file": {
         "pt": "Arquivo",
         "en": "File"
@@ -1104,8 +1220,80 @@ TRANSLATIONS = {
         "en": "Meteo was not synchronized for this pair."
     },
     "split_meteo_display_only_warning": {
-        "pt": "Meteo exibido apenas para rastreabilidade; correção climática Split ainda não foi aplicada.",
-        "en": "Meteo is displayed for traceability only; Split climate correction has not been applied yet."
+        "pt": "A sincronização é exibida com rastreabilidade completa; somente temperatura e pressão de matches válidos são usadas na correção.",
+        "en": "Synchronization is shown with full traceability; only temperature and pressure from valid matches are used for correction."
+    },
+    "split_meteo_matched": {
+        "pt": "Sincronizado",
+        "en": "Matched"
+    },
+    "split_meteo_not_matched": {
+        "pt": "Não sincronizado",
+        "en": "Not matched"
+    },
+    "split_meteo_method_datetime": {
+        "pt": "Data + hora",
+        "en": "Date + time"
+    },
+    "split_meteo_method_time_only": {
+        "pt": "Somente horário",
+        "en": "Time only"
+    },
+    "split_meteo_method_manual_date_assumption": {
+        "pt": "Data assumida pelo horário",
+        "en": "Date assumed from time"
+    },
+    "split_meteo_method_not_found": {
+        "pt": "Não encontrado",
+        "en": "Not found"
+    },
+    "split_meteo_sync_limit": {
+        "pt": "Limite automático de sincronização: {seconds} s.",
+        "en": "Automatic synchronization limit: {seconds} s."
+    },
+    "split_meteo_pair_average": {
+        "pt": "Resumo médio de {count} passagem(ns) sincronizada(s): {temperature} °C, {pressure} kPa, vento {wind} m/s.",
+        "en": "Average summary from {count} matched run(s): {temperature} °C, {pressure} kPa, wind {wind} m/s."
+    },
+    "split_meteo_component": {
+        "pt": "Componente",
+        "en": "Component"
+    },
+    "split_meteo_status": {
+        "pt": "Status",
+        "en": "Status"
+    },
+    "split_meteo_method": {
+        "pt": "Método",
+        "en": "Method"
+    },
+    "split_meteo_run_datetime": {
+        "pt": "Data/hora da passagem",
+        "en": "Run datetime"
+    },
+    "split_meteo_weather_datetime": {
+        "pt": "Data/hora meteo",
+        "en": "Weather datetime"
+    },
+    "split_meteo_delta_seconds": {
+        "pt": "Diferença (s)",
+        "en": "Delta (s)"
+    },
+    "split_meteo_temperature": {
+        "pt": "Temperatura (°C)",
+        "en": "Temperature (°C)"
+    },
+    "split_meteo_pressure": {
+        "pt": "Pressão (kPa)",
+        "en": "Pressure (kPa)"
+    },
+    "split_meteo_wind_speed": {
+        "pt": "Vento (m/s)",
+        "en": "Wind (m/s)"
+    },
+    "split_meteo_wind_direction": {
+        "pt": "Direção do vento",
+        "en": "Wind direction"
     },
     "split_no_parsed_records_for_calculation": {
         "pt": "Nenhum intervalo high ou low foi parseado. Revise a aba Seleção de Intervalos.",
@@ -1124,12 +1312,16 @@ TRANSLATIONS = {
         "en": "Enter and confirm the effective mass in Vehicle Data before calculating."
     },
     "split_meteo_not_available_warning": {
-        "pt": "Arquivo meteorológico não disponível. O par será calculado sem aplicação meteorológica.",
-        "en": "Weather/meteo file is not available. The pair will be calculated without meteo application."
+        "pt": "Arquivo meteorológico não disponível. Os coeficientes não corrigidos podem ser calculados, mas F0/F2 por sincronização não serão preenchidos.",
+        "en": "Weather/meteo file is not available. Uncorrected coefficients can be calculated, but synchronized F0/F2 will not be populated."
     },
     "split_meteo_loaded_not_applied_warning": {
         "pt": "Arquivo meteorológico carregado; sincronização atual: {mode}. A aplicação meteorológica no cálculo Split ainda não foi implementada.",
         "en": "Weather/meteo file loaded; current synchronization: {mode}. Meteo application in the Split calculation is not implemented yet."
+    },
+    "split_meteo_loaded_for_correction": {
+        "pt": "Arquivo meteorológico carregado; sincronização para correção: {mode}.",
+        "en": "Weather/meteo file loaded; synchronization for correction: {mode}."
     },
     "split_high_records_available": {
         "pt": "High parseado",

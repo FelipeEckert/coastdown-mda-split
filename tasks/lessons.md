@@ -37,6 +37,47 @@
 
 Registrar aqui decisoes e aprendizados especificos do metodo Split.
 
+## 2026-06-09 - Split: Coeficientes Corrigidos Devem Ter Contrato Proprio
+
+### Contexto:
+A formula de correcao climatica existente era pura na pratica, mas estava no
+modulo Standard junto de workflows, aliases legados e calculo de energia.
+
+### Decisao:
+Isolar a formula em `core/split_corrections.py`, recebendo explicitamente
+`f'0`, `f'2`, temperatura e pressao. Manter `f'0/f'2` intactos e salvar `F0/F2`
+em campos separados. A correcao de `F2` inclui a conversao de
+`N/(m/s)^2` para `N/(km/h)^2` pelo fator 12,96.
+
+### Licao:
+Reaproveitar uma formula nao exige reaproveitar seu workflow. Unidades e
+constantes fazem parte do contrato: a implementacao pode existir antes da
+validacao normativa final, mas essa validacao deve continuar explicitamente
+pendente e nao pode ser confundida com teste de software aprovado.
+
+---
+
+## 2026-06-09 - Split: Sincronizacao Meteo Nao E Correcao Climatica
+
+### Contexto:
+O fluxo Split precisava associar cada uma das quatro passadas do par aos dados
+ambientais sem aplicar ainda a transformacao normativa de `f'0/f'2` para `F0/F2`.
+O arquivo real de meteo possui datas de anos diferentes, registros duplicados
+por minuto e nenhum timezone declarado.
+
+### Decisao:
+Sincronizar cada componente high+, low+, high- e low- separadamente. Preferir
+data + hora completas, aplicar limite maximo de diferenca e usar somente horario
+quando o fallback estiver explicitamente habilitado. Todo fallback, empate,
+ausencia de timezone ou data ambigua deve permanecer visivel em warnings.
+
+### Licao:
+Sincronizacao meteo e uma etapa de rastreabilidade, nao uma correcao climatica.
+Um match temporal nao autoriza alterar coeficientes. Fallback por horario deve
+ser opt-in e auditavel, pois pode produzir um valor plausivel usando o dia errado.
+
+---
+
 ## 2026-06-08 - Split: Par De Coeficientes Exige Ida E Volta
 
 ### Contexto:
@@ -72,6 +113,48 @@ energia fica como N/A ate existir helper puro que receba explicitamente `f0`,
 Split pode reaproveitar funcoes puras, mas nao workflows Standard acoplados.
 Energia so e metodologicamente neutra quando todas as entradas, ciclo/perfil e
 unidades estao explicitos no contrato da funcao.
+
+---
+
+## 2026-06-09 - Split: Cards Corrigidos Dependem Da Assinatura Ambiental
+
+### Contexto:
+Os cards comparativos armazenam F0/F2 corrigidos e condicoes ambientais. Manter
+esses cards apos alterar modo ambiental, temperatura ou pressao exibiria um
+resultado tecnicamente obsoleto.
+
+### Decisao:
+Tratar modo ambiental e valores fixos como uma assinatura de calculo. Quando a
+assinatura muda, limpar resultados, ultimo calculo, pares comparativos, resumo
+final e buffer Excel antes de permitir novo uso.
+
+### Licao:
+Rastreabilidade visual nao substitui invalidacao de dependencia. Resultados
+corrigidos devem ser recalculados sempre que qualquer entrada ambiental muda.
+O CV ida/volta deve ser calculado a partir dos F0/F2 corrigidos de cada sentido;
+energia continua N/A enquanto massa e ciclo/perfil nao forem entradas explicitas.
+
+---
+
+## 2026-06-09 - Split: Estado De Calculo Precisa De Chaves Canonicas
+
+### Contexto:
+Os coeficientes existiam em estruturas aninhadas como `result_plus` e
+`corrected_pair_mean`, enquanto tabela e cards liam aliases como `F0`, `F2` e
+`f0_prime`. O calculo estava correto, mas a copia entre resultado e comparativo
+ficava dificil de auditar e podia produzir campos vazios por divergencia de nome.
+
+### Decisao:
+Cada resultado e par comparativo deve salvar explicitamente:
+`f0_prime_plus/minus/mean`, `f2_prime_plus/minus/mean`,
+`F0_plus/minus/mean` e `F2_plus/minus/mean`. Estruturas aninhadas e aliases
+anteriores permanecem apenas para compatibilidade.
+
+### Licao:
+Calcular, persistir e exibir devem compartilhar o mesmo contrato de chaves.
+Coeficientes nao corrigidos e corrigidos nunca devem usar nomes intercambiaveis.
+Ausencia de energia tambem e estado valido e deve ser salva como `energy=None`
+com justificativa, nao omitida silenciosamente.
 
 ---
 

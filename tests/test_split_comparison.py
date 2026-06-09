@@ -8,11 +8,15 @@ from core.split_comparison import (
     build_split_comparison_pair,
     calculate_complete_split_pair,
     clear_split_comparison_pairs,
+    coefficient_variation_percent,
     group_split_records_by_direction,
     remove_split_comparison_pair,
     validate_complete_split_pair_selection,
 )
+from core.split_corrections import apply_split_pair_correction, fixed_ambient_conditions
 from data.split_parser import default_split_interval_config
+from pages.page_split_coefficient_calculation import _comparison_rows
+from pages.page_split_results import _result_rows
 
 
 class SplitComparisonTest(unittest.TestCase):
@@ -140,14 +144,18 @@ class SplitComparisonTest(unittest.TestCase):
             effective_mass=1545.0,
             config=default_split_interval_config(),
         )
+        result = apply_split_pair_correction(
+            result,
+            fixed_ambient_conditions(20.0, 101.325),
+        )
 
         pair = build_split_comparison_pair(
             result,
-            weather_records={
-                "high_plus": {"temp_c": 24.0, "baro_kpa": 101.0, "wind_ms": 1.0},
-                "low_plus": {"temp_c": 26.0, "baro_kpa": 102.0, "wind_ms": 2.0},
-                "high_minus": {"temp_c": 28.0, "baro_kpa": 103.0, "wind_ms": 3.0},
-                "low_minus": {"temp_c": 30.0, "baro_kpa": 104.0, "wind_ms": 4.0},
+            weather_sync={
+                "high_plus": {"matched": True, "temperature": 24.0, "pressure": 101.0, "wind_speed": 1.0},
+                "low_plus": {"matched": True, "temperature": 26.0, "pressure": 102.0, "wind_speed": 2.0},
+                "high_minus": {"matched": True, "temperature": 28.0, "pressure": 103.0, "wind_speed": 3.0},
+                "low_minus": {"matched": True, "temperature": 30.0, "pressure": 104.0, "wind_speed": 4.0},
             },
             pair_id="pair-complete",
         )
@@ -160,7 +168,53 @@ class SplitComparisonTest(unittest.TestCase):
         self.assertEqual(pair["temp_c"], 27.0)
         self.assertEqual(pair["baro_kpa"], 102.5)
         self.assertEqual(pair["wind_ms"], 2.5)
+        self.assertEqual(pair["weather_match_count"], 4)
+        self.assertEqual(len(pair["weather_sync"]), 4)
+        self.assertTrue(pair["correction_available"])
+        self.assertEqual(pair["ambient_source"], "manual_fixed")
+        self.assertAlmostEqual(pair["F0"], result["corrected_pair_mean"]["F0"])
+        self.assertAlmostEqual(pair["F2"], result["corrected_pair_mean"]["F2"])
+        self.assertAlmostEqual(pair["F0_mean"], result["F0_mean"])
+        self.assertAlmostEqual(pair["F2_mean"], result["F2_mean"])
+        self.assertAlmostEqual(
+            pair["f0_prime_mean"],
+            result["f0_prime_mean"],
+        )
+        self.assertAlmostEqual(
+            pair["f2_prime_mean"],
+            result["f2_prime_mean"],
+        )
         self.assertAlmostEqual(pair["f0_prime"], result["result_pair_mean"]["f0_prime"])
+        self.assertIsNotNone(pair["cv_F0_percent"])
+        self.assertIsNotNone(pair["cv_F2_percent"])
+        self.assertEqual(pair["F0_unit"], "N")
+        self.assertEqual(pair["F2_unit"], "N/(km/h)^2")
+        self.assertEqual(pair["wind_plus_ms"], 1.5)
+        self.assertEqual(pair["wind_minus_ms"], 3.5)
+        self.assertIsNone(pair["energy"])
+        self.assertIn("explicit corrected F0/F2", pair["energy_status"])
+
+        translate = lambda key, **kwargs: key.format(**kwargs) if kwargs else key
+        comparison_row = _comparison_rows([pair], translate)[0]
+        result_row = _result_rows([result])[0]
+        self.assertEqual(comparison_row["F0 avg (N)"], pair["F0_mean"])
+        self.assertEqual(
+            comparison_row["F2 avg (N/(km/h)^2)"],
+            pair["F2_mean"],
+        )
+        self.assertEqual(comparison_row["Energy (MJ/km)"], "N/A")
+        self.assertEqual(result_row["F0 (N)"], result["F0_mean"])
+        self.assertEqual(
+            result_row["F2 (N/(km/h)^2)"],
+            result["F2_mean"],
+        )
+
+    def test_coefficient_variation_uses_ida_and_volta_results(self):
+        cv = coefficient_variation_percent(100.0, 110.0)
+
+        self.assertAlmostEqual(cv, 6.734350297014738)
+        self.assertIsNone(coefficient_variation_percent(None, 110.0))
+        self.assertIsNone(coefficient_variation_percent(-10.0, 10.0))
 
     def test_add_remove_and_clear_split_comparison_pairs(self):
         first = build_split_comparison_pair(self._result(), pair_id="pair-1")

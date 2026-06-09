@@ -6,9 +6,15 @@ import math
 import unittest
 
 from core.split_calculations import calculate_split_result
-from core.split_state import invalidate_split_input_state
-from data.loaders import carregar_dados_csv_robusto, read_weather_station_csv
+from core.split_state import (
+    clear_split_final_state,
+    invalidate_split_ambient_state,
+    invalidate_split_input_state,
+)
+from core.weather_sync import sync_weather_to_run
+from data.loaders import carregar_dados_csv_robusto
 from data.split_parser import default_split_interval_config, parse_split_sources
+from data.weather_loader import read_weather_file
 
 
 SAMPLE_DIR = Path(__file__).resolve().parents[1] / "sample_data" / "Split"
@@ -16,8 +22,8 @@ SAMPLE_DIR = Path(__file__).resolve().parents[1] / "sample_data" / "Split"
 
 class SplitSampleDataImportTest(unittest.TestCase):
     def test_two_csv_high_low_eliezer_extracts_expected_deltas_and_coefficients(self):
-        high_path = SAMPLE_DIR / "split eliezer high.csv"
-        low_path = SAMPLE_DIR / "split eliezer low.csv"
+        high_path = SAMPLE_DIR / "coastdown" / "split eliezer high.csv"
+        low_path = SAMPLE_DIR / "coastdown" / "split eliezer low.csv"
 
         _, high_runs, _ = carregar_dados_csv_robusto(
             str(high_path),
@@ -53,7 +59,7 @@ class SplitSampleDataImportTest(unittest.TestCase):
         self.assertTrue(math.isclose(result["f2_prime"], 0.6461779091694823, rel_tol=1e-12))
 
     def test_separate_mode_high_only_csv_reports_missing_low_interval(self):
-        high_path = SAMPLE_DIR / "split eliezer high.csv"
+        high_path = SAMPLE_DIR / "coastdown" / "split eliezer high.csv"
         _, high_runs, _ = carregar_dados_csv_robusto(
             str(high_path),
             using_split_method=True,
@@ -92,7 +98,7 @@ class SplitSampleDataImportTest(unittest.TestCase):
         self.assertIn("No low-speed Split interval was found.", parsed["warnings"])
 
     def test_low_only_csv_in_low_slot_does_not_create_false_high_interval(self):
-        low_path = SAMPLE_DIR / "split eliezer low.csv"
+        low_path = SAMPLE_DIR / "coastdown" / "split eliezer low.csv"
         _, low_runs, _ = carregar_dados_csv_robusto(
             str(low_path),
             using_split_method=True,
@@ -208,9 +214,64 @@ class SplitSampleDataImportTest(unittest.TestCase):
         self.assertEqual(test_data["split_input_version"], 5)
         self.assertFalse(test_data["sync_meteo_by_time_only"])
 
+    def test_meteo_change_removes_stale_sync_but_preserves_coefficients(self):
+        test_data = {
+            "split_results": [
+                {
+                    "f0_prime": 139.4,
+                    "f2_prime": 0.646,
+                    "ambient_mode": "weather_sync",
+                    "weather_sync": {"high_plus": {"matched": True}},
+                    "correction_available": True,
+                    "corrected_result_plus": {"F0": 140.0},
+                    "corrected_result_minus": {"F0": 141.0},
+                    "corrected_pair_mean": {"F0": 140.5},
+                    "temp_plus_used": 24.0,
+                    "press_plus_used": 95.2,
+                    "temp_minus_used": 25.0,
+                    "press_minus_used": 95.1,
+                }
+            ],
+            "split_comparison_pairs": [{"id": "old"}],
+            "split_last_calculated_result": {"weather_sync": {"high_plus": {"matched": True}}},
+            "split_final_results": {"num_results": 1},
+            "excel_buffer": b"old",
+        }
+
+        clear_split_final_state(test_data)
+
+        self.assertEqual(test_data["split_results"][0]["f0_prime"], 139.4)
+        self.assertNotIn("weather_sync", test_data["split_results"][0])
+        self.assertFalse(test_data["split_results"][0]["correction_available"])
+        self.assertIsNone(test_data["split_results"][0]["corrected_pair_mean"])
+        self.assertIsNone(test_data["split_results"][0]["temp_plus_used"])
+        self.assertEqual(test_data["split_comparison_pairs"], [])
+        self.assertIsNone(test_data["split_last_calculated_result"])
+        self.assertEqual(test_data["split_final_results"], {})
+        self.assertIsNone(test_data["excel_buffer"])
+
+    def test_ambient_mode_change_invalidates_results_and_comparison_cards(self):
+        test_data = {
+            "split_results": [{"F0": 140.0}],
+            "split_comparison_pairs": [{"id": "old"}],
+            "split_last_calculated_result": {"F0": 140.0},
+            "split_final_results": {"num_results": 1},
+            "excel_buffer": b"old",
+            "split_ambient_version": 2,
+        }
+
+        invalidate_split_ambient_state(test_data)
+
+        self.assertEqual(test_data["split_results"], [])
+        self.assertEqual(test_data["split_comparison_pairs"], [])
+        self.assertIsNone(test_data["split_last_calculated_result"])
+        self.assertEqual(test_data["split_final_results"], {})
+        self.assertIsNone(test_data["excel_buffer"])
+        self.assertEqual(test_data["split_ambient_version"], 3)
+
     def test_split_weather_file_loads_neutral_meteo_fields(self):
-        weather_path = SAMPLE_DIR / "clima" / "AGRICULTR_SPLIT.csv"
-        records = read_weather_station_csv(str(weather_path))
+        weather_path = SAMPLE_DIR / "meteo" / "AGRICULTR_SPLIT.csv"
+        records = read_weather_file(str(weather_path))
 
         self.assertGreater(len(records), 0)
         first = records[0]
@@ -218,6 +279,19 @@ class SplitSampleDataImportTest(unittest.TestCase):
         self.assertIn("temp_c", first)
         self.assertIn("baro_kpa", first)
         self.assertIn("wind_ms", first)
+        self.assertIn("wind_direction", first)
+
+        high_path = SAMPLE_DIR / "coastdown" / "split_MrLee_HighSpd_ctvi.csv"
+        _, high_runs, _ = carregar_dados_csv_robusto(
+            str(high_path),
+            using_split_method=True,
+            is_alta=True,
+        )
+        sync = sync_weather_to_run(high_runs[1], records)
+
+        self.assertTrue(sync["matched"])
+        self.assertEqual(sync["sync_method"], "datetime")
+        self.assertLess(sync["time_delta_seconds"], 300)
 
 
 if __name__ == "__main__":

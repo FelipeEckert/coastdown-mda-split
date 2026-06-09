@@ -18,8 +18,40 @@ def invalidate_split_input_state(test_data: dict, reset_meteo_sync: bool = True)
 
 def clear_split_final_state(test_data: dict) -> dict:
     """Clear final/export state after meteo or selection-dependent changes."""
+    for result in test_data.get("split_results") or []:
+        if isinstance(result, dict):
+            result.pop("weather_sync", None)
+            if result.get("ambient_mode") == "weather_sync":
+                result["correction_available"] = False
+                result["corrected_result_plus"] = None
+                result["corrected_result_minus"] = None
+                result["corrected_pair_mean"] = None
+                result["temp_plus_used"] = None
+                result["press_plus_used"] = None
+                result["temp_minus_used"] = None
+                result["press_minus_used"] = None
+                result["F0_plus"] = None
+                result["F2_plus"] = None
+                result["F0_minus"] = None
+                result["F2_minus"] = None
+                result["F0_mean"] = None
+                result["F2_mean"] = None
+                result["energy"] = None
     test_data["split_final_results"] = {}
     test_data["split_comparison_pairs"] = []
     test_data["split_last_calculated_result"] = None
     test_data["excel_buffer"] = None
+    return test_data
+
+
+def invalidate_split_ambient_state(test_data: dict) -> dict:
+    """Clear results whose correction depends on changed ambient conditions."""
+    test_data["split_results"] = []
+    test_data["split_comparison_pairs"] = []
+    test_data["split_last_calculated_result"] = None
+    test_data["split_final_results"] = {}
+    test_data["excel_buffer"] = None
+    test_data["split_ambient_version"] = (
+        int(test_data.get("split_ambient_version") or 0) + 1
+    )
     return test_data

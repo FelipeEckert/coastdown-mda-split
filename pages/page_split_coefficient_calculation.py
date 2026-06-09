@@ -9,10 +9,20 @@ from core.split_comparison import (
     build_split_comparison_pair,
     calculate_complete_split_pair,
     clear_split_comparison_pairs,
+    coefficient_variation_percent,
     group_split_records_by_direction,
     remove_split_comparison_pair,
 )
-from data.loaders import find_closest_weather_record
+from core.split_corrections import (
+    apply_split_pair_correction,
+    fixed_ambient_conditions,
+    weather_sync_ambient_conditions,
+)
+from core.weather_sync import (
+    DEFAULT_MAX_TIME_DELTA_SECONDS,
+    sync_weather_to_run,
+)
+from core.split_state import invalidate_split_ambient_state
 from data.split_parser import default_split_interval_config
 
 
@@ -99,38 +109,174 @@ def _input_summary(selection: dict, effective_mass: float, config: dict, t) -> p
     return pd.DataFrame(rows)
 
 
-def _render_meteo_status(t):
+def _sync_weather(record: dict) -> dict:
+    weather_data = st.session_state.get("weather_data")
+    return sync_weather_to_run(
+        record,
+        weather_data,
+        max_time_delta_seconds=DEFAULT_MAX_TIME_DELTA_SECONDS,
+        allow_time_only_fallback=bool(st.session_state.get("sync_meteo_by_time_only")),
+    )
+
+
+def _weather_sync_for_selection(selection: dict) -> dict:
+    return {
+        component: _sync_weather(record)
+        for component, record in selection.items()
+    }
+
+
+def _weather_sync_rows(weather_sync: dict, t) -> list[dict]:
+    rows = []
+    for component in ("high_plus", "low_plus", "high_minus", "low_minus"):
+        sync = weather_sync.get(component) or {}
+        rows.append(
+            {
+                t("split_meteo_component"): t(COMPONENT_LABEL_KEYS[component]),
+                t("split_meteo_status"): (
+                    t("split_meteo_matched")
+                    if sync.get("matched")
+                    else t("split_meteo_not_matched")
+                ),
+                t("split_meteo_method"): t(
+                    f"split_meteo_method_{sync.get('sync_method', 'not_found')}"
+                ),
+                t("split_meteo_run_datetime"): sync.get("run_datetime"),
+                t("split_meteo_weather_datetime"): sync.get("weather_datetime"),
+                t("split_meteo_delta_seconds"): sync.get("time_delta_seconds"),
+                t("split_meteo_temperature"): sync.get("temperature"),
+                t("split_meteo_pressure"): sync.get("pressure"),
+                t("split_meteo_wind_speed"): sync.get("wind_speed"),
+                t("split_meteo_wind_direction"): sync.get("wind_direction"),
+            }
+        )
+    return rows
+
+
+def _render_weather_sync(selection: dict, t) -> dict:
+    weather_sync = _weather_sync_for_selection(selection)
     weather_data = st.session_state.get("weather_data")
     if not weather_data:
         st.warning(t("split_meteo_not_available_warning"))
-        return
+        return weather_sync
 
     mode_key = (
         "meteo_sync_mode_time_only"
         if st.session_state.get("sync_meteo_by_time_only")
         else "meteo_sync_mode_full_datetime"
     )
-    st.info(t("split_meteo_loaded_not_applied_warning", mode=t(mode_key)))
-
-
-def _synced_weather(record: dict):
-    weather_data = st.session_state.get("weather_data")
-    if not weather_data:
-        return None
-    return find_closest_weather_record(
-        record,
-        weather_data,
-        time_only=bool(st.session_state.get("sync_meteo_by_time_only")),
+    st.info(t("split_meteo_loaded_for_correction", mode=t(mode_key)))
+    st.caption(
+        t(
+            "split_meteo_sync_limit",
+            seconds=DEFAULT_MAX_TIME_DELTA_SECONDS,
+        )
     )
+    st.dataframe(
+        pd.DataFrame(_weather_sync_rows(weather_sync, t)),
+        use_container_width=True,
+        hide_index=True,
+    )
+    sync_warnings = []
+    for sync in weather_sync.values():
+        sync_warnings.extend(sync.get("warnings") or [])
+    if sync_warnings:
+        st.warning("\n".join(dict.fromkeys(sync_warnings)))
+    return weather_sync
 
 
-def _weather_records_for_result(result: dict) -> dict:
-    return {
-        "high_plus": _synced_weather(result.get("high_plus") or {}),
-        "low_plus": _synced_weather(result.get("low_plus") or {}),
-        "high_minus": _synced_weather(result.get("high_minus") or {}),
-        "low_minus": _synced_weather(result.get("low_minus") or {}),
+def _render_ambient_conditions(selection: dict, t) -> dict:
+    st.subheader(t("split_ambient_conditions_title"))
+    test_key = st.session_state.get("active_test_id", "test")
+    mode_labels = {
+        t("split_ambient_mode_fixed"): "fixed",
+        t("split_ambient_mode_weather_sync"): "weather_sync",
     }
+    current_mode = st.session_state.get("split_ambient_mode", "fixed")
+    current_label = next(
+        label
+        for label, mode in mode_labels.items()
+        if mode == current_mode
+    )
+    selected_label = st.radio(
+        t("split_ambient_mode_label"),
+        options=list(mode_labels.keys()),
+        index=list(mode_labels.keys()).index(current_label),
+        horizontal=True,
+        key=f"split_ambient_mode_selector_{test_key}",
+    )
+    ambient_mode = mode_labels[selected_label]
+    st.session_state.split_ambient_mode = ambient_mode
+
+    if ambient_mode == "fixed":
+        col_temp, col_press = st.columns(2)
+        with col_temp:
+            temperature = st.number_input(
+                t("split_fixed_temperature"),
+                value=float(st.session_state.get("split_fixed_temperature", 20.0)),
+                min_value=-273.14,
+                step=0.1,
+                format="%.2f",
+                key=f"split_fixed_temperature_input_{test_key}",
+            )
+        with col_press:
+            pressure = st.number_input(
+                t("split_fixed_pressure"),
+                value=float(st.session_state.get("split_fixed_pressure", 101.325)),
+                min_value=0.001,
+                step=0.1,
+                format="%.3f",
+                key=f"split_fixed_pressure_input_{test_key}",
+            )
+        st.session_state.split_fixed_temperature = temperature
+        st.session_state.split_fixed_pressure = pressure
+        _apply_ambient_signature(
+            ("fixed", round(float(temperature), 6), round(float(pressure), 6)),
+            t,
+        )
+        st.info(t("split_fixed_conditions_apply_all"))
+        return fixed_ambient_conditions(temperature, pressure)
+
+    weather_sync = _render_weather_sync(selection, t)
+    _apply_ambient_signature(
+        (
+            "weather_sync",
+            st.session_state.get("split_meteo_csv_path"),
+            bool(st.session_state.get("sync_meteo_by_time_only")),
+        ),
+        t,
+    )
+    conditions = weather_sync_ambient_conditions(weather_sync)
+    if not conditions.get("available"):
+        st.warning(t("split_weather_correction_unavailable"))
+    return conditions
+
+
+def _apply_ambient_signature(signature: tuple, t):
+    previous = st.session_state.get("split_ambient_signature")
+    changed = previous is not None and previous != signature
+    if changed:
+        invalidate_split_ambient_state(st.session_state)
+        st.info(t("split_ambient_change_invalidated"))
+
+    st.session_state.split_ambient_signature = signature
+    active_test_id = st.session_state.get("active_test_id")
+    tests = st.session_state.get("tests") or {}
+    if active_test_id in tests:
+        test_data = tests[active_test_id]
+        for key in (
+            "split_ambient_mode",
+            "split_fixed_temperature",
+            "split_fixed_pressure",
+            "split_ambient_signature",
+            "split_ambient_version",
+            "split_results",
+            "split_comparison_pairs",
+            "split_last_calculated_result",
+            "split_final_results",
+            "excel_buffer",
+        ):
+            test_data[key] = st.session_state.get(key)
 
 
 def _fmt(value, precision=3):
@@ -139,7 +285,33 @@ def _fmt(value, precision=3):
     return "N/A" if value in (None, "") else str(value)
 
 
-def _comparison_rows(pairs: list[dict]) -> list[dict]:
+def _first_value(data: dict, *keys):
+    for key in keys:
+        value = data.get(key)
+        if value is not None:
+            return value
+    return None
+
+
+def _ambient_mode_label(pair: dict, t) -> str:
+    mode = pair.get("ambient_mode")
+    if mode == "fixed":
+        return t("split_ambient_mode_fixed_short")
+    if mode == "weather_sync":
+        return t("split_ambient_mode_weather_sync_short")
+    return "N/A"
+
+
+def _pair_warnings(pair: dict) -> str:
+    warnings = list(pair.get("warnings") or [])
+    if (pair.get("cv_F0_percent") or 0) > 10:
+        warnings.append("CV F0 > 10%")
+    if (pair.get("cv_F2_percent") or 0) > 10:
+        warnings.append("CV F2 > 10%")
+    return "; ".join(dict.fromkeys(warnings))
+
+
+def _comparison_rows(pairs: list[dict], t) -> list[dict]:
     rows = []
     for pair in pairs:
         rows.append(
@@ -149,13 +321,33 @@ def _comparison_rows(pairs: list[dict]) -> list[dict]:
                 "Low +": pair.get("low_plus_run"),
                 "High -": pair.get("high_minus_run"),
                 "Low -": pair.get("low_minus_run"),
-                "f'0 avg (N)": pair.get("f0_prime"),
-                "f'2 avg (N/(m/s)^2)": pair.get("f2_prime"),
-                "Mass (kg)": pair.get("effective_mass"),
-                "Temp (C)": pair.get("temp_c"),
-                "Pressure (kPa)": pair.get("baro_kpa"),
-                "Wind (m/s)": pair.get("wind_ms"),
-                "Energy": pair.get("energy_status") if pair.get("energy") is None else pair.get("energy"),
+                "f'0 avg (N)": _first_value(
+                    pair,
+                    "f0_prime_mean",
+                    "f0_prime",
+                ),
+                "f'2 avg (N/(m/s)^2)": _first_value(
+                    pair,
+                    "f2_prime_mean",
+                    "f2_prime",
+                ),
+                "F0 avg (N)": _first_value(pair, "F0_mean", "F0"),
+                "F2 avg (N/(km/h)^2)": _first_value(pair, "F2_mean", "F2"),
+                "Temp + / - (C)": (
+                    f"{_fmt(pair.get('temp_plus_used'), 1)} / "
+                    f"{_fmt(pair.get('temp_minus_used'), 1)}"
+                ),
+                "Pressure + / - (kPa)": (
+                    f"{_fmt(pair.get('press_plus_used'), 2)} / "
+                    f"{_fmt(pair.get('press_minus_used'), 2)}"
+                ),
+                t("split_ambient_mode_label"): _ambient_mode_label(pair, t),
+                "Energy (MJ/km)": (
+                    pair.get("energy")
+                    if pair.get("energy") is not None
+                    else "N/A"
+                ),
+                t("split_card_warnings"): _pair_warnings(pair),
             }
         )
     return rows
@@ -177,86 +369,223 @@ def _pair_component_rows(pair: dict, t) -> list[dict]:
     return rows
 
 
+def _pair_weather_rows(pair: dict, t) -> list[dict]:
+    return _weather_sync_rows(pair.get("weather_sync") or {}, t)
+
+
 def _result_rows(result: dict, t) -> list[dict]:
-    result_plus = result.get("result_plus") or {}
-    result_minus = result.get("result_minus") or {}
-    result_mean = result.get("result_pair_mean") or {}
     return [
         {
             "Result": t("split_direction_plus_result"),
-            "f'0 (N)": result_plus.get("f0_prime"),
-            "f'2 (N/(m/s)^2)": result_plus.get("f2_prime"),
+            "f'0 (N)": result.get("f0_prime_plus"),
+            "f'2 (N/(m/s)^2)": result.get("f2_prime_plus"),
         },
         {
             "Result": t("split_direction_minus_result"),
-            "f'0 (N)": result_minus.get("f0_prime"),
-            "f'2 (N/(m/s)^2)": result_minus.get("f2_prime"),
+            "f'0 (N)": result.get("f0_prime_minus"),
+            "f'2 (N/(m/s)^2)": result.get("f2_prime_minus"),
         },
         {
             "Result": t("split_pair_average"),
-            "f'0 (N)": result_mean.get("f0_prime"),
-            "f'2 (N/(m/s)^2)": result_mean.get("f2_prime"),
+            "f'0 (N)": _first_value(
+                result,
+                "f0_prime_mean",
+                "f0_prime",
+            ),
+            "f'2 (N/(m/s)^2)": _first_value(
+                result,
+                "f2_prime_mean",
+                "f2_prime",
+            ),
+        },
+    ]
+
+
+def _corrected_result_rows(result: dict, t) -> list[dict]:
+    return [
+        {
+            "Result": t("split_direction_plus_result"),
+            "F0 (N)": result.get("F0_plus"),
+            "F2 (N/(km/h)^2)": result.get("F2_plus"),
+            t("split_meteo_temperature"): result.get("temp_plus_used"),
+            t("split_meteo_pressure"): result.get("press_plus_used"),
+        },
+        {
+            "Result": t("split_direction_minus_result"),
+            "F0 (N)": result.get("F0_minus"),
+            "F2 (N/(km/h)^2)": result.get("F2_minus"),
+            t("split_meteo_temperature"): result.get("temp_minus_used"),
+            t("split_meteo_pressure"): result.get("press_minus_used"),
+        },
+        {
+            "Result": t("split_pair_average"),
+            "F0 (N)": _first_value(result, "F0_mean", "F0"),
+            "F2 (N/(km/h)^2)": _first_value(result, "F2_mean", "F2"),
+            t("split_meteo_temperature"): None,
+            t("split_meteo_pressure"): None,
         },
     ]
 
 
 def _render_result_summary(result: dict, t):
-    st.subheader(t("split_selected_pair_results"))
-    result_mean = result.get("result_pair_mean") or {}
+    st.subheader(t("split_uncorrected_results"))
     col_f0, col_f2 = st.columns(2)
-    col_f0.metric("f'0", f"{result_mean.get('f0_prime', 0):.6f} N")
-    col_f2.metric("f'2", f"{result_mean.get('f2_prime', 0):.9f} N/(m/s)^2")
+    col_f0.metric(
+        "f'0",
+        f"{_first_value(result, 'f0_prime_mean', 'f0_prime'):.6f} N",
+    )
+    col_f2.metric(
+        "f'2",
+        f"{_first_value(result, 'f2_prime_mean', 'f2_prime'):.9f} N/(m/s)^2",
+    )
     st.dataframe(pd.DataFrame(_result_rows(result, t)), use_container_width=True, hide_index=True)
+    st.subheader(t("split_corrected_results"))
+    if result.get("correction_available"):
+        col_f0_corr, col_f2_corr = st.columns(2)
+        col_f0_corr.metric(
+            "F0",
+            f"{_first_value(result, 'F0_mean', 'F0'):.6f} N",
+        )
+        col_f2_corr.metric(
+            "F2",
+            f"{_first_value(result, 'F2_mean', 'F2'):.9f} N/(km/h)^2",
+        )
+        st.dataframe(
+            pd.DataFrame(_corrected_result_rows(result, t)),
+            use_container_width=True,
+            hide_index=True,
+        )
+        st.caption(
+            t(
+                "split_ambient_source_summary",
+                source=t(f"split_ambient_source_{result.get('ambient_source')}"),
+            )
+        )
+    else:
+        st.warning(t("split_corrected_results_unavailable"))
+    st.write(
+        f"{t('split_ambient_mode_label')}: "
+        f"{_ambient_mode_label(result, t)}"
+    )
+    st.write(
+        f"{t('split_card_temp_ida_volta')}: "
+        f"{_fmt(result.get('temp_plus_used'), 1)} / "
+        f"{_fmt(result.get('temp_minus_used'), 1)} C"
+    )
+    st.write(
+        f"{t('split_card_pressure_ida_volta')}: "
+        f"{_fmt(result.get('press_plus_used'), 2)} / "
+        f"{_fmt(result.get('press_minus_used'), 2)} kPa"
+    )
+    st.write(
+        f"{t('split_card_energy')}: "
+        f"{_fmt(result.get('energy'), 4)}"
+    )
+    if result.get("energy") is None:
+        st.caption(t("split_energy_unavailable_contract"))
     if result.get("warnings"):
         st.warning("; ".join(result["warnings"]))
 
 
-def _render_pair_card(pair: dict, t):
+def _render_pair_card(pair: dict, t, pair_number: int):
     label = (
-        f"{pair.get('id')} | + {pair.get('high_plus_run')}/{pair.get('low_plus_run')} | "
+        f"{t('split_pair')} {pair_number} | "
+        f"+ {pair.get('high_plus_run')}/{pair.get('low_plus_run')} | "
         f"- {pair.get('high_minus_run')}/{pair.get('low_minus_run')} | "
-        f"f'0={_fmt(pair.get('f0_prime'), 4)} N"
+        f"F0={_fmt(_first_value(pair, 'F0_mean', 'F0'), 2)} N"
     )
     with st.expander(label, expanded=False):
-        st.markdown(f"**{t('split_complete_pair_components')}**")
-        st.dataframe(pd.DataFrame(_pair_component_rows(pair, t)), use_container_width=True, hide_index=True)
+        ambient_col, coefficients_col, variation_col, energy_col = st.columns(4)
 
-        st.markdown(f"**{t('split_card_coefficients')}**")
-        results_df = pd.DataFrame(
-            [
-                {
-                    "Result": t("split_direction_plus_result"),
-                    "f'0 (N)": pair.get("f0_plus"),
-                    "f'2 (N/(m/s)^2)": pair.get("f2_plus"),
-                },
-                {
-                    "Result": t("split_direction_minus_result"),
-                    "f'0 (N)": pair.get("f0_minus"),
-                    "f'2 (N/(m/s)^2)": pair.get("f2_minus"),
-                },
-                {
-                    "Result": t("split_pair_average"),
-                    "f'0 (N)": pair.get("f0_prime"),
-                    "f'2 (N/(m/s)^2)": pair.get("f2_prime"),
-                },
-            ]
+        with ambient_col:
+            st.markdown(f"##### {t('split_card_ambient_conditions')}")
+            st.write(
+                f"{t('split_card_temp_ida_volta')}: "
+                f"{_fmt(pair.get('temp_plus_used'), 1)} / "
+                f"{_fmt(pair.get('temp_minus_used'), 1)} C"
+            )
+            st.write(
+                f"{t('split_card_pressure_ida_volta')}: "
+                f"{_fmt(pair.get('press_plus_used'), 2)} / "
+                f"{_fmt(pair.get('press_minus_used'), 2)} kPa"
+            )
+            st.write(
+                f"{t('split_card_wind_ida_volta')}: "
+                f"{_fmt(pair.get('wind_plus_ms'), 2)} / "
+                f"{_fmt(pair.get('wind_minus_ms'), 2)} m/s"
+            )
+            st.caption(
+                f"{t('split_ambient_mode_label')}: "
+                f"{_ambient_mode_label(pair, t)}"
+            )
+
+        with coefficients_col:
+            st.markdown(f"##### {t('split_corrected_results')}")
+            if pair.get("correction_available"):
+                st.metric(
+                    "F0",
+                    f"{_fmt(_first_value(pair, 'F0_mean', 'F0'), 3)} N",
+                )
+                st.metric(
+                    "F2",
+                    f"{_fmt(_first_value(pair, 'F2_mean', 'F2'), 6)} "
+                    "N/(km/h)^2",
+                )
+                st.caption(t("split_f2_explicit_conversion_note"))
+            else:
+                st.write(t("split_corrected_results_unavailable"))
+            st.caption(
+                f"f'0: {_fmt(_first_value(pair, 'f0_prime_mean', 'f0_prime'), 3)} N | "
+                f"f'2: {_fmt(_first_value(pair, 'f2_prime_mean', 'f2_prime'), 6)} "
+                "N/(m/s)^2"
+            )
+
+        with variation_col:
+            st.markdown(f"##### {t('split_card_variations')}")
+            for coefficient, value in (
+                ("F0", pair.get("cv_F0_percent")),
+                ("F2", pair.get("cv_F2_percent")),
+            ):
+                if value is None:
+                    st.write(f"CV {coefficient}: N/A")
+                elif value > 10:
+                    st.warning(f"CV {coefficient}: {value:.2f}%")
+                else:
+                    st.write(f"CV {coefficient}: {value:.2f}%")
+
+        with energy_col:
+            st.markdown(f"##### {t('split_card_energy')}")
+            if pair.get("energy") is None:
+                st.metric(t("split_card_energy"), "N/A")
+                st.caption(t("split_energy_unavailable_contract"))
+            else:
+                unit = pair.get("energy_unit") or "MJ/km"
+                st.metric(t("split_card_energy"), f"{_fmt(pair.get('energy'), 4)} {unit}")
+                if pair.get("energy_profile"):
+                    st.caption(str(pair["energy_profile"]))
+
+        st.caption(
+            f"{t('split_effective_mass_available')}: "
+            f"{_fmt(pair.get('effective_mass'))} kg | "
+            f"V1/V2: {_fmt(pair.get('v1_reference_kmh'))} / "
+            f"{_fmt(pair.get('v2_reference_kmh'))} km/h | "
+            f"Delta V1/V2: {_fmt(pair.get('delta_v1_kmh'))} / "
+            f"{_fmt(pair.get('delta_v2_kmh'))} km/h"
         )
-        st.dataframe(results_df, use_container_width=True, hide_index=True)
-        st.write(f"{t('split_effective_mass_available')}: {_fmt(pair.get('effective_mass'))} kg")
-        st.write(f"V1/V2: {_fmt(pair.get('v1_reference_kmh'))} / {_fmt(pair.get('v2_reference_kmh'))} km/h")
-        st.write(f"Delta V1/V2: {_fmt(pair.get('delta_v1_kmh'))} / {_fmt(pair.get('delta_v2_kmh'))} km/h")
 
-        st.markdown(f"**{t('split_card_meteo')}**")
-        if pair.get("temp_c") is None and pair.get("baro_kpa") is None and pair.get("wind_ms") is None:
-            st.write(t("split_meteo_not_synced_for_pair"))
-        else:
-            st.write(f"{t('temperature')}: {_fmt(pair.get('temp_c'))} C")
-            st.write(f"{t('pressure')}: {_fmt(pair.get('baro_kpa'))} kPa")
-            st.write(f"{t('meteo_sync_col_wind')}: {_fmt(pair.get('wind_ms'))} m/s")
-            st.caption(t("split_meteo_display_only_warning"))
-
-        st.markdown(f"**{t('split_card_energy')}**")
-        st.write(pair.get("energy_status") or _fmt(pair.get("energy")))
+        st.markdown(f"**{t('split_card_traceability')}**")
+        st.dataframe(
+            pd.DataFrame(_pair_component_rows(pair, t)),
+            use_container_width=True,
+            hide_index=True,
+        )
+        weather_sync = pair.get("weather_sync") or {}
+        if weather_sync:
+            st.dataframe(
+                pd.DataFrame(_pair_weather_rows(pair, t)),
+                use_container_width=True,
+                hide_index=True,
+            )
 
         warnings = pair.get("warnings") or []
         if warnings:
@@ -280,10 +609,7 @@ def _render_comparison_area(t):
     last_result = st.session_state.get("split_last_calculated_result")
     if last_result:
         if st.button(t("split_add_to_final_comparison"), use_container_width=True):
-            pair = build_split_comparison_pair(
-                last_result,
-                weather_records=_weather_records_for_result(last_result),
-            )
+            pair = build_split_comparison_pair(last_result)
             st.session_state.split_comparison_pairs = add_split_comparison_pair(pairs, pair)
             st.session_state.split_final_results = {}
             st.session_state.excel_buffer = None
@@ -297,7 +623,11 @@ def _render_comparison_area(t):
         st.info(t("split_comparison_empty"))
         return
 
-    st.dataframe(pd.DataFrame(_comparison_rows(pairs)), use_container_width=True, hide_index=True)
+    st.dataframe(
+        pd.DataFrame(_comparison_rows(pairs, t)),
+        use_container_width=True,
+        hide_index=True,
+    )
 
     if st.button(t("split_clear_final_comparison"), type="secondary", use_container_width=True):
         st.session_state.split_comparison_pairs = clear_split_comparison_pairs()
@@ -306,8 +636,18 @@ def _render_comparison_area(t):
         st.rerun()
 
     st.subheader(t("split_comparison_pair_cards"))
-    for pair in pairs:
-        _render_pair_card(pair, t)
+    for pair_number, pair in enumerate(pairs, start=1):
+        if pair.get("cv_F0_percent") is None:
+            pair["cv_F0_percent"] = coefficient_variation_percent(
+                pair.get("F0_plus"),
+                pair.get("F0_minus"),
+            )
+        if pair.get("cv_F2_percent") is None:
+            pair["cv_F2_percent"] = coefficient_variation_percent(
+                pair.get("F2_plus"),
+                pair.get("F2_minus"),
+            )
+        _render_pair_card(pair, t, pair_number)
 
 
 def _selected_from_group(grouped: dict, component: str, label_key: str, selection_key_suffix: str):
@@ -438,9 +778,9 @@ def render(t):
         hide_index=True,
     )
 
-    _render_meteo_status(t)
+    ambient_conditions = _render_ambient_conditions(selection, t)
 
-    if st.button(t("split_calculate_selected_pair"), type="primary", use_container_width=True):
+    if st.button(t("split_calculate_coefficients"), type="primary", use_container_width=True):
         try:
             result = calculate_complete_split_pair(
                 high_plus=high_plus,
@@ -450,6 +790,7 @@ def render(t):
                 effective_mass=effective_mass,
                 config=config,
             )
+            result = apply_split_pair_correction(result, ambient_conditions)
             st.session_state.setdefault("split_results", [])
             st.session_state.split_results.append(result)
             st.session_state.split_last_calculated_result = result
@@ -457,9 +798,12 @@ def render(t):
             st.session_state.excel_buffer = None
 
             st.success(t("split_selected_pair_calculated"))
-            _render_result_summary(result, t)
         except ValueError as exc:
             st.error(str(exc))
+
+    last_result = st.session_state.get("split_last_calculated_result")
+    if last_result:
+        _render_result_summary(last_result, t)
 
     if st.session_state.get("split_results"):
         st.info(t("split_saved_results_count", count=len(st.session_state.split_results)))

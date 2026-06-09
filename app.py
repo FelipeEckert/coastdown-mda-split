@@ -31,7 +31,8 @@ HYUNDAI_LOGO_PNG_PATH = os.path.join(ASSETS_DIR, "hyundai_logo.png")
 sys.path.insert(0, BASE_DIR)
 
 from translations import get_translator, get_available_languages
-from data.loaders import carregar_dados_csv_robusto, read_weather_station_csv
+from data.loaders import carregar_dados_csv_robusto
+from data.weather_loader import read_weather_file
 from core.split_state import clear_split_final_state, invalidate_split_input_state
 
 # ===== CONFIGURAÇÃO DA PÁGINA =====
@@ -450,6 +451,8 @@ TEST_STATE_KEYS = [
     "date_mismatch_warning",
     "sync_meteo_by_time_only",
     "fixed_temperature", "fixed_pressure",
+    "split_ambient_mode", "split_fixed_temperature", "split_fixed_pressure",
+    "split_ambient_signature", "split_ambient_version",
     # Estado auxiliar do teste
     "excel_buffer",
 ]
@@ -499,6 +502,11 @@ TEST_DEFAULTS = {
     "sync_meteo_by_time_only": False,
     "fixed_temperature": 25.0,
     "fixed_pressure": 101.3,
+    "split_ambient_mode": "fixed",
+    "split_fixed_temperature": 20.0,
+    "split_fixed_pressure": 101.325,
+    "split_ambient_signature": None,
+    "split_ambient_version": 0,
     "excel_buffer": None,
 }
 
@@ -703,13 +711,14 @@ def _load_uploaded_csv_file(uploaded_csv, t, using_split_method=False, is_alta=T
 
 
 def _load_uploaded_meteo_file(uploaded_meteo, t):
-    """Valida e carrega um CSV meteorológico em estrutura temporária."""
-    with tempfile.NamedTemporaryFile(mode="wb", suffix=".csv", delete=False) as tmp:
+    """Validate and load a neutral CSV/XLSX weather file."""
+    suffix = os.path.splitext(uploaded_meteo.name)[1].lower() or ".csv"
+    with tempfile.NamedTemporaryFile(mode="wb", suffix=suffix, delete=False) as tmp:
         tmp.write(uploaded_meteo.getvalue())
         tmp_path = tmp.name
 
     try:
-        weather_data = read_weather_station_csv(tmp_path)
+        weather_data = read_weather_file(tmp_path)
     finally:
         try:
             os.unlink(tmp_path)
@@ -1211,7 +1220,7 @@ def edit_test_dialog(t):
         meteo_label = t("replace_meteo") if has_current_meteo else t("add_meteo")
         uploaded_meteo = st.file_uploader(
             meteo_label,
-            type=["csv"],
+            type=["csv", "xlsx"],
             key=f"edit_test_meteo_{dialog_token}_{weather_key_version}"
         )
 
@@ -1536,7 +1545,7 @@ def new_test_dialog(t):
     st.subheader(f"📊 {t('upload_weather_csv')}")
     uploaded_meteo = st.file_uploader(
         t("upload_weather_csv"),
-        type=["csv"],
+        type=["csv", "xlsx"],
         key="new_test_meteo_upload",
         label_visibility="collapsed"
     )

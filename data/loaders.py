@@ -401,8 +401,8 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
                     else:
                         # HH>0 => Absoluto no dia do teste
                         try:
-                            # Usa só HH:MM:SS para montar a hora absoluta (ignora fração aqui)
-                            time_with_sec = datetime.strptime(s.split('.')[0], "%H:%M:%S").time()
+                            microsecond = int((frac or "").ljust(6, "0")[:6]) if frac else 0
+                            time_with_sec = time(hh, mm, ss, microsecond)
                             start_timestamp = datetime.combine(test_date, time_with_sec)
                             debug_output.append(
                                 f"  -> Start Time '{s}' interpretado como ABSOLUTO -> {start_timestamp}"
