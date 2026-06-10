@@ -16,6 +16,7 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, time, timedelta
 
+from data.split_parser import parse_speed_bin_label
 from utils.file_utils import detect_encoding_and_dialect, normalize_column_names
 
 
@@ -193,11 +194,13 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
          # Processando os nomes do cabeçalho para garantir unicidade
         raw_header_parts = header_line_content.split(dialect.delimiter) # Usar o delimitador detectado para os dados
         header_names = []
+        raw_column_labels = []
         unnamed_counter = 0
         seen_names = set() # Para controlar nomes duplicados
 
         for h in raw_header_parts:
             stripped_h = h.strip()
+            raw_column_labels.append(stripped_h)
             if not stripped_h:
                 # Se o cabeçalho está vazio, atribui um nome Unnamed_Col_X
                 current_name = f"Unnamed_Col_{unnamed_counter}"
@@ -213,8 +216,8 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
                 suffix_counter += 1
             
             header_names.append(current_name)
-            header_names = normalize_column_names(header_names)
             seen_names.add(current_name)
+        header_names = normalize_column_names(header_names)
 
         # Lendo o CSV, usando a linha 15 como cabeçalho
         # Lendo o CSV, pulando a linha do cabeçalho e usando os nomes de coluna extraídos
@@ -238,7 +241,7 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
             raise ValueError("O DataFrame resultante está vazio após a leitura do CSV.")
 
         # Normaliza os nomes das colunas APÓS a leitura do Pandas
-        original_columns = df.columns.tolist()
+        original_columns = raw_column_labels
 
         # DEBUG: Print column information
         debug_output.append(f"\n--- Column Detection Debug ---")
@@ -339,15 +342,17 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
                 is_numeric_header = True
             except (ValueError, TypeError):
                 pass
+            is_interval_label = parse_speed_bin_label(original_col_name) is not None
             
             debug_output.append(f"  Checking column {i} (Original: '{original_col_name}', Normalized: '{normalized_col_name}'):")
             debug_output.append(f"    is_empty_header: {is_empty_header}")
             debug_output.append(f"    is_unnamed_header: {is_unnamed_header}")
             debug_output.append(f"    is_numeric_header: {is_numeric_header}")
+            debug_output.append(f"    is_interval_label: {is_interval_label}")
             debug_output.append(f"    Is before Notes column ({notes_col_index}): {i < notes_col_index if notes_col_index != -1 else 'N/A'}")
 
             # A condição principal: se o cabeçalho é vazio/unnamed/numérico E está antes da coluna 'Notes'
-            if (is_empty_header or is_unnamed_header or is_numeric_header) and \
+            if (is_empty_header or is_unnamed_header or is_numeric_header or is_interval_label) and \
                (notes_col_index == -1 or i < notes_col_index):
                 col_inicio_tempos = i
                 debug_output.append(f"  Found start column for times at index: {col_inicio_tempos}")
@@ -360,8 +365,6 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
             with open("debug_vbox_date.txt", "w", encoding="utf-8") as debug_f:
                 debug_f.write("\n".join(debug_output))
             raise ValueError("Não foi possível determinar a coluna inicial dos tempos de intervalo. Nenhuma coluna com cabeçalho vazio, 'Unnamed: X' ou numérico foi encontrada na linha 15 após as colunas de metadados conhecidas.")
-
-        velocities_base = list(range(100, 0, -5))
 
         for run_id in runs:
             try:
@@ -454,22 +457,10 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
             except KeyError as ke:
                 continue
            
-            if using_split_method:
-                if is_alta:
-                    velocities = [90.0]
-                else:
-                    velocities = [45.0]
-            else:
-                velocities = [100.0]
-
-            times = [0.0]
-            #velocities = [100.0]
-            cumulative_time = 0.0
+            interval_measurements = []
             col_idx = col_inicio_tempos
-            max_cols_to_read = len(velocities_base)
-            intervals_read = 0
 
-            while intervals_read < max_cols_to_read and col_idx < len(header_list_normalized) and (notes_col_index == -1 or col_idx < notes_col_index):
+            while col_idx < len(header_list_normalized) and (notes_col_index == -1 or col_idx < notes_col_index):
                 try:
                     time_interval_str = str(run_data_row.iloc[col_idx]).replace(",", ".")
                     time_interval = pd.to_numeric(time_interval_str, errors="coerce")
@@ -481,26 +472,42 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
                 if pd.isna(time_interval) or time_interval < 0: 
                     break
 
-                cumulative_time += time_interval
-                next_velocity = velocities[-1] - 5
-                velocities.append(next_velocity)
-                times.append(cumulative_time)
-                intervals_read += 1
+                interval_measurements.append(
+                    {
+                        "column": header_list_normalized[col_idx],
+                        "label": original_columns[col_idx],
+                        "time_s": float(time_interval),
+                    }
+                )
                 col_idx += 1
 
-            min_len = min(len(times), len(velocities))
-            if min_len >= 2:
-                
+            if interval_measurements:
+                if using_split_method:
+                    all_data[run_id] = {
+                        "interval_measurements": interval_measurements,
+                        "heading": run_heading,
+                        "start_timestamp": start_timestamp,
+                        "start_time_str": start_time_str,
+                    }
+                    continue
+
+                velocities = [100.0]
+                times = [0.0]
+                cumulative_time = 0.0
+                for measurement in interval_measurements:
+                    cumulative_time += measurement["time_s"]
+                    velocities.append(velocities[-1] - 5.0)
+                    times.append(cumulative_time)
                 all_data[run_id] = {
-                    "times": times[:min_len],
-                    "velocities": velocities[:min_len],
+                    "times": times,
+                    "velocities": velocities,
                     "heading": run_heading,
                     "start_timestamp": start_timestamp,
-                    "start_time_str":start_time_str
+                    "start_time_str": start_time_str,
                 }
 
             else:
-                print(f"Aviso: Run {run_id} não produziu dados de tempo/velocidade suficientes (len={min_len}). Pulando run.")
+                print(f"Aviso: Run {run_id} não produziu dados de intervalo suficientes. Pulando run.")
 
         if not all_data:
             # Write debug_output before raising error

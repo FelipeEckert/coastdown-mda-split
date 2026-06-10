@@ -8,6 +8,7 @@ from statistics import mean, stdev
 
 
 DEFAULT_SPLIT_INTERVAL_CONFIG = {
+    "step_kmh": 5.0,
     "high": {"start": 90.0, "end": 70.0, "reference": 80.0},
     "low": {"start": 45.0, "end": 35.0, "reference": 40.0},
 }

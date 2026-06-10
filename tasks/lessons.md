@@ -1164,3 +1164,31 @@ resultado plausivel e errado. O parser deve ser conservador e o fluxo deve avisa
 quando falta high ou low, bloqueando calculo incompleto.
 
 ---
+
+## 2026-06-10 - Split: O Passo Faz Parte Da Identidade Do Intervalo
+
+### Contexto:
+O parser aceitava qualquer sequencia continua que cobrisse o intervalo configurado,
+mesmo que os bins do arquivo tivessem sido adquiridos com um passo diferente.
+
+### Decisao:
+`split_interval_config` passa a guardar `step_kmh`. O parser gera os bins esperados
+a partir de inicio, fim e passo e exige correspondencia exata, sem juntar ou dividir
+subintervalos implicitamente. A amplitude tambem precisa ser multipla do passo.
+
+Alterar inicio, fim, referencia ou passo invalida parser, resultados, ultimo calculo,
+comparativo e export antes do reprocessamento.
+
+O loader Split nao deve fabricar velocidades iniciando em 90 ou 45 nem decrementar
+sempre 5 km/h. Ele preserva tempos e rotulos das colunas. Rotulos explicitos sao
+casados por velocidade; colunas sem rotulo so podem ser associadas quando o slot
+separate define inequivocamente o papel high ou low. Combined sem rotulos deve
+bloquear, pois nao ha informacao suficiente para separar os intervalos.
+
+### Licao:
+Cobertura continua nao e suficiente para provar que o arquivo representa a
+configuracao de aquisicao escolhida. No Split, o passo deve ser rastreavel e validado
+como parte do contrato do parser. Quando a cobertura falhar, registrar bins esperados,
+encontrados e faltantes em vez de emitir apenas "intervalo nao encontrado".
+
+---

@@ -11,6 +11,11 @@
 - [x] Support combined file with both intervals
 - [x] Support full coastdown file with dynamic interval extraction
 - [x] Add interval configuration UI
+- [x] Add configurable coastdown interval step (`step_kmh`, default 5 km/h)
+- [x] Require exact parser bins from start/end/step and block incompatible spans
+- [x] Remove Split loader assumptions that high starts at 90, low at 45 and bins always step by 5 km/h
+- [x] Preserve labeled VBOX interval columns and report expected/found/missing bins
+- [x] Use explicit high/low role plus current config for unlabeled separate files; block unlabeled combined files
 - [x] Track file/run/column traceability
 - [x] Enforce source role: high slot only high, low slot only low
 - [x] Require complete interval coverage before accepting high/low
@@ -53,6 +58,7 @@
 - [x] Invalidate Split-derived state when input mode changes
 - [x] Show Split input mode message based on parsed high/low records
 - [x] Show upload slots from explicit mode: separate high/low or single combined
+- [x] Invalidate and reparse Split state when interval start/end/reference/step changes
 - [ ] Manual UX test for replacing only high, only low and only meteo in an existing test
 - [ ] Manual UX test for switching input mode in an existing test
 - [x] Move high/low pair selection and coefficient calculation logic from Interval Selection to Coefficient Calculation
@@ -109,6 +115,8 @@
 - [ ] Run manual regression with high+low CSVs and confirm final f'0/f'2 match expected values.
 - [ ] Run manual regression with four selected runs and confirm ida, volta and pair-average f'0/f'2.
 - [ ] Run manual regression with explicit combined mode and confirm high-only/low-only combined files block calculation.
+- [ ] Run manual regression with a real VBOX file configured with a non-5 km/h interval step.
+- [ ] Confirm whether production combined VBOX exports include explicit speed-bin labels.
 
 ## Meteo status
 - [x] Weather CSV loader remains neutral infrastructure reused by Split.
@@ -147,7 +155,7 @@
 ## Known gaps and next steps
 - [ ] Parser needs more real combined/full coastdown examples to validate heuristics beyond synthetic full-coastdown tests.
 - [ ] Split workflow/results still contain English literal labels; convert important user-facing strings to `translations.py`.
-- [ ] Review whether interval changes after upload should automatically reparse or show a stronger "reparse required" cue.
+- [x] Interval configuration changes automatically invalidate and reparse dependent Split state.
 - [ ] Review date/timezone policy for files with ambiguous dates or missing timezone metadata.
 - [ ] Add meteo synchronization details to Split Excel export without applying climatic correction implicitly.
 - [ ] Continue visual polish after functional validation; keep technical meteo warnings collapsed by default.

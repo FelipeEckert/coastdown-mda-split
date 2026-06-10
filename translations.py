@@ -903,6 +903,78 @@ TRANSLATIONS = {
         "pt": "Seleção de Intervalos",
         "en": "Interval Selection"
     },
+    "split_interval_configuration": {
+        "pt": "Configuração dos intervalos Split",
+        "en": "Split interval configuration"
+    },
+    "split_interval_defaults_note": {
+        "pt": "Os valores normativos são apenas padrões. Ajuste-os conforme a configuração da aquisição.",
+        "en": "Norm values are defaults only. Adjust them to match the acquisition setup."
+    },
+    "split_interval_step_kmh": {
+        "pt": "Passo dos intervalos de desaceleração [km/h]",
+        "en": "Coastdown interval step [km/h]"
+    },
+    "split_interval_high": {
+        "pt": "Intervalo de alta",
+        "en": "High interval"
+    },
+    "split_interval_low": {
+        "pt": "Intervalo de baixa",
+        "en": "Low interval"
+    },
+    "split_high_start_kmh": {
+        "pt": "Início do intervalo high [km/h]",
+        "en": "High interval start [km/h]"
+    },
+    "split_high_reference_kmh": {
+        "pt": "Referência high V2 [km/h]",
+        "en": "High reference V2 [km/h]"
+    },
+    "split_high_end_kmh": {
+        "pt": "Fim do intervalo high [km/h]",
+        "en": "High interval end [km/h]"
+    },
+    "split_low_start_kmh": {
+        "pt": "Início do intervalo low [km/h]",
+        "en": "Low interval start [km/h]"
+    },
+    "split_low_reference_kmh": {
+        "pt": "Referência low V1 [km/h]",
+        "en": "Low reference V1 [km/h]"
+    },
+    "split_low_end_kmh": {
+        "pt": "Fim do intervalo low [km/h]",
+        "en": "Low interval end [km/h]"
+    },
+    "split_parse_intervals": {
+        "pt": "Processar intervalos Split",
+        "en": "Parse Split intervals"
+    },
+    "split_reset_intervals": {
+        "pt": "Restaurar intervalos",
+        "en": "Reset intervals"
+    },
+    "split_interval_step_invalid": {
+        "pt": "O passo dos intervalos deve ser maior que zero.",
+        "en": "Coastdown interval step must be greater than zero."
+    },
+    "split_interval_step_incompatible": {
+        "pt": "A amplitude do {interval} ({span:g} km/h) deve ser múltipla exata do passo configurado ({step:g} km/h).",
+        "en": "The {interval} span ({span:g} km/h) must be an exact multiple of the configured step ({step:g} km/h)."
+    },
+    "split_interval_order_invalid": {
+        "pt": "O início do {interval} deve ser maior que o fim.",
+        "en": "The {interval} start must be greater than its end."
+    },
+    "split_interval_reference_invalid": {
+        "pt": "A velocidade de referência do {interval} deve ficar entre o início e o fim.",
+        "en": "The {interval} reference speed must be between its start and end."
+    },
+    "split_interval_values_invalid": {
+        "pt": "Os valores do {interval} devem ser numéricos e finitos.",
+        "en": "The {interval} values must be numeric and finite."
+    },
     "page_split_coefficient_calculation": {
         "pt": "Cálculo dos Coeficientes",
         "en": "Coefficient Calculation"

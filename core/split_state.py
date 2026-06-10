@@ -1,6 +1,8 @@
 # coding: utf-8
 """Session-state helpers for Split workflow invalidation."""
 
+from copy import deepcopy
+
 
 def invalidate_split_input_state(test_data: dict, reset_meteo_sync: bool = True) -> dict:
     """Clear Split-derived state after coastdown input files or mode change."""
@@ -14,6 +16,16 @@ def invalidate_split_input_state(test_data: dict, reset_meteo_sync: bool = True)
     if reset_meteo_sync:
         test_data["sync_meteo_by_time_only"] = False
     return test_data
+
+
+def update_split_interval_config(test_data: dict, new_config: dict) -> bool:
+    """Save changed interval settings and invalidate every dependent result."""
+    if test_data.get("split_interval_config") == new_config:
+        return False
+
+    test_data["split_interval_config"] = deepcopy(new_config)
+    invalidate_split_input_state(test_data)
+    return True
 
 
 def clear_split_final_state(test_data: dict) -> dict:
