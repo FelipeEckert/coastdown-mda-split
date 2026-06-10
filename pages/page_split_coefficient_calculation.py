@@ -6,23 +6,32 @@ import streamlit as st
 
 from core.split_comparison import (
     add_split_comparison_pair,
+    build_split_comparison_table_rows,
     build_split_comparison_pair,
     calculate_complete_split_pair,
     clear_split_comparison_pairs,
     coefficient_variation_percent,
     group_split_records_by_direction,
     remove_split_comparison_pair,
+    set_split_comparison_selected_ids,
 )
 from core.split_corrections import (
     apply_split_pair_correction,
     fixed_ambient_conditions,
     weather_sync_ambient_conditions,
 )
+from core.split_display import (
+    format_run_option_label,
+    format_split_pair_label,
+)
 from core.weather_sync import (
     DEFAULT_MAX_TIME_DELTA_SECONDS,
     sync_weather_to_run,
 )
-from core.split_state import invalidate_split_ambient_state
+from core.split_state import (
+    invalidate_split_ambient_state,
+    split_parse_is_current,
+)
 from data.split_parser import default_split_interval_config
 
 
@@ -50,21 +59,6 @@ def _effective_mass():
     except (TypeError, ValueError):
         return None
     return mass if mass > 0 else None
-
-
-def _record_label(record: dict) -> str:
-    parts = [
-        str(record.get("filename") or "N/A"),
-        f"run {record.get('run_id', 'N/A')}",
-    ]
-    heading = _record_direction(record)
-    if heading and heading != "N/A":
-        parts.append(f"dir {heading}")
-    start_time = record.get("start_time_str") or record.get("start_timestamp")
-    if start_time:
-        parts.append(str(start_time))
-    parts.append(f"dt={float(record.get('delta_t_s') or 0):.3f}s")
-    return " | ".join(parts)
 
 
 def _record_summary(component: str, record: dict, t) -> dict:
@@ -389,56 +383,167 @@ def _ambient_mode_label(pair: dict, t) -> str:
     return "N/A"
 
 
-def _pair_warnings(pair: dict, t) -> str:
-    warnings = list(pair.get("warnings") or [])
-    if (pair.get("cv_F0_percent") or 0) > 10:
-        warnings.append("CV F0 > 10%")
-    if (pair.get("cv_F2_percent") or 0) > 10:
-        warnings.append("CV F2 > 10%")
-    count = len(list(dict.fromkeys(warnings)))
-    return t("split_warning_count", count=count) if count else ""
+def _selection_source_label(source: str, t) -> str:
+    if source == "manual":
+        return t("split_selection_source_manual")
+    if source == "algorithm":
+        return t("split_selection_source_algorithm")
+    return t("split_selection_source_unknown")
+
+
+def _comparison_status_label(status: str, warning_count: int, t) -> str:
+    if status == "ready":
+        return t("split_comparison_status_ready")
+    if status == "warning":
+        return t("split_comparison_status_warning", count=warning_count)
+    return t("split_comparison_status_incomplete")
 
 
 def _comparison_rows(pairs: list[dict], t) -> list[dict]:
     rows = []
-    for pair in pairs:
+    for pair in build_split_comparison_table_rows(pairs):
         rows.append(
             {
-                "ID": pair.get("id"),
-                "High +": pair.get("high_plus_run"),
-                "Low +": pair.get("low_plus_run"),
-                "High -": pair.get("high_minus_run"),
-                "Low -": pair.get("low_minus_run"),
-                "f'0 avg (N)": _first_value(
-                    pair,
-                    "f0_prime_mean",
-                    "f0_prime",
+                t("split_selected"): (
+                    t("yes") if pair["selected"] else t("no")
                 ),
-                "f'2 avg (N/(m/s)^2)": _first_value(
-                    pair,
-                    "f2_prime_mean",
-                    "f2_prime",
+                t("split_pair"): format_split_pair_label(pair),
+                t("split_selection_source"): _selection_source_label(
+                    pair["selection_source"],
+                    t,
                 ),
-                "F0 avg (N)": _first_value(pair, "F0_mean", "F0"),
-                "F2 avg (N/(km/h)^2)": _first_value(pair, "F2_mean", "F2"),
-                "Temp + / - (C)": (
+                t("split_high_plus_run_short"): pair["high_plus_run"],
+                t("split_low_plus_run_short"): pair["low_plus_run"],
+                t("split_high_minus_run_short"): pair["high_minus_run"],
+                t("split_low_minus_run_short"): pair["low_minus_run"],
+                t("split_corrected_f0_mean"): pair["F0_mean"],
+                t("split_corrected_f2_mean"): pair["F2_mean"],
+                t("split_energy_with_unit"): (
+                    pair["energy"] if pair["energy"] is not None else "N/A"
+                ),
+                t("split_temperature_plus_minus"): (
                     f"{_fmt(pair.get('temp_plus_used'), 1)} / "
                     f"{_fmt(pair.get('temp_minus_used'), 1)}"
                 ),
-                "Pressure + / - (kPa)": (
+                t("split_pressure_plus_minus"): (
                     f"{_fmt(pair.get('press_plus_used'), 2)} / "
                     f"{_fmt(pair.get('press_minus_used'), 2)}"
                 ),
-                t("split_ambient_mode_label"): _ambient_mode_label(pair, t),
-                "Energy (MJ/km)": (
-                    pair.get("energy")
-                    if pair.get("energy") is not None
-                    else "N/A"
+                t("split_comparison_status"): _comparison_status_label(
+                    pair["status"],
+                    pair["warning_count"],
+                    t,
                 ),
-                t("split_card_warnings"): _pair_warnings(pair, t),
             }
         )
     return rows
+
+
+def _styled_comparison_dataframe(pairs: list[dict], t):
+    dataframe = pd.DataFrame(_comparison_rows(pairs, t))
+    source_column = t("split_selection_source")
+    status_column = t("split_comparison_status")
+    selected_column = t("split_selected")
+    manual_label = t("split_selection_source_manual")
+    algorithm_label = t("split_selection_source_algorithm")
+    incomplete_label = t("split_comparison_status_incomplete")
+
+    def style_row(row):
+        source = row.get(source_column)
+        status = row.get(status_column)
+        selected = row.get(selected_column) == t("yes")
+        if status == incomplete_label:
+            background = "#fff3cd"
+            color = "#664d03"
+        elif source == algorithm_label:
+            background = "#dff3e4"
+            color = "#17351f"
+        elif source == manual_label:
+            background = "#e7f0fb"
+            color = "#17324d"
+        else:
+            background = "#eeeeee"
+            color = "#303030"
+        opacity = "1" if selected else "0.58"
+        warning_border = (
+            "border-left:4px solid #b42318;"
+            if status not in (
+                t("split_comparison_status_ready"),
+                incomplete_label,
+            )
+            else ""
+        )
+        style = (
+            f"background-color:{background};color:{color};"
+            f"opacity:{opacity};border-bottom:1px solid rgba(0,0,0,0.08);"
+            f"{warning_border}"
+        )
+        return [style] * len(row)
+
+    def numeric_formatter(decimals):
+        def format_value(value):
+            try:
+                return f"{float(value):.{decimals}f}"
+            except (TypeError, ValueError):
+                return "N/A"
+        return format_value
+
+    numeric_formats = {
+        t("split_corrected_f0_mean"): numeric_formatter(3),
+        t("split_corrected_f2_mean"): numeric_formatter(6),
+        t("split_energy_with_unit"): numeric_formatter(4),
+    }
+    return (
+        dataframe.style
+        .apply(style_row, axis=1)
+        .format(numeric_formats, na_rep="N/A")
+        .set_table_styles(
+            [
+                {
+                    "selector": "th",
+                    "props": [
+                        ("background-color", "#20242c"),
+                        ("color", "#ffffff"),
+                        ("font-weight", "700"),
+                        ("text-align", "center"),
+                    ],
+                },
+                {
+                    "selector": "td",
+                    "props": [
+                        ("text-align", "center"),
+                        ("padding", "7px 8px"),
+                    ],
+                },
+            ]
+        )
+    )
+
+
+def _sync_comparison_selection(widget_key: str) -> None:
+    selected_ids = st.session_state.get(widget_key) or []
+    st.session_state.split_comparison_pairs = set_split_comparison_selected_ids(
+        st.session_state.get("split_comparison_pairs") or [],
+        selected_ids,
+    )
+    st.session_state.split_final_results = {}
+    st.session_state.excel_buffer = None
+
+
+def _render_comparison_legend(t) -> None:
+    st.markdown(
+        (
+            "<div style='display:flex;gap:8px;align-items:center;margin:4px 0 10px;'>"
+            f"<span style='background:#e7f0fb;color:#17324d;padding:3px 9px;"
+            f"border-radius:4px;font-size:0.85rem;'>{t('split_selection_source_manual')}</span>"
+            f"<span style='background:#dff3e4;color:#17351f;padding:3px 9px;"
+            f"border-radius:4px;font-size:0.85rem;'>{t('split_selection_source_algorithm')}</span>"
+            f"<span style='background:#eeeeee;color:#303030;padding:3px 9px;"
+            f"border-radius:4px;font-size:0.85rem;'>{t('split_selection_source_unknown')}</span>"
+            "</div>"
+        ),
+        unsafe_allow_html=True,
+    )
 
 
 def _pair_component_rows(pair: dict, t) -> list[dict]:
@@ -587,13 +692,22 @@ def _render_result_summary(result: dict, t):
 
 
 def _render_pair_card(pair: dict, t, pair_number: int):
+    selection_source = _selection_source_label(
+        pair.get("selection_source", "manual"),
+        t,
+    )
     label = (
         f"{t('split_pair')} {pair_number} | "
-        f"+ {pair.get('high_plus_run')}/{pair.get('low_plus_run')} | "
-        f"- {pair.get('high_minus_run')}/{pair.get('low_minus_run')} | "
+        f"{format_split_pair_label(pair)} | "
+        f"{selection_source} | "
         f"F0={_fmt(_first_value(pair, 'F0_mean', 'F0'), 2)} N"
     )
     with st.expander(label, expanded=False):
+        st.caption(
+            f"{t('split_selection_source')}: {selection_source} | "
+            f"{t('split_selected')}: "
+            f"{t('yes') if pair.get('selected', True) else t('no')}"
+        )
         ambient_col, coefficients_col, variation_col, energy_col = st.columns(4)
 
         with ambient_col:
@@ -713,7 +827,10 @@ def _render_comparison_area(t):
     last_result = st.session_state.get("split_last_calculated_result")
     if last_result:
         if st.button(t("split_add_to_final_comparison"), use_container_width=True):
-            pair = build_split_comparison_pair(last_result)
+            pair = build_split_comparison_pair(
+                last_result,
+                selection_source="manual",
+            )
             st.session_state.split_comparison_pairs = add_split_comparison_pair(pairs, pair)
             st.session_state.split_final_results = {}
             st.session_state.excel_buffer = None
@@ -727,11 +844,71 @@ def _render_comparison_area(t):
         st.info(t("split_comparison_empty"))
         return
 
+    _render_comparison_legend(t)
     st.dataframe(
-        pd.DataFrame(_comparison_rows(pairs, t)),
+        _styled_comparison_dataframe(pairs, t),
         use_container_width=True,
         hide_index=True,
     )
+
+    pair_ids = [pair.get("id") for pair in pairs if pair.get("id")]
+    pairs_by_id = {
+        pair.get("id"): pair
+        for pair in pairs
+        if pair.get("id")
+    }
+    selected_ids = [
+        pair.get("id")
+        for pair in pairs
+        if pair.get("id") and pair.get("selected", True)
+    ]
+    selection_key = (
+        f"split_comparison_selected_ids_"
+        f"{st.session_state.get('active_test_id', 'test')}_"
+        f"{'_'.join(pair_ids)}"
+    )
+    chosen_ids = st.multiselect(
+        t("split_selected_pairs"),
+        options=pair_ids,
+        default=selected_ids,
+        format_func=lambda pair_id: format_split_pair_label(
+            pairs_by_id.get(pair_id)
+        ),
+        key=selection_key,
+        on_change=_sync_comparison_selection,
+        args=(selection_key,),
+    )
+    if set(chosen_ids) != set(selected_ids):
+        pairs = set_split_comparison_selected_ids(pairs, chosen_ids)
+
+    remove_col, clear_col = st.columns([0.68, 0.32])
+    with remove_col:
+        remove_pair_id = st.selectbox(
+            t("split_pair_to_remove"),
+            options=pair_ids,
+            format_func=lambda pair_id: format_split_pair_label(
+                pairs_by_id.get(pair_id)
+            ),
+            key=(
+                f"split_comparison_remove_"
+                f"{st.session_state.get('active_test_id', 'test')}_"
+                f"{'_'.join(pair_ids)}"
+            ),
+        )
+    with clear_col:
+        remove_requested = st.button(
+            t("split_remove_pair"),
+            key="split_remove_selected_comparison_pair",
+            use_container_width=True,
+        )
+    if remove_requested:
+        st.session_state.split_comparison_pairs = remove_split_comparison_pair(
+            pairs,
+            remove_pair_id,
+        )
+        st.session_state.split_final_results = {}
+        st.session_state.excel_buffer = None
+        st.rerun()
 
     if st.button(t("split_clear_final_comparison"), type="secondary", use_container_width=True):
         st.session_state.split_comparison_pairs = clear_split_comparison_pairs()
@@ -754,15 +931,49 @@ def _render_comparison_area(t):
         _render_pair_card(pair, t, pair_number)
 
 
+def _render_add_to_comparison(t):
+    """Keep coefficient calculation focused on adding the latest manual pair."""
+    st.markdown("---")
+    st.subheader(t("split_add_pair_section"))
+    last_result = st.session_state.get("split_last_calculated_result")
+    if not last_result:
+        st.info(t("split_no_calculated_pair_to_add"))
+        return
+
+    if st.button(
+        t("split_add_to_final_comparison"),
+        type="primary",
+        use_container_width=True,
+    ):
+        pair = build_split_comparison_pair(
+            last_result,
+            selection_source="manual",
+        )
+        st.session_state.split_comparison_pairs = add_split_comparison_pair(
+            st.session_state.get("split_comparison_pairs") or [],
+            pair,
+        )
+        st.session_state.split_final_results = {}
+        st.session_state.excel_buffer = None
+        st.success(t("split_pair_added_to_comparison"))
+
+    st.caption(
+        t(
+            "split_comparison_pairs_count",
+            count=len(st.session_state.get("split_comparison_pairs") or []),
+        )
+    )
+
+
 def _selected_from_group(grouped: dict, component: str, label_key: str, selection_key_suffix: str):
     records = grouped[component]
-    selected_index = st.selectbox(
+    selected_record = st.selectbox(
         label_key,
-        options=list(range(len(records))),
-        format_func=lambda idx: _record_label(records[idx]),
+        options=records,
+        format_func=format_run_option_label,
         key=f"split_calc_{component}_select_{selection_key_suffix}",
     )
-    return records[selected_index]
+    return selected_record
 
 
 def render(t):
@@ -773,6 +984,10 @@ def render(t):
         st.warning(t("error_no_file"))
         return
 
+    if not split_parse_is_current(st.session_state):
+        st.warning(t("split_parse_dirty_calculation_blocked"))
+        return
+
     parsed = st.session_state.get("split_parsed_runs") or {}
     input_sources = st.session_state.get("split_input_sources") or []
     high_records = parsed.get("high") or []
@@ -780,7 +995,6 @@ def render(t):
     grouped = group_split_records_by_direction(high_records, low_records)
     effective_mass = _effective_mass()
     config = st.session_state.get("split_interval_config") or default_split_interval_config()
-    st.session_state.split_interval_config = config
 
     metric_cols = st.columns(5)
     metric_cols[0].metric(t("split_high_plus_records_available"), str(len(grouped["high_plus"])))
@@ -806,7 +1020,10 @@ def render(t):
         st.dataframe(
             pd.DataFrame(
                 {
-                    "Record": [_record_label(record) for record in grouped["invalid"]],
+                    "Record": [
+                        format_run_option_label(record)
+                        for record in grouped["invalid"]
+                    ],
                 }
             ),
             use_container_width=True,
@@ -825,11 +1042,9 @@ def render(t):
         st.warning(t("split_complete_ida_volta_pair_required"))
         if effective_mass is None:
             st.warning(t("split_effective_mass_required_for_calculation"))
-        _render_comparison_area(t)
         return
     if effective_mass is None:
         st.warning(t("split_effective_mass_required_for_calculation"))
-        _render_comparison_area(t)
         return
 
     selection_key_suffix = (
@@ -912,4 +1127,4 @@ def render(t):
     if st.session_state.get("split_results"):
         st.info(t("split_saved_results_count", count=len(st.session_state.split_results)))
 
-    _render_comparison_area(t)
+    _render_add_to_comparison(t)

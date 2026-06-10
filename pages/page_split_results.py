@@ -1,226 +1,328 @@
 # coding: utf-8
-"""Split final results and Excel export page."""
-
-import io
+"""Final consolidated results for pairs selected in Split Final Comparison."""
 
 import pandas as pd
 import streamlit as st
-from openpyxl import Workbook
-from openpyxl.styles import Alignment, Font, PatternFill
 
-from core.split_calculations import coefficient_summary
-
-
-def _first_value(data: dict, *keys):
-    for key in keys:
-        value = data.get(key)
-        if value is not None:
-            return value
-    return None
+from core.split_display import format_split_pair_label
+from core.split_results import consolidate_split_final_results
+from pages.page_split_coefficient_calculation import (
+    COMPONENT_LABEL_KEYS,
+    _translated_weather_warning,
+    _weather_sync_rows,
+    _weather_sync_warnings,
+)
 
 
-def _result_rows(results: list[dict]) -> list[dict]:
+def _fmt(value, precision=3, suffix=""):
+    if isinstance(value, (int, float)):
+        return f"{value:.{precision}f}{suffix}"
+    return "N/A"
+
+
+def _cv_label(value, t) -> str:
+    if value is None:
+        return t("split_results_not_applicable")
+    return f"{value:.2f}%"
+
+
+def _selection_source_label(source: str, t) -> str:
+    if source == "manual":
+        return t("split_selection_source_manual")
+    if source == "algorithm":
+        return t("split_selection_source_algorithm")
+    return t("split_selection_source_unknown")
+
+
+def _conformity_label(status: str, t) -> str:
+    return t(f"split_results_status_{status}")
+
+
+def _result_rows(results: list[dict], t=None) -> list[dict]:
+    """Build final table rows from normalized selected Split pairs."""
     rows = []
     for idx, result in enumerate(results, start=1):
-        high_plus = result.get("high_plus") or result.get("high_record", {})
-        low_plus = result.get("low_plus") or result.get("low_record", {})
-        high_minus = result.get("high_minus", {})
-        low_minus = result.get("low_minus", {})
+        row = {
+            "Index": idx,
+            "Pair": format_split_pair_label(result),
+            "Selection source": result.get("selection_source"),
+            "F0 (N)": result.get("F0_mean"),
+            "F2 (N/(km/h)^2)": result.get("F2_mean"),
+            "Energy (MJ/km)": result.get("energy"),
+            "f'0 (N)": result.get("f0_prime_mean"),
+            "f'2 (N/(m/s)^2)": result.get("f2_prime_mean"),
+            "Warnings": "; ".join(result.get("warnings") or []),
+        }
+        if t is not None:
+            row = {
+                t("split_results_index"): idx,
+                t("split_pair"): format_split_pair_label(result),
+                t("split_selection_source"): _selection_source_label(
+                    result.get("selection_source"),
+                    t,
+                ),
+                t("split_results_final_f0"): result.get("F0_mean"),
+                t("split_results_final_f2"): result.get("F2_mean"),
+                t("split_results_mean_energy"): result.get("energy"),
+                t("split_results_uncorrected_f0"): result.get("f0_prime_mean"),
+                t("split_results_uncorrected_f2"): result.get("f2_prime_mean"),
+                t("split_card_warnings"): "; ".join(
+                    result.get("warnings") or []
+                ),
+            }
+        rows.append(row)
+    return rows
+
+
+def _component_rows(pair: dict, t) -> list[dict]:
+    rows = []
+    for component in ("high_plus", "low_plus", "high_minus", "low_minus"):
+        record = pair.get(component) or {}
         rows.append(
             {
-                "Index": idx,
-                "Use": result.get("selected", True),
-                "f'0 (N)": _first_value(
-                    result,
-                    "f0_prime_mean",
-                    "f0_prime",
+                t("split_meteo_component"): t(COMPONENT_LABEL_KEYS[component]),
+                t("split_file"): (
+                    record.get("filename")
+                    or pair.get(f"{component}_file")
+                    or "N/A"
                 ),
-                "f'2 (N/(m/s)^2)": _first_value(
-                    result,
-                    "f2_prime_mean",
-                    "f2_prime",
+                t("split_run"): (
+                    record.get("run_id")
+                    if record.get("run_id") is not None
+                    else pair.get(f"{component}_run", "N/A")
                 ),
-                "F0 (N)": _first_value(result, "F0_mean", "F0"),
-                "F2 (N/(km/h)^2)": _first_value(result, "F2_mean", "F2"),
-                "Ambient source": result.get("ambient_source"),
-                "Energy (MJ/km)": result.get("energy"),
-                "High + run": high_plus.get("run_id"),
-                "Low + run": low_plus.get("run_id"),
-                "High - run": high_minus.get("run_id"),
-                "Low - run": low_minus.get("run_id"),
-                "High + Delta t": high_plus.get("delta_t_s"),
-                "Low + Delta t": low_plus.get("delta_t_s"),
-                "High - Delta t": high_minus.get("delta_t_s"),
-                "Low - Delta t": low_minus.get("delta_t_s"),
-                "Warnings": "; ".join(result.get("warnings", [])),
+                t("split_direction"): (
+                    record.get("heading")
+                    or record.get("direction")
+                    or pair.get(f"{component}_direction")
+                    or "N/A"
+                ),
+                t("split_timestamp"): (
+                    record.get("start_time_str")
+                    or record.get("start_timestamp")
+                    or pair.get(f"{component}_timestamp")
+                    or "N/A"
+                ),
+                t("split_results_deceleration_time"): (
+                    record.get("delta_t_s")
+                    if record.get("delta_t_s") is not None
+                    else pair.get(f"{component}_delta_t_s")
+                ),
+                t("split_results_subintervals"): ", ".join(
+                    record.get("subintervals") or []
+                ),
             }
         )
     return rows
 
 
-def _write_header(ws, row, values):
-    fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
-    for col, value in enumerate(values, start=1):
-        cell = ws.cell(row=row, column=col, value=value)
-        cell.font = Font(bold=True, color="FFFFFF")
-        cell.fill = fill
-        cell.alignment = Alignment(horizontal="center")
+def _pair_status(pair: dict) -> str:
+    if pair.get("F0_mean") is None or pair.get("F2_mean") is None:
+        return "incomplete"
+    if pair.get("warnings"):
+        return "warning"
+    return "ready"
 
 
-def generate_split_excel(results: list[dict], summary: dict, vehicle_info: dict, config: dict) -> bytes:
-    """Generate a compact Split Excel report."""
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Split Summary"
+def _render_summary(summary: dict, t) -> None:
+    st.subheader(t("split_results_consolidated"))
+    f0_col, f2_col, energy_col = st.columns(3)
+    f0_col.metric(
+        t("split_results_final_f0"),
+        _fmt(summary.get("mean_f0"), 4, " N"),
+        delta=f"{t('split_results_cv_f0')}: {_cv_label(summary.get('cv_f0'), t)}",
+    )
+    f2_col.metric(
+        t("split_results_final_f2"),
+        _fmt(summary.get("mean_f2"), 6, " N/(km/h)^2"),
+        delta=f"{t('split_results_cv_f2')}: {_cv_label(summary.get('cv_f2'), t)}",
+    )
+    energy_col.metric(
+        t("split_results_mean_energy"),
+        _fmt(summary.get("mean_energy"), 4, " MJ/km"),
+        delta=(
+            f"{t('split_results_cv_energy')}: "
+            f"{_cv_label(summary.get('cv_energy'), t)}"
+        ),
+    )
 
-    ws["A1"] = "Coastdown MDA Split"
-    ws["A1"].font = Font(bold=True, size=16)
-    ws["A3"] = "Vehicle model"
-    ws["B3"] = vehicle_info.get("model", "N/A")
-    ws["A4"] = "Test date"
-    ws["B4"] = str(vehicle_info.get("test_date", "N/A"))
-    ws["A5"] = "Effective mass (kg)"
-    ws["B5"] = vehicle_info.get("effective_mass", "N/A")
-
-    ws["A7"] = "Mean f'0 (N)"
-    ws["B7"] = summary.get("mean_f0_prime")
-    ws["A8"] = "Mean f'2 (N/(m/s)^2)"
-    ws["B8"] = summary.get("mean_f2_prime")
-    ws["A9"] = "CV f'0 (%)"
-    ws["B9"] = summary.get("cv_f0_prime")
-    ws["A10"] = "CV f'2 (%)"
-    ws["B10"] = summary.get("cv_f2_prime")
-    ws["A11"] = "Number of results"
-    ws["B11"] = summary.get("num_results")
-
-    ws["A13"] = "High interval"
-    ws["B13"] = f"{config['high']['start']}-{config['high']['end']} km/h; ref {config['high']['reference']} km/h"
-    ws["A14"] = "Low interval"
-    ws["B14"] = f"{config['low']['start']}-{config['low']['end']} km/h; ref {config['low']['reference']} km/h"
-
-    details = wb.create_sheet("Split Results")
-    headers = [
-        "Index", "f'0 (N)", "f'2 (N/(m/s)^2)",
-        "F0 (N)", "F2 (N/(km/h)^2)", "Ambient source",
-        "Temp + (C)", "Pressure + (kPa)", "Temp - (C)", "Pressure - (kPa)",
-        "High + file", "High + run", "High + Delta t (s)", "High + subintervals",
-        "Low + file", "Low + run", "Low + Delta t (s)", "Low + subintervals",
-        "High - file", "High - run", "High - Delta t (s)", "High - subintervals",
-        "Low - file", "Low - run", "Low - Delta t (s)", "Low - subintervals",
-        "f'0 + (N)", "f'2 + (N/(m/s)^2)",
-        "f'0 - (N)", "f'2 - (N/(m/s)^2)",
-        "Warnings",
-    ]
-    _write_header(details, 1, headers)
-    for row_idx, result in enumerate(results, start=2):
-        high_plus = result.get("high_plus") or result.get("high_record", {})
-        low_plus = result.get("low_plus") or result.get("low_record", {})
-        high_minus = result.get("high_minus", {})
-        low_minus = result.get("low_minus", {})
-        values = [
-            row_idx - 1,
-            _first_value(result, "f0_prime_mean", "f0_prime"),
-            _first_value(result, "f2_prime_mean", "f2_prime"),
-            _first_value(result, "F0_mean", "F0"),
-            _first_value(result, "F2_mean", "F2"),
-            result.get("ambient_source"),
-            result.get("temp_plus_used"),
-            result.get("press_plus_used"),
-            result.get("temp_minus_used"),
-            result.get("press_minus_used"),
-            high_plus.get("filename"),
-            high_plus.get("run_id"),
-            high_plus.get("delta_t_s"),
-            ", ".join(high_plus.get("subintervals", [])),
-            low_plus.get("filename"),
-            low_plus.get("run_id"),
-            low_plus.get("delta_t_s"),
-            ", ".join(low_plus.get("subintervals", [])),
-            high_minus.get("filename"),
-            high_minus.get("run_id"),
-            high_minus.get("delta_t_s"),
-            ", ".join(high_minus.get("subintervals", [])),
-            low_minus.get("filename"),
-            low_minus.get("run_id"),
-            low_minus.get("delta_t_s"),
-            ", ".join(low_minus.get("subintervals", [])),
-            result.get("f0_prime_plus"),
-            result.get("f2_prime_plus"),
-            result.get("f0_prime_minus"),
-            result.get("f2_prime_minus"),
-            "; ".join(result.get("warnings", [])),
-        ]
-        for col_idx, value in enumerate(values, start=1):
-            details.cell(row=row_idx, column=col_idx, value=value)
-
-    for sheet in wb.worksheets:
-        for column_cells in sheet.columns:
-            sheet.column_dimensions[column_cells[0].column_letter].width = 18
-
-    buffer = io.BytesIO()
-    wb.save(buffer)
-    buffer.seek(0)
-    return buffer.getvalue()
+    pairs_col, status_col = st.columns(2)
+    pairs_col.metric(
+        t("split_selected_pairs"),
+        str(summary.get("num_pairs", 0)),
+    )
+    status_col.metric(
+        t("split_results_conformity"),
+        _conformity_label(summary.get("conformity_status"), t),
+    )
 
 
-def render(t):
-    """Render Split results."""
+def _render_vehicle_info(summary: dict, t) -> None:
+    st.markdown("---")
+    st.subheader(t("vehicle_information"))
+    vehicle_info = st.session_state.get("vehicle_info") or {}
+    model_col, date_col, mass_col = st.columns(3)
+    model_col.write(
+        f"**{t('vehicle_model')}:** {vehicle_info.get('model') or 'N/A'}"
+    )
+    date_col.write(
+        f"**{t('test_date')}:** {vehicle_info.get('test_date') or 'N/A'}"
+    )
+    mass_col.write(
+        f"**{t('effective_mass')}:** "
+        f"{_fmt(vehicle_info.get('effective_mass'), 1, ' kg')}"
+    )
+    st.caption(
+        t(
+            "split_results_selected_source_note",
+            count=summary.get("num_pairs", 0),
+        )
+    )
+
+
+def _render_validation(summary: dict, t) -> None:
+    st.markdown("---")
+    st.subheader(t("split_results_validation"))
+    status = summary.get("conformity_status")
+    status_text = _conformity_label(status, t)
+    if status == "conforming":
+        st.success(status_text)
+    elif status in ("nonconforming", "incomplete"):
+        st.warning(status_text)
+    else:
+        st.info(status_text)
+
+    selected_count = summary.get("num_pairs", 0)
+    if summary.get("missing_f0_count") or summary.get("missing_f2_count"):
+        st.warning(
+            t(
+                "split_results_missing_corrected",
+                f0=summary.get("missing_f0_count", 0),
+                f2=summary.get("missing_f2_count", 0),
+                total=selected_count,
+            )
+        )
+    if summary.get("missing_energy_count"):
+        st.warning(
+            t(
+                "split_results_missing_energy",
+                missing=summary.get("missing_energy_count", 0),
+                total=selected_count,
+            )
+        )
+    if summary.get("warnings"):
+        st.warning(
+            t(
+                "split_results_warning_count",
+                count=len(summary["warnings"]),
+            )
+        )
+
+
+def _render_pair_details(pair: dict, pair_number: int, t) -> None:
+    source = _selection_source_label(pair.get("selection_source"), t)
+    label = (
+        f"{t('split_pair')} {pair_number} | "
+        f"{format_split_pair_label(pair)} | {source} | "
+        f"{_conformity_label(_pair_status(pair), t)}"
+    )
+    with st.expander(label, expanded=False):
+        corrected_col, raw_col, energy_col = st.columns(3)
+        corrected_col.markdown(f"**{t('split_corrected_coefficients')}**")
+        corrected_col.write(
+            f"F0: {_fmt(pair.get('F0_mean'), 4, ' N')}"
+        )
+        corrected_col.write(
+            f"F2: {_fmt(pair.get('F2_mean'), 6, ' N/(km/h)^2')}"
+        )
+        raw_col.markdown(f"**{t('split_uncorrected_results')}**")
+        raw_col.write(
+            f"f'0: {_fmt(pair.get('f0_prime_mean'), 4, ' N')}"
+        )
+        raw_col.write(
+            f"f'2: {_fmt(pair.get('f2_prime_mean'), 6, ' N/(m/s)^2')}"
+        )
+        energy_col.markdown(f"**{t('split_card_energy')}**")
+        energy_col.write(
+            _fmt(
+                pair.get("energy"),
+                4,
+                f" {pair.get('energy_unit') or 'MJ/km'}",
+            )
+        )
+
+        st.markdown(f"**{t('split_card_traceability')}**")
+        st.dataframe(
+            pd.DataFrame(_component_rows(pair, t)),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        ambient = pair.get("ambient_by_component") or {}
+        if ambient:
+            st.markdown(f"**{t('split_ambient_traceability')}**")
+            st.dataframe(
+                pd.DataFrame(_weather_sync_rows(ambient, t)),
+                use_container_width=True,
+                hide_index=True,
+            )
+        else:
+            st.info(t("split_results_no_ambient_traceability"))
+
+        warnings = _weather_sync_warnings(ambient, t)
+        warnings.extend(
+            _translated_weather_warning(warning, t)
+            for warning in (pair.get("warnings") or [])
+        )
+        warnings = list(dict.fromkeys(warnings))
+        if warnings:
+            st.markdown(f"**{t('split_card_warnings')}**")
+            for warning in warnings:
+                st.warning(warning)
+
+
+def render(t) -> None:
+    """Render results selected in the Split Final Comparison."""
     st.header(t("page_split_results"))
-
-    results = st.session_state.get("split_results", [])
-    if not results:
-        st.info("No Split results have been saved yet.")
+    comparison_pairs = st.session_state.get("split_comparison_pairs") or []
+    if not comparison_pairs:
+        st.session_state.split_final_results = {}
+        st.info(t("split_results_no_pairs_available"))
         return
 
-    st.subheader("Saved Split results")
-    rows = _result_rows(results)
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-
-    selected_results = []
-    st.subheader("Select results for final summary")
-    for idx, result in enumerate(results):
-        label = f"Result {idx + 1}: f'0={result['f0_prime']:.4f} N, f'2={result['f2_prime']:.6f} N/(m/s)^2"
-        selected = st.checkbox(label, value=result.get("selected", True), key=f"split_result_selected_{idx}")
-        result["selected"] = selected
-        if selected:
-            selected_results.append(result)
-
-    if st.button("Calculate final Split summary", type="primary", use_container_width=True):
-        try:
-            summary = coefficient_summary(selected_results)
-            summary["vehicle_info"] = st.session_state.vehicle_info
-            st.session_state.split_final_results = summary
-            st.session_state.excel_buffer = None
-            st.success("Final Split summary calculated.")
-        except ValueError as exc:
-            st.error(str(exc))
-
-    summary = st.session_state.get("split_final_results") or {}
-    if not summary:
+    summary = consolidate_split_final_results(comparison_pairs)
+    if not summary["selected_pairs"]:
+        st.session_state.split_final_results = {}
+        st.warning(t("split_results_no_pairs_selected"))
         return
+
+    summary["vehicle_info"] = dict(
+        st.session_state.get("vehicle_info") or {}
+    )
+    st.session_state.split_final_results = summary
+
+    _render_summary(summary, t)
+    _render_vehicle_info(summary, t)
+    _render_validation(summary, t)
 
     st.markdown("---")
-    st.subheader("Final summary")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Mean f'0", f"{summary['mean_f0_prime']:.4f} N")
-    col2.metric("Mean f'2", f"{summary['mean_f2_prime']:.6f} N/(m/s)^2")
-    col3.metric("Results", str(summary["num_results"]))
-
-    col4, col5 = st.columns(2)
-    col4.metric("CV f'0", f"{summary['cv_f0_prime']:.2f}%")
-    col5.metric("CV f'2", f"{summary['cv_f2_prime']:.2f}%")
-
-    export_results = [result for result in results if result.get("selected", True)]
-    excel_bytes = generate_split_excel(
-        export_results,
-        summary,
-        st.session_state.vehicle_info,
-        st.session_state.split_interval_config,
+    st.subheader(t("split_results_final_table"))
+    st.dataframe(
+        pd.DataFrame(_result_rows(summary["selected_pairs"], t)),
+        use_container_width=True,
+        hide_index=True,
     )
-    st.download_button(
-        "Download Split Excel report",
-        data=excel_bytes,
-        file_name="coastdown_mda_split_report.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+
+    st.markdown("---")
+    st.subheader(t("split_results_pair_details"))
+    for pair_number, pair in enumerate(summary["selected_pairs"], start=1):
+        _render_pair_details(pair, pair_number, t)
+
+    st.markdown("---")
+    st.subheader(t("split_results_export"))
+    st.button(
+        t("split_results_export_button"),
+        disabled=True,
         use_container_width=True,
     )
+    st.info(t("split_results_export_pending"))

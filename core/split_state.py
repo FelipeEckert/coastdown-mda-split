@@ -2,6 +2,7 @@
 """Session-state helpers for Split workflow invalidation."""
 
 from copy import deepcopy
+from datetime import datetime, timezone
 
 
 def invalidate_split_input_state(test_data: dict, reset_meteo_sync: bool = True) -> dict:
@@ -13,9 +14,99 @@ def invalidate_split_input_state(test_data: dict, reset_meteo_sync: bool = True)
     test_data["split_final_results"] = {}
     test_data["excel_buffer"] = None
     test_data["split_input_version"] = int(test_data.get("split_input_version") or 0) + 1
+    test_data["split_parse_dirty"] = True
+    test_data["split_parse_feedback_current"] = False
+    test_data["split_parse_validation_issues"] = []
+    test_data["split_processed_at"] = None
     if reset_meteo_sync:
         test_data["sync_meteo_by_time_only"] = False
     return test_data
+
+
+def initialize_split_parse_state(test_data: dict, processed_config: dict) -> dict:
+    """Initialize draft/dirty state for new and legacy Split tests."""
+    if test_data.get("split_interval_draft_config") is None:
+        test_data["split_interval_draft_config"] = deepcopy(processed_config)
+    if "split_parse_dirty" not in test_data:
+        test_data["split_parse_dirty"] = not bool(test_data.get("split_parsed_runs"))
+    if "split_parse_feedback_current" not in test_data:
+        test_data["split_parse_feedback_current"] = (
+            bool(test_data.get("split_parsed_runs"))
+            and not test_data["split_parse_dirty"]
+        )
+    test_data.setdefault("split_parse_validation_issues", [])
+    test_data.setdefault("split_processed_at", None)
+    return test_data
+
+
+def update_split_interval_draft(test_data: dict, new_config: dict) -> bool:
+    """Store edited fields and mark the current parser output as stale."""
+    previous_draft = test_data.get("split_interval_draft_config")
+    changed = previous_draft != new_config
+    test_data["split_interval_draft_config"] = deepcopy(new_config)
+    config_differs = test_data.get("split_interval_config") != new_config
+    if config_differs:
+        test_data["split_parse_dirty"] = True
+    elif test_data.get("split_parsed_runs"):
+        test_data["split_parse_dirty"] = False
+    if changed:
+        test_data["split_parse_feedback_current"] = False
+        test_data["split_parse_validation_issues"] = []
+    return changed
+
+
+def record_split_parse_failure(test_data: dict, issues: list[dict]) -> dict:
+    """Keep stale parser data hidden and preserve validation feedback."""
+    test_data["split_results"] = []
+    test_data["split_comparison_pairs"] = []
+    test_data["split_last_calculated_result"] = None
+    test_data["split_final_results"] = {}
+    test_data["excel_buffer"] = None
+    test_data["split_parse_dirty"] = True
+    test_data["split_parse_feedback_current"] = True
+    test_data["split_parse_validation_issues"] = deepcopy(issues)
+    return test_data
+
+
+def store_processed_split_intervals(
+    test_data: dict,
+    config: dict,
+    parsed_runs: dict,
+    processed_at: str | None = None,
+) -> dict:
+    """Commit one explicit parser run and invalidate older calculations."""
+    invalidate_split_input_state(test_data, reset_meteo_sync=False)
+    test_data["split_interval_config"] = deepcopy(config)
+    test_data["split_interval_draft_config"] = deepcopy(config)
+    test_data["split_parsed_runs"] = deepcopy(parsed_runs)
+    test_data["split_processed_at"] = processed_at or datetime.now(
+        timezone.utc
+    ).isoformat()
+    test_data["split_parse_dirty"] = False
+    test_data["split_parse_feedback_current"] = True
+    test_data["split_parse_validation_issues"] = []
+    return test_data
+
+
+def split_parse_is_current(test_data: dict) -> bool:
+    """Return True only when parsed runs match the current interval draft."""
+    if "split_parse_dirty" in test_data:
+        return not bool(test_data.get("split_parse_dirty"))
+    return bool(test_data.get("split_parsed_runs"))
+
+
+def should_show_split_parse_details(test_data: dict) -> bool:
+    """Return True only for feedback produced by the latest explicit attempt."""
+    return bool(test_data.get("split_parse_feedback_current"))
+
+
+def get_processed_split_review_state(test_data: dict) -> dict:
+    """Return only committed parser inputs and outputs for the review UI."""
+    return {
+        "config": deepcopy(test_data.get("split_interval_config") or {}),
+        "parsed_runs": deepcopy(test_data.get("split_parsed_runs") or {}),
+        "processed_at": test_data.get("split_processed_at"),
+    }
 
 
 def update_split_interval_config(test_data: dict, new_config: dict) -> bool:

@@ -5,7 +5,15 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from core.split_state import update_split_interval_config
+from core.split_state import (
+    get_processed_split_review_state,
+    record_split_parse_failure,
+    should_show_split_parse_details,
+    split_parse_is_current,
+    store_processed_split_intervals,
+    update_split_interval_config,
+    update_split_interval_draft,
+)
 from data.loaders import carregar_dados_csv_robusto
 from data.split_parser import (
     default_split_interval_config,
@@ -406,6 +414,145 @@ class SplitIntervalStepTest(unittest.TestCase):
         self.assertFalse(changed)
         self.assertEqual(test_data["split_results"], [{"F0_mean": 100.0}])
         self.assertEqual(test_data["split_input_version"], 3)
+
+    def test_editing_interval_config_marks_parse_dirty_without_parsing(self):
+        processed_config = default_split_interval_config()
+        draft_config = default_split_interval_config()
+        draft_config["high"]["start"] = 95.0
+        test_data = {
+            "split_interval_config": processed_config,
+            "split_interval_draft_config": processed_config,
+            "split_parsed_runs": {"high": [{"run_id": 1}], "low": [{"run_id": 2}]},
+            "split_results": [{"F0_mean": 100.0}],
+            "split_parse_dirty": False,
+            "split_parse_feedback_current": True,
+            "split_parse_validation_issues": [{"code": "old"}],
+            "split_input_version": 3,
+        }
+
+        changed = update_split_interval_draft(test_data, draft_config)
+
+        self.assertTrue(changed)
+        self.assertTrue(test_data["split_parse_dirty"])
+        self.assertFalse(should_show_split_parse_details(test_data))
+        self.assertFalse(split_parse_is_current(test_data))
+        self.assertEqual(
+            test_data["split_interval_config"],
+            processed_config,
+        )
+        self.assertEqual(test_data["split_parsed_runs"]["high"][0]["run_id"], 1)
+        self.assertEqual(test_data["split_results"], [{"F0_mean": 100.0}])
+        self.assertEqual(test_data["split_input_version"], 3)
+        self.assertEqual(test_data["split_parse_validation_issues"], [])
+
+    def test_parser_review_uses_only_processed_config_and_runs(self):
+        processed_config = default_split_interval_config()
+        parsed_runs = {
+            "high": [
+                {
+                    "run_id": 1,
+                    "start_kmh": 90.0,
+                    "end_kmh": 70.0,
+                }
+            ],
+            "low": [],
+        }
+        test_data = {
+            "split_interval_config": processed_config,
+            "split_interval_draft_config": processed_config,
+            "split_parsed_runs": parsed_runs,
+            "split_processed_at": "2026-06-10T12:00:00+00:00",
+            "split_parse_dirty": False,
+        }
+        edited_draft = default_split_interval_config()
+        edited_draft["high"]["start"] = 100.0
+
+        update_split_interval_draft(test_data, edited_draft)
+        review = get_processed_split_review_state(test_data)
+
+        self.assertEqual(review["config"]["high"]["start"], 90.0)
+        self.assertEqual(review["parsed_runs"]["high"][0]["start_kmh"], 90.0)
+        self.assertEqual(
+            review["processed_at"],
+            "2026-06-10T12:00:00+00:00",
+        )
+        self.assertTrue(test_data["split_parse_dirty"])
+
+    def test_explicit_processing_commits_config_and_clears_dirty_state(self):
+        config = default_split_interval_config()
+        config["high"]["start"] = 100.0
+        config["high"]["reference"] = 90.0
+        config["high"]["end"] = 80.0
+        parsed_runs = {
+            "high": [{"run_id": 10}],
+            "low": [{"run_id": 20}],
+            "warnings": [],
+        }
+        test_data = {
+            "split_interval_config": default_split_interval_config(),
+            "split_interval_draft_config": config,
+            "split_parsed_runs": {"high": [{"run_id": 1}]},
+            "split_results": [{"F0_mean": 100.0}],
+            "split_last_calculated_result": {"F0_mean": 100.0},
+            "split_comparison_pairs": [{"id": "pair-1"}],
+            "split_final_results": {"num_results": 1},
+            "excel_buffer": b"old",
+            "split_parse_dirty": True,
+            "split_input_version": 3,
+        }
+
+        store_processed_split_intervals(
+            test_data,
+            config,
+            parsed_runs,
+            processed_at="2026-06-10T13:00:00+00:00",
+        )
+
+        self.assertFalse(test_data["split_parse_dirty"])
+        self.assertTrue(split_parse_is_current(test_data))
+        self.assertTrue(should_show_split_parse_details(test_data))
+        self.assertEqual(test_data["split_interval_config"], config)
+        self.assertEqual(test_data["split_interval_draft_config"], config)
+        self.assertEqual(test_data["split_parsed_runs"], parsed_runs)
+        self.assertEqual(
+            test_data["split_processed_at"],
+            "2026-06-10T13:00:00+00:00",
+        )
+        self.assertEqual(test_data["split_results"], [])
+        self.assertIsNone(test_data["split_last_calculated_result"])
+        self.assertEqual(test_data["split_comparison_pairs"], [])
+        self.assertEqual(test_data["split_final_results"], {})
+        self.assertIsNone(test_data["excel_buffer"])
+        self.assertEqual(test_data["split_input_version"], 4)
+
+    def test_detailed_validation_feedback_only_appears_after_processing(self):
+        config = default_split_interval_config()
+        test_data = {
+            "split_interval_config": config,
+            "split_interval_draft_config": config,
+            "split_parse_dirty": False,
+            "split_parse_feedback_current": True,
+        }
+        edited_config = default_split_interval_config()
+        edited_config["step_kmh"] = 0.0
+
+        update_split_interval_draft(test_data, edited_config)
+
+        self.assertFalse(should_show_split_parse_details(test_data))
+        record_split_parse_failure(
+            test_data,
+            [{"code": "invalid_step"}],
+        )
+        self.assertTrue(test_data["split_parse_dirty"])
+        self.assertTrue(should_show_split_parse_details(test_data))
+        self.assertEqual(
+            test_data["split_parse_validation_issues"],
+            [{"code": "invalid_step"}],
+        )
+
+    def test_calculation_guard_rejects_dirty_parse(self):
+        self.assertFalse(split_parse_is_current({"split_parse_dirty": True}))
+        self.assertTrue(split_parse_is_current({"split_parse_dirty": False}))
 
 
 if __name__ == "__main__":

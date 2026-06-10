@@ -5,12 +5,15 @@ import unittest
 
 from core.split_comparison import (
     add_split_comparison_pair,
+    build_split_comparison_table_rows,
     build_split_comparison_pair,
     calculate_complete_split_pair,
     clear_split_comparison_pairs,
     coefficient_variation_percent,
     group_split_records_by_direction,
+    normalize_split_selection_source,
     remove_split_comparison_pair,
+    set_split_comparison_selected_ids,
     validate_complete_split_pair_selection,
 )
 from core.split_corrections import (
@@ -19,10 +22,8 @@ from core.split_corrections import (
     weather_sync_ambient_conditions,
 )
 from data.split_parser import default_split_interval_config
-from pages.page_split_coefficient_calculation import (
-    _comparison_rows,
-    _weather_sync_rows,
-)
+from pages.page_split_coefficient_calculation import _weather_sync_rows
+from pages.page_split_final_comparison import _comparison_rows
 from pages.page_split_results import _result_rows
 from translations import get_translator
 
@@ -74,6 +75,8 @@ class SplitComparisonTest(unittest.TestCase):
         )
 
         self.assertEqual(pair["id"], "pair-1")
+        self.assertEqual(pair["selection_source"], "manual")
+        self.assertTrue(pair["selected"])
         self.assertEqual(pair["high_file"], "high.csv")
         self.assertEqual(pair["low_file"], "low.csv")
         self.assertEqual(pair["high_run"], 1)
@@ -166,6 +169,7 @@ class SplitComparisonTest(unittest.TestCase):
         pair = build_split_comparison_pair(result, pair_id="pair-complete")
 
         self.assertEqual(pair["id"], "pair-complete")
+        self.assertEqual(pair["selection_source"], "manual")
         self.assertEqual(pair["high_plus_run"], 1)
         self.assertEqual(pair["low_plus_run"], 2)
         self.assertEqual(pair["high_minus_run"], 3)
@@ -236,15 +240,21 @@ class SplitComparisonTest(unittest.TestCase):
             "core.calculations.calcular_energia",
         )
 
-        translate = lambda key, **kwargs: key.format(**kwargs) if kwargs else key
+        translate = get_translator("en")
         comparison_row = _comparison_rows([pair], translate)[0]
         result_row = _result_rows([result])[0]
-        self.assertEqual(comparison_row["F0 avg (N)"], pair["F0_mean"])
+        expected_pair_label = "[+]: Run 1 / Run 2 | [-]: Run 3 / Run 4"
+        self.assertEqual(comparison_row["Pair"], expected_pair_label)
+        self.assertEqual(result_row["Pair"], expected_pair_label)
+        self.assertNotIn("split_pair_", comparison_row["Pair"])
+        self.assertNotIn("split_pair_", result_row["Pair"])
+        self.assertEqual(comparison_row["Mean F0 [N]"], pair["F0_mean"])
         self.assertEqual(
-            comparison_row["F2 avg (N/(km/h)^2)"],
+            comparison_row["Mean F2 [N/(km/h)²]"],
             pair["F2_mean"],
         )
-        self.assertEqual(comparison_row["Energy (MJ/km)"], pair["energy"])
+        self.assertEqual(comparison_row["Energy [MJ/km]"], pair["energy"])
+        self.assertEqual(comparison_row["Selection source"], "Manual")
         self.assertEqual(result_row["F0 (N)"], result["F0_mean"])
         self.assertEqual(
             result_row["F2 (N/(km/h)^2)"],
@@ -270,6 +280,60 @@ class SplitComparisonTest(unittest.TestCase):
         self.assertEqual([pair["id"] for pair in pairs], ["pair-2"])
 
         self.assertEqual(clear_split_comparison_pairs(), [])
+
+    def test_comparison_table_rows_preserve_origin_coefficients_and_energy(self):
+        pair = build_split_comparison_pair(
+            self._result(),
+            pair_id="pair-algorithm",
+            selection_source="algorithm",
+        )
+        pair.update(
+            {
+                "high_plus_run": 1,
+                "low_plus_run": 2,
+                "high_minus_run": 3,
+                "low_minus_run": 4,
+                "F0_mean": 140.25,
+                "F2_mean": 0.00495,
+                "energy": 0.1987,
+                "energy_unit": "MJ/km",
+                "temp_plus_used": 23.55,
+                "temp_minus_used": 23.55,
+                "press_plus_used": 95.18,
+                "press_minus_used": 95.17,
+                "warnings": [],
+            }
+        )
+
+        row = build_split_comparison_table_rows([pair])[0]
+
+        self.assertEqual(row["selection_source"], "algorithm")
+        self.assertEqual(row["F0_mean"], 140.25)
+        self.assertEqual(row["F2_mean"], 0.00495)
+        self.assertEqual(row["energy"], 0.1987)
+        self.assertEqual(row["high_plus_run"], 1)
+        self.assertEqual(row["low_minus_run"], 4)
+        self.assertEqual(row["status"], "ready")
+
+    def test_selection_source_supports_manual_algorithm_and_unknown(self):
+        self.assertEqual(normalize_split_selection_source("manual"), "manual")
+        self.assertEqual(normalize_split_selection_source("algorithm"), "algorithm")
+        self.assertEqual(normalize_split_selection_source("legacy"), "unknown")
+
+    def test_selected_ids_update_pairs_without_breaking_removal(self):
+        first = build_split_comparison_pair(self._result(), pair_id="pair-1")
+        second = build_split_comparison_pair(self._result(), pair_id="pair-2")
+
+        pairs = set_split_comparison_selected_ids(
+            [first, second],
+            ["pair-2"],
+        )
+
+        self.assertFalse(pairs[0]["selected"])
+        self.assertTrue(pairs[1]["selected"])
+        remaining = remove_split_comparison_pair(pairs, "pair-1")
+        self.assertEqual([pair["id"] for pair in remaining], ["pair-2"])
+        self.assertTrue(remaining[0]["selected"])
 
 
 if __name__ == "__main__":

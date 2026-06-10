@@ -35,8 +35,25 @@ EXPECTED_DIRECTIONS = {
     "low_minus": "-",
 }
 
+SELECTION_SOURCE_MANUAL = "manual"
+SELECTION_SOURCE_ALGORITHM = "algorithm"
+SELECTION_SOURCE_UNKNOWN = "unknown"
+VALID_SELECTION_SOURCES = {
+    SELECTION_SOURCE_MANUAL,
+    SELECTION_SOURCE_ALGORITHM,
+}
+
+
 def _record_value(record: dict, key: str):
     return record.get(key) if isinstance(record, dict) else None
+
+
+def normalize_split_selection_source(value) -> str:
+    """Return a stable Split comparison origin without Standard dependencies."""
+    source = str(value or "").strip().lower()
+    if source in VALID_SELECTION_SOURCES:
+        return source
+    return SELECTION_SOURCE_UNKNOWN
 
 
 def normalized_record_direction(record: dict) -> str | None:
@@ -250,6 +267,7 @@ def build_split_comparison_pair(
     weather_records: dict | None = None,
     weather_sync: dict | None = None,
     pair_id: str | None = None,
+    selection_source: str | None = None,
 ) -> dict:
     """Build one traceable Split comparison item from a calculated result."""
     if result.get("schema") == "complete_ida_volta_pair_v1":
@@ -274,6 +292,12 @@ def build_split_comparison_pair(
         }
         pair = {
             "id": pair_id or f"split_pair_{uuid4().hex[:8]}",
+            "selection_source": normalize_split_selection_source(
+                selection_source
+                or result.get("selection_source")
+                or SELECTION_SOURCE_MANUAL
+            ),
+            "selected": bool(result.get("selected", True)),
             "high_plus": high_plus,
             "low_plus": low_plus,
             "high_minus": high_minus,
@@ -458,6 +482,12 @@ def build_split_comparison_pair(
     low = result.get("low_record") or {}
     pair = {
         "id": pair_id or f"split_pair_{uuid4().hex[:8]}",
+        "selection_source": normalize_split_selection_source(
+            selection_source
+            or result.get("selection_source")
+            or SELECTION_SOURCE_MANUAL
+        ),
+        "selected": bool(result.get("selected", True)),
         "high_file": _record_value(high, "filename"),
         "high_run": _record_value(high, "run_id"),
         "high_direction": _record_value(high, "heading"),
@@ -493,9 +523,68 @@ def build_split_comparison_pair(
     return pair
 
 
+def build_split_comparison_table_rows(pairs: list[dict]) -> list[dict]:
+    """Build UI-neutral rows for the Split final comparison table."""
+    rows = []
+    for pair in pairs or []:
+        warnings = list(dict.fromkeys(pair.get("warnings") or []))
+        for coefficient in ("F0", "F2"):
+            cv_value = pair.get(f"cv_{coefficient}_percent")
+            if isinstance(cv_value, (int, float)) and cv_value > 10:
+                warnings.append(f"CV {coefficient} > 10%")
+        warnings = list(dict.fromkeys(warnings))
+        F0_mean = pair.get("F0_mean", pair.get("F0"))
+        F2_mean = pair.get("F2_mean", pair.get("F2"))
+        if F0_mean is None or F2_mean is None:
+            status = "incomplete"
+        elif warnings:
+            status = "warning"
+        else:
+            status = "ready"
+        rows.append(
+            {
+                "selected": bool(pair.get("selected", True)),
+                "id": pair.get("id"),
+                "selection_source": normalize_split_selection_source(
+                    pair.get("selection_source") or SELECTION_SOURCE_MANUAL
+                ),
+                "high_plus_run": pair.get("high_plus_run"),
+                "low_plus_run": pair.get("low_plus_run"),
+                "high_minus_run": pair.get("high_minus_run"),
+                "low_minus_run": pair.get("low_minus_run"),
+                "F0_mean": F0_mean,
+                "F2_mean": F2_mean,
+                "energy": pair.get("energy"),
+                "energy_unit": pair.get("energy_unit"),
+                "temp_plus_used": pair.get("temp_plus_used"),
+                "temp_minus_used": pair.get("temp_minus_used"),
+                "press_plus_used": pair.get("press_plus_used"),
+                "press_minus_used": pair.get("press_minus_used"),
+                "status": status,
+                "warning_count": len(warnings),
+                "warnings": warnings,
+            }
+        )
+    return rows
+
+
 def add_split_comparison_pair(pairs: list[dict], pair: dict) -> list[dict]:
     """Return a new comparison list with one pair appended."""
     return list(pairs or []) + [pair]
+
+
+def set_split_comparison_selected_ids(
+    pairs: list[dict],
+    selected_ids: list[str] | set[str],
+) -> list[dict]:
+    """Return comparison pairs with selection synchronized by pair id."""
+    selected = set(selected_ids or [])
+    updated = []
+    for pair in pairs or []:
+        item = dict(pair)
+        item["selected"] = item.get("id") in selected
+        updated.append(item)
+    return updated
 
 
 def remove_split_comparison_pair(pairs: list[dict], pair_id: str) -> list[dict]:

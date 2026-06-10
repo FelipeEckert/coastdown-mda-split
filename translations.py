@@ -949,7 +949,27 @@ TRANSLATIONS = {
     },
     "split_parse_intervals": {
         "pt": "Processar intervalos Split",
-        "en": "Parse Split intervals"
+        "en": "Process Split intervals"
+    },
+    "split_interval_edit_instruction": {
+        "pt": "Ajuste os intervalos e clique em Processar intervalos Split.",
+        "en": "Adjust the intervals and click Process Split intervals."
+    },
+    "split_interval_config_dirty": {
+        "pt": "Configuração alterada. Clique em Processar intervalos Split para atualizar os dados.",
+        "en": "Configuration changed. Click Process Split intervals to update the data."
+    },
+    "split_interval_preview_stale": {
+        "pt": "Prévia desatualizada. Clique em Processar intervalos Split para atualizar.",
+        "en": "Preview is outdated. Click Process Split intervals to update."
+    },
+    "split_processed_interval_summary": {
+        "pt": "Configuração processada: high {high_start:g}-{high_end:g} km/h (ref. {high_reference:g}); low {low_start:g}-{low_end:g} km/h (ref. {low_reference:g}); passo {step:g} km/h.",
+        "en": "Processed configuration: high {high_start:g}-{high_end:g} km/h (ref. {high_reference:g}); low {low_start:g}-{low_end:g} km/h (ref. {low_reference:g}); step {step:g} km/h."
+    },
+    "split_parse_dirty_calculation_blocked": {
+        "pt": "A configuração dos intervalos foi alterada. Processe novamente os intervalos antes de calcular os coeficientes.",
+        "en": "The interval configuration has changed. Process the intervals again before calculating coefficients."
     },
     "split_reset_intervals": {
         "pt": "Restaurar intervalos",
@@ -979,9 +999,145 @@ TRANSLATIONS = {
         "pt": "Cálculo dos Coeficientes",
         "en": "Coefficient Calculation"
     },
+    "page_split_final_comparison": {
+        "pt": "Comparativo Final",
+        "en": "Final Comparison"
+    },
     "page_split_results": {
         "pt": "Resultados Split",
         "en": "Split Results"
+    },
+    "split_results_consolidated": {
+        "pt": "Resultados consolidados",
+        "en": "Consolidated results"
+    },
+    "split_results_final_f0": {
+        "pt": "F0 final [N]",
+        "en": "Final F0 [N]"
+    },
+    "split_results_final_f2": {
+        "pt": "F2 final [N/(km/h)²]",
+        "en": "Final F2 [N/(km/h)²]"
+    },
+    "split_results_mean_energy": {
+        "pt": "Energia média [MJ/km]",
+        "en": "Mean energy [MJ/km]"
+    },
+    "split_results_cv_f0": {
+        "pt": "CV F0",
+        "en": "F0 CV"
+    },
+    "split_results_cv_f2": {
+        "pt": "CV F2",
+        "en": "F2 CV"
+    },
+    "split_results_cv_energy": {
+        "pt": "CV energia",
+        "en": "Energy CV"
+    },
+    "split_results_not_applicable": {
+        "pt": "N/A",
+        "en": "N/A"
+    },
+    "split_results_conformity": {
+        "pt": "Status de conformidade",
+        "en": "Conformity status"
+    },
+    "split_results_status_conforming": {
+        "pt": "Conforme (CV F0/F2 ≤ 10%)",
+        "en": "Conforming (F0/F2 CV ≤ 10%)"
+    },
+    "split_results_status_nonconforming": {
+        "pt": "Não conforme (CV F0 ou F2 > 10%)",
+        "en": "Nonconforming (F0 or F2 CV > 10%)"
+    },
+    "split_results_status_not_evaluable": {
+        "pt": "Não avaliável com menos de dois valores",
+        "en": "Not evaluable with fewer than two values"
+    },
+    "split_results_status_incomplete": {
+        "pt": "Incompleto: faltam coeficientes corrigidos",
+        "en": "Incomplete: corrected coefficients are missing"
+    },
+    "split_results_status_warning": {
+        "pt": "Consolidado com avisos",
+        "en": "Consolidated with warnings"
+    },
+    "split_results_status_ready": {
+        "pt": "Pronto",
+        "en": "Ready"
+    },
+    "split_results_selected_source_note": {
+        "pt": "{count} par(es) lido(s) diretamente da seleção do Comparativo Final.",
+        "en": "{count} pair(s) read directly from the Final Comparison selection."
+    },
+    "split_results_validation": {
+        "pt": "Validação dos resultados",
+        "en": "Result validation"
+    },
+    "split_results_missing_corrected": {
+        "pt": "Coeficientes corrigidos ausentes: F0 em {f0}/{total} par(es) e F2 em {f2}/{total} par(es). As demais informações continuam disponíveis.",
+        "en": "Missing corrected coefficients: F0 in {f0}/{total} pair(s) and F2 in {f2}/{total} pair(s). Remaining information is still available."
+    },
+    "split_results_missing_energy": {
+        "pt": "Energia ausente em {missing}/{total} par(es). A média usa somente valores disponíveis.",
+        "en": "Energy is missing in {missing}/{total} pair(s). The mean uses available values only."
+    },
+    "split_results_warning_count": {
+        "pt": "{count} aviso(s) único(s) preservado(s) nos detalhes dos pares.",
+        "en": "{count} unique warning(s) preserved in pair details."
+    },
+    "split_results_no_pairs_available": {
+        "pt": "Nenhum par está disponível no Comparativo Final. Volte às etapas de Cálculo dos Coeficientes e Comparativo Final para adicionar pares.",
+        "en": "No pair is available in Final Comparison. Return to Coefficient Calculation and Final Comparison to add pairs."
+    },
+    "split_results_no_pairs_selected": {
+        "pt": "Há pares no Comparativo Final, mas nenhum está selecionado. Volte ao Comparativo Final e marque os pares que devem compor o resultado.",
+        "en": "Final Comparison has pairs, but none is selected. Return to Final Comparison and select the pairs that should compose the result."
+    },
+    "split_results_final_table": {
+        "pt": "Tabela final dos pares selecionados",
+        "en": "Final selected-pair table"
+    },
+    "split_results_pair_details": {
+        "pt": "Detalhamento rastreável por par",
+        "en": "Traceable details by pair"
+    },
+    "split_results_index": {
+        "pt": "Índice",
+        "en": "Index"
+    },
+    "split_results_uncorrected_f0": {
+        "pt": "f'0 não corrigido [N]",
+        "en": "Uncorrected f'0 [N]"
+    },
+    "split_results_uncorrected_f2": {
+        "pt": "f'2 não corrigido [N/(m/s)²]",
+        "en": "Uncorrected f'2 [N/(m/s)²]"
+    },
+    "split_results_deceleration_time": {
+        "pt": "Tempo de desaceleração [s]",
+        "en": "Deceleration time [s]"
+    },
+    "split_results_subintervals": {
+        "pt": "Subintervalos",
+        "en": "Subintervals"
+    },
+    "split_results_no_ambient_traceability": {
+        "pt": "Este par não possui rastreabilidade ambiental por componente.",
+        "en": "This pair has no component-level ambient traceability."
+    },
+    "split_results_export": {
+        "pt": "Exportação",
+        "en": "Export"
+    },
+    "split_results_export_button": {
+        "pt": "Exportar resultados Split",
+        "en": "Export Split results"
+    },
+    "split_results_export_pending": {
+        "pt": "Exportação Split pendente de adaptação ao novo consolidado. Nenhum exportador Standard está conectado a esta página.",
+        "en": "Split export is pending adaptation to the new consolidation. No Standard exporter is connected to this page."
     },
     "split_coefficient_calculation_placeholder": {
         "pt": "A seleção de high/low e o cálculo do par serão implementados na próxima rodada.",
@@ -1183,6 +1339,14 @@ TRANSLATIONS = {
         "pt": "Adicionar à tabela comparativa final",
         "en": "Add to final comparison"
     },
+    "split_add_pair_section": {
+        "pt": "Adicionar par ao Comparativo Final",
+        "en": "Add pair to Final Comparison"
+    },
+    "split_comparison_pairs_count": {
+        "pt": "{count} par(es) na tabela comparativa final.",
+        "en": "{count} pair(s) in the final comparison table."
+    },
     "split_pair_added_to_comparison": {
         "pt": "Par adicionado à tabela comparativa final.",
         "en": "Pair added to final comparison."
@@ -1194,6 +1358,110 @@ TRANSLATIONS = {
     "split_final_comparison_table": {
         "pt": "Tabela comparativa final",
         "en": "Final comparison table"
+    },
+    "split_selection_source_manual": {
+        "pt": "Manual",
+        "en": "Manual"
+    },
+    "split_selection_source_algorithm": {
+        "pt": "Algoritmo",
+        "en": "Algorithm"
+    },
+    "split_selection_source_unknown": {
+        "pt": "Pendente",
+        "en": "Pending"
+    },
+    "split_selection_source": {
+        "pt": "Origem da seleção",
+        "en": "Selection source"
+    },
+    "split_selected": {
+        "pt": "Selecionado",
+        "en": "Selected"
+    },
+    "split_selected_pairs": {
+        "pt": "Pares selecionados",
+        "en": "Selected pairs"
+    },
+    "split_selected_pairs_count": {
+        "pt": "{selected} de {total} par(es) selecionado(s).",
+        "en": "{selected} of {total} pair(s) selected."
+    },
+    "split_select_all_pairs": {
+        "pt": "Selecionar todos",
+        "en": "Select all"
+    },
+    "split_deselect_all_pairs": {
+        "pt": "Desmarcar todos",
+        "en": "Deselect all"
+    },
+    "split_comparison_legend": {
+        "pt": "Legenda",
+        "en": "Legend"
+    },
+    "split_selected_short": {
+        "pt": "Sel.",
+        "en": "Sel."
+    },
+    "split_pair_id": {
+        "pt": "ID do par",
+        "en": "Pair ID"
+    },
+    "split_high_plus_run_short": {
+        "pt": "High+ run",
+        "en": "High+ run"
+    },
+    "split_low_plus_run_short": {
+        "pt": "Low+ run",
+        "en": "Low+ run"
+    },
+    "split_high_minus_run_short": {
+        "pt": "High- run",
+        "en": "High- run"
+    },
+    "split_low_minus_run_short": {
+        "pt": "Low- run",
+        "en": "Low- run"
+    },
+    "split_corrected_coefficients": {
+        "pt": "Coeficientes corrigidos",
+        "en": "Corrected coefficients"
+    },
+    "split_corrected_f0_mean": {
+        "pt": "F0 médio [N]",
+        "en": "Mean F0 [N]"
+    },
+    "split_corrected_f2_mean": {
+        "pt": "F2 médio [N/(km/h)²]",
+        "en": "Mean F2 [N/(km/h)²]"
+    },
+    "split_energy_with_unit": {
+        "pt": "Energia [MJ/km]",
+        "en": "Energy [MJ/km]"
+    },
+    "split_temperature_plus_minus": {
+        "pt": "Temp. ida/volta [°C]",
+        "en": "Ida/volta temp. [°C]"
+    },
+    "split_pressure_plus_minus": {
+        "pt": "Pressão ida/volta [kPa]",
+        "en": "Ida/volta pressure [kPa]"
+    },
+    "split_comparison_status": {
+        "pt": "Status/avisos",
+        "en": "Status/warnings"
+    },
+    "split_comparison_status_ready": {
+        "pt": "Pronto",
+        "en": "Ready"
+    },
+    "split_comparison_status_warning": {
+        "pt": "{count} aviso(s)",
+        "en": "{count} warning(s)"
+    },
+    "split_comparison_status_incomplete": {
+        "pt": "Incompleto",
+        "en": "Incomplete"
     },
     "split_comparison_empty": {
         "pt": "Nenhum par foi adicionado à tabela comparativa final.",
@@ -1210,6 +1478,14 @@ TRANSLATIONS = {
     "split_remove_pair": {
         "pt": "Remover par",
         "en": "Remove pair"
+    },
+    "split_remove_pair_short": {
+        "pt": "Remover",
+        "en": "Remove"
+    },
+    "split_pair_to_remove": {
+        "pt": "Par a remover",
+        "en": "Pair to remove"
     },
     "split_card_high_source": {
         "pt": "Fonte high-speed",

@@ -96,7 +96,7 @@
 - [x] Meteo replacement/removal clears derived final/export state and resets time-only sync.
 - [x] Parser blocks incomplete high/low combinations instead of generating partial or position-based intervals.
 - [x] Input mode is explicit in the UI and saved as `split_input_mode`.
-- [x] Main Split navigation now has Vehicle Data, Interval Selection, Coefficient Calculation and Split Results.
+- [x] Main Split navigation now has Vehicle Data, Interval Selection, Coefficient Calculation, Final Comparison and Split Results.
 - [x] Coefficient Calculation tab manually selects high+, low+, high- and low- before calculating.
 - [x] Coefficient Calculation tab calculates direction +, direction - and arithmetic pair average.
 - [x] Coefficient Calculation supports fixed or synchronized ambient conditions.
@@ -106,9 +106,21 @@
 - [x] Keep the latest calculated coefficient summary visible after Streamlit reruns.
 - [x] Ambient mode, fixed temperature or fixed pressure changes invalidate calculated results and comparison cards.
 - [x] Coefficient Calculation tab can add complete ida/volta pairs to `split_comparison_pairs`.
-- [x] Comparison table includes four runs, raw/corrected means, directional ambient conditions, energy status and warnings.
+- [x] Move the complete comparison table/cards out of Coefficient Calculation into `page_split_final_comparison.py`.
+- [x] Final Comparison uses the Standard page as a visual template: batch actions, compact column rows, per-row selection/removal and source colors.
+- [x] Comparison table includes four runs, corrected F0/F2, energy, directional ambient conditions and warning status.
+- [x] Manual pairs store `selection_source="manual"`; the table contract already supports future `selection_source="algorithm"`.
+- [x] Add persistent pair selection and compact remove/clear controls without Standard selection state.
 - [x] Comparison cards show directional meteo sync data and identify the conditions used by climatic correction.
-- [x] Split Results page has final summary selection and basic Excel download.
+- [x] Split Results consolidates only pairs marked `selected` in `split_comparison_pairs`.
+- [x] Split Results shows corrected F0/F2, energy, final CVs, validation status, selected-pair table and per-pair traceability.
+- [x] Split Results handles empty comparison, no selection, missing corrected coefficients, missing energy and meteo warnings without traceback.
+- [x] Final Split consolidation is isolated in pure helpers under `core/split_results.py` with focused unit tests.
+- [x] Replace technical `split_pair_*` labels in Split tables, cards, expanders and selectors with public high/low run composition.
+- [x] Simplify coefficient-calculation run options to `Run | dt | filename`, keeping direction and timestamps in traceability sections.
+- [x] Add regression coverage for the actual coefficient `selectbox` formatter and public pair columns.
+- [x] Diagnose and restart duplicate Streamlit servers on ports 8501/8502 that predated the display changes.
+- [ ] Adapt the Split Excel exporter to the new selected-pair consolidation contract; the UI keeps export disabled until then.
 - [ ] Run manual regression in the app before first commit: create test, replace high, replace low, remove low, replace meteo, remove meteo.
 - [ ] Run manual regression with one high-only CSV and confirm calculation remains blocked with friendly warning.
 - [ ] Run manual regression with one low-only CSV and confirm calculation remains blocked with friendly warning.
@@ -147,18 +159,27 @@
 - [ ] Validate the provenance and normative applicability of the inherited city/highway constants and 55/45 weighting.
 
 ## Excel export status
-- [x] Basic Split Excel export exists.
-- [x] Export includes summary, selected results, four ida/volta components, Delta t and subinterval traceability.
+- [ ] Adapt Split Excel export to consume only selected `split_comparison_pairs` and corrected final F0/F2.
+- [ ] Restore the Split Results download after the exporter covers the new summary and all four component records.
 - [ ] Add the four component-level ambient records and weather sync audit to Excel.
 - [ ] Review final workbook layout, labels and units before release.
 
 ## Known gaps and next steps
 - [ ] Parser needs more real combined/full coastdown examples to validate heuristics beyond synthetic full-coastdown tests.
 - [ ] Split workflow/results still contain English literal labels; convert important user-facing strings to `translations.py`.
-- [x] Interval configuration changes automatically invalidate and reparse dependent Split state.
+- [x] Interval fields now edit a draft without automatically running parser validation on each Streamlit rerun.
+- [x] Add explicit `Process Split intervals` action to validate, parse and commit interval configuration.
+- [x] Mark processed data stale with `split_parse_dirty` after interval edits and block coefficient calculation until reprocessing.
+- [x] Keep detailed missing-bin and validation feedback hidden until an explicit processing attempt.
+- [x] Use stable per-test widget keys without dynamic `value`/`step` identity changes that caused lost number-input clicks.
+- [x] Make Parser review consume an isolated snapshot of `split_interval_config` and `split_parsed_runs`, never the draft.
+- [x] Record `split_processed_at` when a draft is explicitly promoted to processed configuration.
+- [ ] Run manual regression for edit, stale-preview, processing-error and successful-reprocessing states.
 - [ ] Review date/timezone policy for files with ambiguous dates or missing timezone metadata.
 - [ ] Add meteo synchronization details to Split Excel export without applying climatic correction implicitly.
 - [ ] Continue visual polish after functional validation; keep technical meteo warnings collapsed by default.
+- [ ] Validate the Final Comparison table manually with a larger number of pairs and narrow desktop widths.
+- [ ] Connect future automatic Split selection to `selection_source="algorithm"` without importing the Standard algorithm workflow.
 - [ ] Keep `sample_data/Split/` and `sample_data/Standard/` separated as validation datasets for each method.
 
 ## Split/Standard separation audit - 2026-06-10

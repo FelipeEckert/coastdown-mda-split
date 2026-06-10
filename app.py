@@ -435,7 +435,10 @@ TEST_STATE_KEYS = [
     "vehicle_info", "total_mass", "mass_input_mode",
     "vehicle_model_input", "test_date_input",
     # Coeficientes e pares
-    "split_interval_config", "split_parsed_runs", "split_results",
+    "split_interval_config", "split_interval_draft_config",
+    "split_parse_dirty", "split_parse_feedback_current",
+    "split_parse_validation_issues", "split_processed_at",
+    "split_parsed_runs", "split_results",
     "split_comparison_pairs", "split_last_calculated_result",
     # Resultados
     "split_final_results",
@@ -488,6 +491,15 @@ TEST_DEFAULTS = {
         "high": {"start": 90.0, "end": 70.0, "reference": 80.0},
         "low": {"start": 45.0, "end": 35.0, "reference": 40.0},
     },
+    "split_interval_draft_config": {
+        "step_kmh": 5.0,
+        "high": {"start": 90.0, "end": 70.0, "reference": 80.0},
+        "low": {"start": 45.0, "end": 35.0, "reference": 40.0},
+    },
+    "split_parse_dirty": True,
+    "split_parse_feedback_current": False,
+    "split_parse_validation_issues": [],
+    "split_processed_at": None,
     "split_parsed_runs": {},
     "split_results": [],
     "split_comparison_pairs": [],
@@ -1687,6 +1699,7 @@ def render_test_analysis(t):
         ("2_dados_veiculo", t("page_vehicle_data")),
         ("split_workflow", t("page_split_workflow")),
         ("split_coefficient_calculation", t("page_split_coefficient_calculation")),
+        ("split_final_comparison", t("page_split_final_comparison")),
         ("split_results", t("page_split_results")),
     ]
     tab_labels = [label for _, label in tab_pages]
@@ -1703,7 +1716,7 @@ def render_test_analysis(t):
     if st.session_state.get(tab_key) not in label_to_page:
         st.session_state[tab_key] = default_label
 
-    tab1, tab2, tab3, tab4 = st.tabs(
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(
         tab_labels,
         default=st.session_state[tab_key],
         key=tab_key,
@@ -1727,6 +1740,10 @@ def render_test_analysis(t):
         page_split_coefficient_calculation.render(t)
 
     with tab4:
+        from pages import page_split_final_comparison
+        page_split_final_comparison.render(t)
+
+    with tab5:
         from pages import page_split_results
         page_split_results.render(t)
 

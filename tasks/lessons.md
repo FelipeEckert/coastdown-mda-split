@@ -1215,3 +1215,121 @@ mas aumenta o risco de acoplamento e deve ser removido em uma etapa de compatibi
 controlada.
 
 ---
+
+## 2026-06-10 - Split: Editar Configuracao Nao Deve Processar Dados
+
+### Decisao:
+Os campos de inicio, fim, referencia e passo escrevem em
+`split_interval_draft_config`. O parser so valida e grava
+`split_interval_config`/`split_parsed_runs` apos a acao explicita de processamento.
+
+Quando o draft difere da ultima configuracao processada, `split_parse_dirty=True`
+identifica a previa como desatualizada e bloqueia o calculo de coeficientes. Erros
+detalhados de bins e validacao pertencem a uma tentativa explicita, nao a cada rerun
+causado pela edicao de widgets.
+
+As keys dos `number_input` devem ser estaveis por teste e ser a unica fonte dos
+widgets durante a edicao. Repassar `value` a cada rerun ou variar `step` com outro
+widget altera a identidade do controle no Streamlit e pode restaurar o valor,
+produzindo cliques aparentemente perdidos.
+
+O Parser review le um snapshot isolado de `split_interval_config`,
+`split_parsed_runs` e `split_processed_at`. Ele nunca consulta o draft, mesmo quando
+a previa antiga permanece visivel durante uma nova edicao.
+
+### Licao:
+Em Streamlit, separar estado de edicao de estado processado evita validacao ruidosa,
+trabalho repetido e uso acidental de resultados calculados com configuracao antiga.
+O estado derivado deve ser invalidado no processamento confirmado, enquanto o draft
+apenas marca a necessidade de reprocessar.
+
+---
+
+## 2026-06-10 - Split: Reaproveitar Linguagem Visual, Nao Estado Standard
+
+### Decisao:
+A tabela comparativa Split pode adotar padroes visuais observados no comparativo
+Standard, como cabecalho compacto, linhas coloridas por origem, status resumido e
+acoes discretas. A implementacao permanece sobre `split_comparison_pairs` e helpers
+puros de `core/split_comparison.py`.
+
+Cada par guarda `selection_source` (`manual`, `algorithm` ou `unknown`) e `selected`.
+Pares adicionados pela UI atual sao sempre `manual`. A futura selecao automatica
+devera apenas produzir o mesmo contrato Split com origem `algorithm`, sem importar
+`calculated_pairs`, `algorithm_results`, `pares_finais_selecionados`,
+`f0_corr/f2_corr` ou regras de selecao Standard.
+
+### Licao:
+Referencia visual e contrato metodologico sao camadas diferentes. Cores, densidade,
+formatacao e hierarquia podem inspirar uma nova tela; schemas de estado, algoritmos e
+validacoes devem continuar pertencendo exclusivamente ao metodo Split.
+
+---
+
+## 2026-06-10 - Split: Comparativo Final Deve Ter Pagina Propria
+
+### Decisao:
+O comparativo completo foi retirado de Calculo dos Coeficientes e passou para
+`pages/page_split_final_comparison.py`. A aba de calculo seleciona as quatro passadas,
+calcula o par e apenas adiciona o ultimo resultado ao comparativo.
+
+A nova pagina replica o template estrutural do comparativo Standard com acoes em
+lote, legenda, cabecalho escuro, linhas construidas com `st.columns`, checkbox e
+remocao por par. Os dados continuam vindo exclusivamente de
+`split_comparison_pairs` e das chaves canonicas Split.
+
+### Licao:
+Separar criacao e comparacao reduz poluicao visual e deixa cada etapa do workflow
+com uma responsabilidade clara. Mesmo quando uma pagina legado serve de template,
+a nova pagina deve possuir seu proprio estado, helpers e contratos metodologicos.
+
+---
+
+## 2026-06-10 - Split: Resultados Reutilizam Hierarquia Visual, Nao O Resumo Standard
+
+### Decisao:
+A pagina `page_6_resultados.py` serve apenas como referencia para a hierarquia de
+apresentacao: metricas principais, informacoes do veiculo, tabela final, validacao,
+detalhes e area de exportacao.
+
+O consolidado Split e calculado por helpers puros em `core/split_results.py` a
+partir de `split_comparison_pairs` marcados com `selected=True`. As chaves canonicas
+sao `F0_mean`, `F2_mean`, `energy`, `f0_prime_mean`, `f2_prime_mean`, warnings e
+`ambient_by_component`. Estados e aliases metodologicos Standard nao participam.
+
+O CV final usa desvio-padrao amostral e so e exibido com pelo menos dois valores
+validos. Dados ausentes reduzem a amostra disponivel e geram aviso, sem substituir
+valores por zero. O export permanece desabilitado ate consumir esse mesmo contrato.
+
+### Licao:
+Reaproveitar um template visual nao significa copiar o momento em que o resultado
+e calculado nem sua fonte de estado. A pagina final deve ser uma projecao defensiva
+do contrato do metodo ativo, com consolidacao pura testavel e UI tolerante a dados
+parciais.
+
+---
+
+## 2026-06-10 - Split: Identidade Tecnica Nao E Rotulo Publico
+
+### Decisao:
+O campo `id` com formato `split_pair_*` permanece como chave tecnica para selecao,
+remocao, widget keys e persistencia. A UI identifica o par pela composicao das runs:
+`[+]: Run high / Run low | [-]: Run high / Run low`.
+
+Os seletores de passadas mostram somente run, Delta t e arquivo. Direcao e horario
+continuam nos dados e nas secoes de rastreabilidade, sem poluir o label operacional.
+Os dois formatos sao centralizados em helpers puros de `core/split_display.py`.
+
+Ao validar a mudanca na aplicacao, verificar tambem processos Streamlit duplicados.
+Uma instancia iniciada antes da alteracao pode continuar servindo bytecode antigo,
+mesmo quando testes e imports em um novo processo ja resolvem o arquivo correto.
+Confirmar porta/PID e reiniciar a instancia usada pelo navegador faz parte da
+validacao de mudancas visuais.
+
+### Licao:
+Chaves estaveis devem permanecer independentes do texto apresentado. Um identificador
+publico derivado dos componentes de dominio melhora a leitura sem alterar referencias
+internas, e um unico helper evita que tabelas, cards e seletores descrevam o mesmo par
+de maneiras divergentes.
+
+---
