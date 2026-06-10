@@ -1192,3 +1192,26 @@ como parte do contrato do parser. Quando a cobertura falhar, registrar bins espe
 encontrados e faltantes em vez de emitir apenas "intervalo nao encontrado".
 
 ---
+
+## 2026-06-10 - Split: Reutilizar Funcoes Puras, Nao Workflows Standard
+
+### Regra:
+O Split pode reutilizar uma funcao herdada quando o contrato for explicito, puro e
+independente de estado ou schema Standard. Exemplos aceitos sao conversao de unidade,
+formatacao, leitura neutra de arquivo e `calcular_energia(f0, f2)`, desde que a origem
+e as constantes permaneçam documentadas.
+
+Nao reutilizar diretamente funcoes que dependam de `calculated_pairs`,
+`pares_finais_selecionados`, `algorithm_results`, `f0_corr`, `f2_corr`, selecao por
+algoritmo ou qualquer outro workflow Standard acoplado. Mesmo quando uma formula
+interna parece aproveitavel, ela deve ser isolada atras de um contrato Split ou
+neutro antes de entrar no fluxo ativo.
+
+### Licao:
+Separacao metodologica deve ser verificada pela cadeia de imports e pelo contrato de
+estado, nao apenas pela navegacao visivel. `core/__init__.py` e `data/__init__.py`
+ainda importam legado de forma antecipada; isso nao executa o workflow Standard hoje,
+mas aumenta o risco de acoplamento e deve ser removido em uma etapa de compatibilidade
+controlada.
+
+---
