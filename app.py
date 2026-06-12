@@ -1698,7 +1698,7 @@ def render_test_analysis(t):
     tab_pages = [
         ("2_dados_veiculo", t("page_vehicle_data")),
         ("split_workflow", t("page_split_workflow")),
-        ("split_coefficient_calculation", t("page_split_coefficient_calculation")),
+        ("split_coefficient_calculation", t("page_split_pair_analysis")),
         ("split_final_comparison", t("page_split_final_comparison")),
         ("split_results", t("page_split_results")),
     ]

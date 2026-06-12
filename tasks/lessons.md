@@ -37,6 +37,54 @@
 
 Registrar aqui decisoes e aprendizados especificos do metodo Split.
 
+## 2026-06-12 - Split: Graficos Devem Projetar O Estado Parseado
+
+### Contexto:
+A nova Analise Grafica precisava se inspirar na pagina Standard sem importar
+`calculated_pairs`, selecao Standard ou premissas de multiplos intervalos.
+Os registros em `split_parsed_runs` guardam o resultado agregado e a
+rastreabilidade, enquanto os tempos por bin permanecem em
+`split_input_sources[*].all_run_data`.
+
+### Decisao:
+Usar o registro parseado como fonte da selecao e resolver sua serie original por
+arquivo, role e run apenas para recuperar os bins ja aceitos pelo parser Split.
+O grafico acumula os `time_s` medidos e usa somente as velocidades inicial/final
+de cada bin. Quando a fonte detalhada nao esta disponivel, mostrar explicitamente
+um segmento agregado entre inicio, `Delta t` e fim, sem interpolar amostras.
+Pares calculados leem somente os quatro componentes persistidos em
+`split_comparison_pairs`; o `pair_id` continua restrito a chave tecnica.
+
+### Licao:
+Uma visualizacao metodologicamente neutra deve ser uma projecao dos dados que o
+metodo ativo ja validou. Nao duplicar series no estado nem reconstruir curvas
+fisicas inexistentes. Fallback agregado precisa ser visualmente distinguivel e
+explicado ao usuario.
+
+---
+
+## 2026-06-12 - Split: Selecao Grafica Deve Ser Isolada Por Intervalo
+
+### Contexto:
+Um unico multiselect para high e low misturava duas analises com escalas e
+decisoes operacionais independentes. Botoes programaticos tambem precisam
+sincronizar a widget key usada pelo `st.multiselect`.
+
+### Decisao:
+High e low usam keys separadas para direcao e runs selecionadas, sempre
+escopadas por teste e versao dos inputs. Ao mudar o filtro, um helper puro
+mantem somente IDs ainda disponiveis naquela secao. `Adicionar todas` e
+`Limpar selecao` escrevem na key da propria secao antes de o multiselect ser
+renderizado.
+
+### Licao:
+Quando duas visualizacoes representam conjuntos de dominio independentes, o
+estado dos widgets tambem deve ser independente. Em Streamlit, reconciliar e
+atualizar a widget key antes de criar o widget evita que um valor visual antigo
+recontamine a selecao de dominio.
+
+---
+
 ## 2026-06-09 - Split: Coeficientes Corrigidos Devem Ter Contrato Proprio
 
 ### Contexto:

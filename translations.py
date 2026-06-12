@@ -999,6 +999,162 @@ TRANSLATIONS = {
         "pt": "Cálculo dos Coeficientes",
         "en": "Coefficient Calculation"
     },
+    "page_split_pair_analysis": {
+        "pt": "3. Análise de Pares",
+        "en": "3. Pair Analysis"
+    },
+    "split_graphical_analysis": {
+        "pt": "Análise Gráfica",
+        "en": "Graphical Analysis"
+    },
+    "split_graph_available_runs": {
+        "pt": "Passadas disponíveis",
+        "en": "Available runs"
+    },
+    "split_graph_high_section_title": {
+        "pt": "Alta velocidade",
+        "en": "High speed"
+    },
+    "split_graph_low_section_title": {
+        "pt": "Baixa velocidade",
+        "en": "Low speed"
+    },
+    "split_graph_run_visualization": {
+        "pt": "Visualização das passadas",
+        "en": "Run visualization"
+    },
+    "split_graph_calculated_pairs": {
+        "pt": "Pares calculados",
+        "en": "Calculated pairs"
+    },
+    "split_graph_interval_type": {
+        "pt": "Tipo de intervalo",
+        "en": "Interval type"
+    },
+    "split_graph_direction_filter": {
+        "pt": "Direção",
+        "en": "Direction"
+    },
+    "split_graph_both": {
+        "pt": "Ambos",
+        "en": "Both"
+    },
+    "split_graph_both_directions": {
+        "pt": "Ambas",
+        "en": "Both"
+    },
+    "split_graph_high_speed": {
+        "pt": "High-speed",
+        "en": "High-speed"
+    },
+    "split_graph_low_speed": {
+        "pt": "Low-speed",
+        "en": "Low-speed"
+    },
+    "split_graph_runs_to_display": {
+        "pt": "Runs/passadas a exibir",
+        "en": "Runs to display"
+    },
+    "split_graph_selected_runs": {
+        "pt": "Runs selecionadas",
+        "en": "Selected runs"
+    },
+    "split_graph_add_all": {
+        "pt": "Adicionar todas",
+        "en": "Add all"
+    },
+    "split_graph_clear_selection": {
+        "pt": "Limpar seleção",
+        "en": "Clear selection"
+    },
+    "split_graph_no_runs_for_section": {
+        "pt": "Nenhuma run disponível para a seção {section}.",
+        "en": "No run is available for the {section} section."
+    },
+    "split_graph_no_runs_for_direction": {
+        "pt": "Nenhuma run disponível para a direção selecionada.",
+        "en": "No run is available for the selected direction."
+    },
+    "split_graph_no_runs_selected": {
+        "pt": "Nenhuma run selecionada.",
+        "en": "No run is selected."
+    },
+    "split_graph_no_runs_for_filters": {
+        "pt": "Nenhuma passada disponível para a direção e o intervalo selecionados.",
+        "en": "No run is available for the selected direction and interval."
+    },
+    "split_graph_process_intervals_first": {
+        "pt": "Processe os intervalos Split antes de visualizar as passadas.",
+        "en": "Process the Split intervals before viewing the runs."
+    },
+    "split_graph_select_at_least_one_run": {
+        "pt": "Selecione pelo menos uma passada para visualizar o gráfico.",
+        "en": "Select at least one run to view the chart."
+    },
+    "split_graph_insufficient_curve_data": {
+        "pt": "Os dados disponíveis não permitem montar a visualização das passadas selecionadas.",
+        "en": "The available data cannot build a visualization for the selected runs."
+    },
+    "split_graph_aggregate_data_notice": {
+        "pt": "{count} passada(s) possui(em) apenas dados agregados; exibindo o segmento do intervalo.",
+        "en": "{count} run(s) contain aggregate data only; displaying the interval segment."
+    },
+    "split_graph_deceleration_title": {
+        "pt": "Curvas Split - Velocidade × Tempo",
+        "en": "Split Curves - Speed × Time"
+    },
+    "split_graph_section_curve_title": {
+        "pt": "{section} - Velocidade × tempo decorrido",
+        "en": "{section} - Speed × elapsed time"
+    },
+    "split_graph_delta_t_title": {
+        "pt": "Tempo de desaceleração por passada",
+        "en": "Deceleration time by run"
+    },
+    "split_graph_section_delta_t_title": {
+        "pt": "{section} - Delta t por passada",
+        "en": "{section} - Delta t by run"
+    },
+    "split_graph_elapsed_time": {
+        "pt": "Tempo decorrido",
+        "en": "Elapsed time"
+    },
+    "split_graph_speed": {
+        "pt": "Velocidade",
+        "en": "Speed"
+    },
+    "split_graph_elapsed_time_axis": {
+        "pt": "Tempo decorrido [s]",
+        "en": "Elapsed time [s]"
+    },
+    "split_graph_speed_axis": {
+        "pt": "Velocidade [km/h]",
+        "en": "Speed [km/h]"
+    },
+    "split_graph_delta_t": {
+        "pt": "Delta t",
+        "en": "Delta t"
+    },
+    "split_graph_delta_t_axis": {
+        "pt": "Delta t [s]",
+        "en": "Delta t [s]"
+    },
+    "split_graph_select_pair": {
+        "pt": "Par a visualizar",
+        "en": "Pair to view"
+    },
+    "split_graph_no_calculated_pairs": {
+        "pt": "Nenhum par foi adicionado ao Comparativo Final ainda.",
+        "en": "No pair has been added to Final Comparison yet."
+    },
+    "split_graph_pair_data_unavailable": {
+        "pt": "Os componentes deste par não possuem dados suficientes para visualização gráfica.",
+        "en": "This pair's components do not contain enough data for graphical visualization."
+    },
+    "split_graph_pair_title": {
+        "pt": "Componentes do par - {pair}",
+        "en": "Pair components - {pair}"
+    },
     "page_split_final_comparison": {
         "pt": "Comparativo Final",
         "en": "Final Comparison"
@@ -1088,8 +1244,8 @@ TRANSLATIONS = {
         "en": "{count} unique warning(s) preserved in pair details."
     },
     "split_results_no_pairs_available": {
-        "pt": "Nenhum par está disponível no Comparativo Final. Volte às etapas de Cálculo dos Coeficientes e Comparativo Final para adicionar pares.",
-        "en": "No pair is available in Final Comparison. Return to Coefficient Calculation and Final Comparison to add pairs."
+        "pt": "Nenhum par está disponível no Comparativo Final. Volte à sub-aba Cálculo dos Coeficientes em Análise de Pares para adicionar pares.",
+        "en": "No pair is available in Final Comparison. Return to the Coefficient Calculation sub-tab in Pair Analysis to add pairs."
     },
     "split_results_no_pairs_selected": {
         "pt": "Há pares no Comparativo Final, mas nenhum está selecionado. Volte ao Comparativo Final e marque os pares que devem compor o resultado.",

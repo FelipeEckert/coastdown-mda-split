@@ -33,6 +33,13 @@ from core.split_state import (
     split_parse_is_current,
 )
 from data.split_parser import default_split_interval_config
+from utils.split_graphs import (
+    apply_split_run_selection_action,
+    build_split_run_plot_series,
+    collect_split_run_options,
+    filter_split_run_options,
+    split_pair_component_records,
+)
 
 
 COMPONENT_LABEL_KEYS = {
@@ -976,10 +983,8 @@ def _selected_from_group(grouped: dict, component: str, label_key: str, selectio
     return selected_record
 
 
-def render(t):
-    """Render manual Split coefficient calculation."""
-    st.header(t("page_split_coefficient_calculation"))
-
+def _render_coefficient_calculation(t):
+    """Render the existing manual Split coefficient calculation flow."""
     if not st.session_state.get("data_loaded"):
         st.warning(t("error_no_file"))
         return
@@ -1128,3 +1133,377 @@ def render(t):
         st.info(t("split_saved_results_count", count=len(st.session_state.split_results)))
 
     _render_add_to_comparison(t)
+
+
+def _graph_interval_label(interval_name: str, t) -> str:
+    if interval_name == "high":
+        return t("split_graph_high_speed")
+    if interval_name == "low":
+        return t("split_graph_low_speed")
+    return str(interval_name or "N/A")
+
+
+def _render_split_series_chart(series_items: list[dict], title: str, t):
+    import plotly.graph_objects as go
+
+    colors = [
+        "#4a9eff",
+        "#ff9800",
+        "#38b2ac",
+        "#ef5da8",
+        "#9b8afb",
+        "#f4c95d",
+        "#4bc0c8",
+        "#ff6b6b",
+    ]
+    fig = go.Figure()
+    for index, item in enumerate(series_items):
+        series = item["series"]
+        record = series["record"]
+        name = item.get("display_name") or (
+            f"{_graph_interval_label(series.get('interval_name'), t)} "
+            f"[{series.get('direction')}] | Run {record.get('run_id')}"
+        )
+        is_aggregate = series.get("data_mode") == "aggregate"
+        fig.add_trace(
+            go.Scatter(
+                x=series["times_s"],
+                y=series["speeds_kmh"],
+                mode="lines+markers",
+                name=name,
+                line={
+                    "color": item.get("color") or colors[index % len(colors)],
+                    "width": 2.5 if not is_aggregate else 2,
+                    "dash": "dot" if is_aggregate else "solid",
+                },
+                marker={
+                    "size": 7,
+                    "symbol": "diamond" if is_aggregate else "circle",
+                },
+                hovertemplate=(
+                    f"<b>{name}</b><br>"
+                    f"{t('split_file')}: {record.get('filename', 'N/A')}<br>"
+                    f"{t('split_graph_elapsed_time')}: %{{x:.3f}} s<br>"
+                    f"{t('split_graph_speed')}: %{{y:.2f}} km/h"
+                    "<extra></extra>"
+                ),
+            )
+        )
+
+    fig.update_layout(
+        title={"text": title, "font": {"size": 15}},
+        xaxis_title=t("split_graph_elapsed_time_axis"),
+        yaxis_title=t("split_graph_speed_axis"),
+        template="plotly_dark",
+        hovermode="x unified",
+        height=500,
+        margin={"l": 60, "r": 20, "t": 55, "b": 55},
+        legend={
+            "bgcolor": "rgba(30,30,46,0.85)",
+            "bordercolor": "#3d3d3d",
+            "borderwidth": 1,
+        },
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def _render_delta_t_chart(selected_options: list[dict], title: str, t):
+    import plotly.graph_objects as go
+
+    labels = []
+    values = []
+    colors = []
+    hover_text = []
+    color_by_group = {
+        ("high", "+"): "#4a9eff",
+        ("low", "+"): "#38b2ac",
+        ("high", "-"): "#ff9800",
+        ("low", "-"): "#ef5da8",
+    }
+    for option in selected_options:
+        record = option["record"]
+        try:
+            delta_t = float(record.get("delta_t_s"))
+        except (TypeError, ValueError):
+            continue
+        direction = _record_direction(record)
+        interval_name = option["interval_name"]
+        labels.append(format_run_option_label(record))
+        values.append(delta_t)
+        colors.append(color_by_group.get((interval_name, direction), "#9b8afb"))
+        hover_text.append(
+            f"{_graph_interval_label(interval_name, t)} [{direction}]"
+        )
+    if not values:
+        return
+
+    fig = go.Figure(
+        go.Bar(
+            x=labels,
+            y=values,
+            marker_color=colors,
+            customdata=hover_text,
+            hovertemplate=(
+                "<b>%{x}</b><br>"
+                "%{customdata}<br>"
+                f"{t('split_graph_delta_t')}: %{{y:.3f}} s"
+                "<extra></extra>"
+            ),
+        )
+    )
+    fig.update_layout(
+        title={"text": title, "font": {"size": 15}},
+        xaxis_title=t("split_graph_available_runs"),
+        yaxis_title=t("split_graph_delta_t_axis"),
+        template="plotly_dark",
+        height=390,
+        margin={"l": 60, "r": 20, "t": 55, "b": 120},
+    )
+    fig.update_xaxes(tickangle=-25)
+    st.plotly_chart(fig, use_container_width=True)
+
+
+def _render_split_run_section(interval_name: str, all_options: list[dict], t):
+    section_title = t(
+        "split_graph_high_section_title"
+        if interval_name == "high"
+        else "split_graph_low_section_title"
+    )
+    st.markdown(f"### {section_title}")
+
+    section_options = [
+        option
+        for option in all_options
+        if option.get("interval_name") == interval_name
+    ]
+    valid_section_options = filter_split_run_options(
+        section_options,
+        interval_name=interval_name,
+        direction="both",
+    )
+    test_id = st.session_state.get("active_test_id", "test")
+    input_version = st.session_state.get("split_input_version", 0)
+    language = st.session_state.get("language", "pt")
+    selection_key = (
+        f"split_graph_{interval_name}_selected_runs_"
+        f"{test_id}_{input_version}"
+    )
+    direction_key = (
+        f"split_graph_{interval_name}_direction_filter_"
+        f"{test_id}_{input_version}_{language}"
+    )
+
+    if not valid_section_options:
+        st.session_state[selection_key] = []
+        st.info(t("split_graph_no_runs_for_section", section=section_title))
+        return
+
+    direction_labels = {
+        t("split_graph_both_directions"): "both",
+        "[+]": "+",
+        "[-]": "-",
+    }
+    selected_direction_label = st.radio(
+        t("split_graph_direction_filter"),
+        options=list(direction_labels),
+        horizontal=True,
+        key=direction_key,
+    )
+
+    filtered_options = filter_split_run_options(
+        section_options,
+        interval_name=interval_name,
+        direction=direction_labels[selected_direction_label],
+    )
+    options_by_id = {
+        option["option_id"]: option
+        for option in filtered_options
+    }
+    option_ids = list(options_by_id)
+    if selection_key not in st.session_state:
+        st.session_state[selection_key] = option_ids[: min(4, len(option_ids))]
+    st.session_state[selection_key] = apply_split_run_selection_action(
+        st.session_state.get(selection_key),
+        option_ids,
+    )
+
+    add_col, clear_col = st.columns(2)
+    with add_col:
+        if st.button(
+            t("split_graph_add_all"),
+            key=(
+                f"split_graph_{interval_name}_add_all_"
+                f"{test_id}_{input_version}"
+            ),
+            use_container_width=True,
+            disabled=not option_ids,
+        ):
+            st.session_state[selection_key] = apply_split_run_selection_action(
+                st.session_state.get(selection_key),
+                option_ids,
+                action="add_all",
+            )
+    with clear_col:
+        if st.button(
+            t("split_graph_clear_selection"),
+            key=(
+                f"split_graph_{interval_name}_clear_selection_"
+                f"{test_id}_{input_version}"
+            ),
+            use_container_width=True,
+            disabled=not st.session_state.get(selection_key),
+        ):
+            st.session_state[selection_key] = apply_split_run_selection_action(
+                st.session_state.get(selection_key),
+                option_ids,
+                action="clear",
+            )
+
+    if not option_ids:
+        st.warning(t("split_graph_no_runs_for_direction"))
+        return
+
+    selected_ids = st.multiselect(
+        t("split_graph_selected_runs"),
+        options=option_ids,
+        format_func=lambda option_id: format_run_option_label(
+            options_by_id[option_id]["record"]
+        ),
+        key=selection_key,
+    )
+    if not selected_ids:
+        st.info(t("split_graph_no_runs_selected"))
+        return
+
+    selected_options = [options_by_id[option_id] for option_id in selected_ids]
+    input_sources = st.session_state.get("split_input_sources") or []
+    series_items = []
+    aggregate_count = 0
+    for option in selected_options:
+        series = build_split_run_plot_series(option["record"], input_sources)
+        if not series:
+            continue
+        aggregate_count += series.get("data_mode") == "aggregate"
+        series_items.append({"series": series})
+
+    if not series_items:
+        st.warning(t("split_graph_insufficient_curve_data"))
+    else:
+        if aggregate_count:
+            st.info(t("split_graph_aggregate_data_notice", count=aggregate_count))
+        _render_split_series_chart(
+            series_items,
+            t("split_graph_section_curve_title", section=section_title),
+            t,
+        )
+    _render_delta_t_chart(
+        selected_options,
+        t("split_graph_section_delta_t_title", section=section_title),
+        t,
+    )
+
+
+def _render_available_split_runs(t):
+    parsed = st.session_state.get("split_parsed_runs") or {}
+    all_options = collect_split_run_options(parsed)
+    if not all_options:
+        st.info(t("split_graph_process_intervals_first"))
+        return
+
+    st.subheader(t("split_graph_available_runs"))
+    _render_split_run_section("high", all_options, t)
+    st.markdown("---")
+    _render_split_run_section("low", all_options, t)
+
+
+def _render_calculated_pair_graphs(t):
+    st.markdown("---")
+    st.subheader(t("split_graph_calculated_pairs"))
+    pairs = st.session_state.get("split_comparison_pairs") or []
+    if not pairs:
+        st.info(t("split_graph_no_calculated_pairs"))
+        return
+
+    pair_options = {
+        pair.get("id") or f"pair_{index}": pair
+        for index, pair in enumerate(pairs)
+    }
+    selected_pair_id = st.selectbox(
+        t("split_graph_select_pair"),
+        options=list(pair_options),
+        format_func=lambda pair_id: format_split_pair_label(pair_options[pair_id]),
+        key=(
+            f"split_graph_pair_"
+            f"{st.session_state.get('active_test_id', 'test')}_"
+            f"{st.session_state.get('split_input_version', 0)}"
+        ),
+    )
+    selected_pair = pair_options[selected_pair_id]
+    input_sources = st.session_state.get("split_input_sources") or []
+    component_colors = {
+        "high_plus": "#4a9eff",
+        "low_plus": "#38b2ac",
+        "high_minus": "#ff9800",
+        "low_minus": "#ef5da8",
+    }
+    series_items = []
+    aggregate_count = 0
+    for component_item in split_pair_component_records(selected_pair):
+        component = component_item["component"]
+        record = component_item["record"]
+        series = build_split_run_plot_series(record, input_sources)
+        if not series:
+            continue
+        aggregate_count += series.get("data_mode") == "aggregate"
+        series_items.append(
+            {
+                "series": series,
+                "display_name": (
+                    f"{t(COMPONENT_LABEL_KEYS[component])} | "
+                    f"Run {record.get('run_id')}"
+                ),
+                "color": component_colors[component],
+            }
+        )
+
+    if not series_items:
+        st.warning(t("split_graph_pair_data_unavailable"))
+        return
+    if aggregate_count:
+        st.info(t("split_graph_aggregate_data_notice", count=aggregate_count))
+    _render_split_series_chart(
+        series_items,
+        t(
+            "split_graph_pair_title",
+            pair=format_split_pair_label(selected_pair),
+        ),
+        t,
+    )
+
+
+def _render_graphical_analysis(t):
+    """Render Split-only run and calculated-pair visualizations."""
+    if not st.session_state.get("data_loaded"):
+        st.info(t("split_graph_process_intervals_first"))
+        return
+    if not split_parse_is_current(st.session_state):
+        st.warning(t("split_graph_process_intervals_first"))
+        return
+
+    _render_available_split_runs(t)
+    _render_calculated_pair_graphs(t)
+
+
+def render(t):
+    """Render Split pair analysis with calculation and graph sub-tabs."""
+    st.header(t("page_split_pair_analysis"))
+    tab_calc, tab_graph = st.tabs(
+        [
+            t("page_split_coefficient_calculation"),
+            t("split_graphical_analysis"),
+        ]
+    )
+    with tab_calc:
+        _render_coefficient_calculation(t)
+    with tab_graph:
+        _render_graphical_analysis(t)

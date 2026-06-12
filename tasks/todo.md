@@ -97,6 +97,18 @@
 - [x] Parser blocks incomplete high/low combinations instead of generating partial or position-based intervals.
 - [x] Input mode is explicit in the UI and saved as `split_input_mode`.
 - [x] Main Split navigation now has Vehicle Data, Interval Selection, Coefficient Calculation, Final Comparison and Split Results.
+- [x] Rename the third Split navigation tab to `3. Análise de Pares`.
+- [x] Organize Pair Analysis into Coefficient Calculation and Graphical Analysis sub-tabs.
+- [x] Keep the existing coefficient-selection, correction, energy, meteo and comparison persistence flow unchanged inside the calculation sub-tab.
+- [x] Add Split-only run filters by high/low interval and +/- direction using clean public run labels.
+- [x] Add Plotly speed-versus-elapsed-time and Delta t charts from processed Split runs.
+- [x] Add calculated-pair visualization from the four records stored in `split_comparison_pairs`.
+- [x] Add explicit empty and aggregate-data states to Graphical Analysis.
+- [x] Split Graphical Analysis into independent High speed and Low speed sections.
+- [x] Give each graphical section its own direction filter, selected-run state, Add all and Clear selection actions.
+- [x] Reconcile each section selection against its current direction filter without changing the other section.
+- [ ] Run a manual UI regression of Graphical Analysis with real separate high/low files and a saved complete pair.
+- [ ] Manually confirm High speed Add/Clear actions do not change Low speed selection, and vice versa.
 - [x] Coefficient Calculation tab manually selects high+, low+, high- and low- before calculating.
 - [x] Coefficient Calculation tab calculates direction +, direction - and arithmetic pair average.
 - [x] Coefficient Calculation supports fixed or synchronized ambient conditions.
