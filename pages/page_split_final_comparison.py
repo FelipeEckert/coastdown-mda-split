@@ -26,7 +26,7 @@ from core.split_results import consolidate_split_final_results
 from core.split_state import clear_split_comparison_state, reset_split_final_outputs
 
 
-ROW_RATIOS = [0.45, 2.35, 0.85, 0.85, 0.85, 0.95, 1.05, 0.75, 0.75, 0.9, 0.45]
+ROW_RATIOS = [0.5, 2.2, 0.9, 0.9, 1.0, 1.1, 1.1, 0.8, 0.8, 1.0, 0.5]
 
 
 def _selection_source_label(source: str, t) -> str:
@@ -77,9 +77,6 @@ def _current_pairs() -> list[dict]:
     )
     if changed:
         st.session_state.split_comparison_pairs = pairs
-        for pair in pairs:
-            if not is_split_pair_corrected(pair):
-                st.session_state[_split_selection_widget_key(pair["id"])] = False
         _reset_split_final_outputs()
     return pairs
 
@@ -91,8 +88,8 @@ def get_selected_split_comparison_pairs() -> list[dict]:
     )
 
 
-def _set_split_pair_selected(pair_id: str, selected: bool) -> None:
-    """Synchronize one Split pair selection and its checkbox state."""
+def _set_split_pair_selected_data_only(pair_id: str, selected: bool) -> None:
+    """Synchronize one Split pair selection without touching widget state."""
     pairs = _current_pairs()
     selected_ids = []
     for pair in pairs:
@@ -107,12 +104,6 @@ def _set_split_pair_selected(pair_id: str, selected: bool) -> None:
     st.session_state.split_comparison_pairs = set_split_comparison_selected_ids(
         pairs,
         selected_ids,
-    )
-    st.session_state[_split_selection_widget_key(pair_id)] = (
-        selected and any(
-            pair.get("id") == pair_id and is_split_pair_corrected(pair)
-            for pair in pairs
-        )
     )
     _reset_split_final_outputs()
 
@@ -186,31 +177,29 @@ def _render_actions(t) -> None:
 
 
 def _cell_html(value, *, warning: bool = False, reference: bool = False) -> str:
-    background = "rgba(255,152,0,0.16)" if reference else "#1f242c"
-    color = "#ffcf8a" if reference else "#ffffff"
-    border = "#f59e0b" if reference else "rgba(255,255,255,0.10)"
-    if warning:
-        color = "#ff6b6b"
-    escaped_value = html.escape(str(value)).replace("\n", "<br>")
-    return (
-        "<div style='text-align:center;"
-        f"background:{background};color:{color};border:1px solid {border};"
-        "padding:7px 5px;border-radius:4px;min-height:34px;"
-        "font-size:var(--mda-font-table);font-weight:"
-        f"{'700' if warning else '400'};'>"
-        f"{escaped_value}</div>"
+    bg_color = "rgba(255,152,0,0.10)" if reference else "#1e1e1e"
+    text_color = "#ffb74d" if reference else "white"
+    cell = (
+        f"text-align:center;background-color:{bg_color};color:{text_color};"
+        "padding:8px;border-radius:4px;font-size:var(--mda-font-table);"
     )
+    if warning:
+        cell = (
+            f"text-align:center;background-color:{bg_color};color:#ff6b6b;"
+            "padding:8px;border-radius:4px;font-weight:bold;"
+            "font-size:var(--mda-font-table);"
+        )
+    escaped_value = html.escape(str(value)).replace("\n", "<br>")
+    return f"<div style='{cell}'>{escaped_value}</div>"
 
 
 def _render_header(labels: list[str], *, reference: bool = False) -> None:
-    background = "#2a1f12" if reference else "#20242c"
     color = "#ffcf8a" if reference else "#ffffff"
     for column, header in zip(st.columns(ROW_RATIOS), labels):
         column.markdown(
             (
                 "<div style='text-align:center;font-size:var(--mda-font-table);"
-                f"color:{color};background:{background};padding:7px 4px;"
-                "border-radius:4px;min-height:34px;'>"
+                f"color:{color};'>"
                 f"<strong>{html.escape(str(header))}</strong></div>"
             ),
             unsafe_allow_html=True,
@@ -219,8 +208,8 @@ def _render_header(labels: list[str], *, reference: bool = False) -> None:
 
 def _render_remove_button(column, pair_id: str, label: str, t) -> None:
     if column.button(
-        "x",
-        key=f"split_final_remove_{pair_id}",
+        "❌",
+        key=f"rem_split_{pair_id}",
         help=f"{t('split_remove_pair')}: {label}",
         use_container_width=True,
     ):
@@ -242,7 +231,7 @@ def _render_pair_row(pair: dict, normalized: dict, t) -> None:
         label_visibility="collapsed",
     )
     if selected != previous:
-        _set_split_pair_selected(pair_id, selected)
+        _set_split_pair_selected_data_only(pair_id, selected)
 
     values = [
         normalized["_pair_label"].replace(" | ", "\n"),
@@ -277,10 +266,11 @@ def _render_pair_row(pair: dict, normalized: dict, t) -> None:
 def _render_reference_row(pair: dict, normalized: dict, t) -> None:
     pair_id = normalized["_pair_id"]
     if pair.get("selected", False):
-        _set_split_pair_selected(pair_id, False)
+        _set_split_pair_selected_data_only(pair_id, False)
+    st.session_state.pop(_split_selection_widget_key(pair_id), None)
 
     columns = st.columns(ROW_RATIOS)
-    columns[0].markdown(_cell_html("!", reference=True), unsafe_allow_html=True)
+    columns[0].markdown(_cell_html("⚠️", reference=True), unsafe_allow_html=True)
     values = [
         normalized["_pair_label"].replace(" | ", "\n"),
         format_split_comparison_display_value(normalized["_temp"], 1),
@@ -324,12 +314,12 @@ def _render_corrected_pairs(pairs: list[tuple[dict, dict]], t) -> None:
             t("split_temp_short"),
             t("split_press_short"),
             t("split_wind_short"),
-            "F0 (N)",
-            "F2 (N/(km/h)^2)",
-            "CV F0 (%)",
-            "CV F2 (%)",
+            "F0 [N]",
+            "F2 [N/(km/h)²]",
+            "CV F0 [%]",
+            "CV F2 [%]",
             t("split_energy_with_unit"),
-            "x",
+            "❌",
         ]
     )
     st.markdown(
@@ -363,7 +353,7 @@ def _render_reference_pairs(pairs: list[tuple[dict, dict]], t) -> None:
             "CV f'0 (%)",
             "CV f'2 (%)",
             t("split_energy_with_unit"),
-            "x",
+            "❌",
         ],
         reference=True,
     )

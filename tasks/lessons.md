@@ -1520,3 +1520,30 @@ o mesmo helper da pagina final ou vira uma segunda fonte de verdade. Analises
 tecnicas herdadas so entram depois de revisao metodologica Split.
 
 ---
+
+## 2026-06-17 - Split: Checkbox Nao Pode Ser Ressincronizado Depois De Criado
+
+### Contexto:
+O Comparativo Final Split gerou `StreamlitAPIException` ao marcar/desmarcar um
+par, porque a renderizacao criava `st.checkbox(key=...)` e depois um helper
+reescrevia diretamente a mesma key em `st.session_state`.
+
+### Decisao:
+A linha da tabela inicializa a widget key somente antes do checkbox existir.
+Depois da criacao do widget, o retorno de `st.checkbox` e copiado apenas para
+`split_comparison_pairs[*]["selected"]`, sem escrever em
+`st.session_state[widget_key]`. Acoes em lote continuam antes da tabela e fazem
+`st.rerun()` imediato quando sincronizam keys para a proxima execucao.
+
+A tabela tambem voltou ao estilo compacto do Standard como referencia visual:
+`st.columns`, cabecalho HTML simples, celulas HTML escuras, CV acima de 10 em
+vermelho e pares sem correcao em laranja. A fonte real segue sendo
+`split_comparison_pairs`.
+
+### Licao:
+Widget key em Streamlit nao e um campo de estado de dominio livre durante a
+execucao. Depois que o widget e instanciado, altere o objeto de dominio, nao a
+key do widget. Sincronizacao programatica de widget deve acontecer antes da
+instanciacao ou em uma execucao nova apos `st.rerun()`.
+
+---

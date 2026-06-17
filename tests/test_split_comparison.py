@@ -31,7 +31,10 @@ from data.split_parser import default_split_interval_config
 from core.split_state import clear_split_comparison_state
 from core.split_results import consolidate_split_final_results
 from pages.page_split_coefficient_calculation import _weather_sync_rows
-from pages.page_split_final_comparison import _comparison_rows
+from pages.page_split_final_comparison import (
+    _comparison_rows,
+    _split_selection_widget_key,
+)
 from pages.page_split_results import _result_rows
 from translations import get_translator
 
@@ -463,6 +466,11 @@ class SplitComparisonTest(unittest.TestCase):
         )
         self.assertTrue(split_comparison_cv_warning(10.01))
         self.assertFalse(split_comparison_cv_warning(10.0))
+
+    def test_split_selection_widget_key_is_stable(self):
+        key = _split_selection_widget_key("split_pair_abc123")
+
+        self.assertEqual(key, "split_final_pair_selected_split_pair_abc123")
 
     def test_clear_split_comparison_state_preserves_parsed_runs(self):
         state = {

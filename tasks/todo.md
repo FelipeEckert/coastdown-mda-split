@@ -143,6 +143,8 @@
 - [x] Add Final Comparison selected-pair statistics from `core/split_results.py`, keeping F0/F2/energy means and CVs aligned with Split Results.
 - [x] Add Final Comparison action to calculate/navigate to Split Results through `navigate_to_results`, without Standard final-result state.
 - [x] Add selected-pair traceability expander using existing Split comparison fields; defer Delta T conformity analysis for Split.
+- [x] Fix Final Comparison checkbox state handling so widget keys are not modified after `st.checkbox` is instantiated.
+- [x] Rework Final Comparison Split rows to closer Standard-style `st.columns` + compact HTML cells, with red CV warnings and orange reference rows.
 - [ ] Adapt the Split Excel exporter to the new selected-pair consolidation contract; the UI keeps export disabled until then.
 - [ ] Run manual regression in the app before first commit: create test, replace high, replace low, remove low, replace meteo, remove meteo.
 - [ ] Run manual regression with one high-only CSV and confirm calculation remains blocked with friendly warning.
@@ -202,6 +204,7 @@
 - [ ] Add meteo synchronization details to Split Excel export without applying climatic correction implicitly.
 - [ ] Continue visual polish after functional validation; keep technical meteo warnings collapsed by default.
 - [ ] Validate the Final Comparison table manually with a larger number of pairs and narrow desktop widths.
+- [ ] Manually recheck Final Comparison checkbox/batch/remove/results navigation with real browser state after the Streamlit session-state fix.
 - [ ] Design a Split-specific Delta T conformity analysis for selected pairs; do not import Standard `build_selected_pairs_time_analysis` without review.
 - [ ] Connect future automatic Split selection to `selection_source="algorithm"` without importing the Standard algorithm workflow.
 - [ ] Keep `sample_data/Split/` and `sample_data/Standard/` separated as validation datasets for each method.
