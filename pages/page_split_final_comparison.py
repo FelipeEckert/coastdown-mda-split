@@ -1,44 +1,32 @@
 # coding: utf-8
 """Final comparison page for calculated Coastdown Split pairs."""
 
+from __future__ import annotations
+
+import html
+
 import pandas as pd
 import streamlit as st
 
 from core.split_comparison import (
-    build_split_comparison_table_rows,
     clear_split_comparison_pairs,
     coefficient_variation_percent,
+    force_uncorrected_split_pairs_unselected,
+    format_split_comparison_display_value,
+    is_split_pair_corrected,
+    normalize_split_comparison_pairs,
+    normalize_split_pair_for_comparison,
     remove_split_comparison_pair,
+    selected_corrected_split_comparison_pairs,
     set_split_comparison_selected_ids,
+    split_comparison_cv_warning,
 )
 from core.split_display import format_split_pair_label
-from pages.page_split_coefficient_calculation import (
-    COMPONENT_LABEL_KEYS,
-    _ambient_mode_label,
-    _first_value,
-    _fmt,
-    _translated_weather_warning,
-    _weather_sync_rows,
-    _weather_sync_warnings,
-)
+from core.split_results import consolidate_split_final_results
+from core.split_state import clear_split_comparison_state, reset_split_final_outputs
 
 
-ROW_RATIOS = [
-    0.45,
-    1.8,
-    0.85,
-    0.65,
-    0.65,
-    0.65,
-    0.65,
-    0.9,
-    1.0,
-    0.9,
-    1.0,
-    1.05,
-    1.0,
-    0.55,
-]
+ROW_RATIOS = [0.45, 2.35, 0.85, 0.85, 0.85, 0.95, 1.05, 0.75, 0.75, 0.9, 0.45]
 
 
 def _selection_source_label(source: str, t) -> str:
@@ -49,115 +37,109 @@ def _selection_source_label(source: str, t) -> str:
     return t("split_selection_source_unknown")
 
 
-def _comparison_status_label(status: str, warning_count: int, t) -> str:
-    if status == "ready":
-        return t("split_comparison_status_ready")
-    if status == "warning":
-        return t("split_comparison_status_warning", count=warning_count)
-    return t("split_comparison_status_incomplete")
-
-
 def _comparison_rows(pairs: list[dict], t) -> list[dict]:
-    """Translate pure Split comparison rows for UI and tests."""
+    """Translate normalized Split comparison rows for tests/export previews."""
     rows = []
-    for pair in build_split_comparison_table_rows(pairs):
+    for index, pair in enumerate(normalize_split_comparison_pairs(pairs), start=1):
+        normalized = normalize_split_pair_for_comparison(pair, index)
         rows.append(
             {
-                t("split_selected"): pair["selected"],
-                t("split_pair"): format_split_pair_label(pair),
+                t("split_selected"): normalized["_selected"],
+                t("split_pair"): normalized["_pair_label"],
                 t("split_selection_source"): _selection_source_label(
-                    pair["selection_source"],
+                    normalized.get("selection_source"),
                     t,
                 ),
-                t("split_high_plus_run_short"): pair["high_plus_run"],
-                t("split_low_plus_run_short"): pair["low_plus_run"],
-                t("split_high_minus_run_short"): pair["high_minus_run"],
-                t("split_low_minus_run_short"): pair["low_minus_run"],
-                t("split_corrected_f0_mean"): pair["F0_mean"],
-                t("split_corrected_f2_mean"): pair["F2_mean"],
-                t("split_energy_with_unit"): pair["energy"],
-                t("split_temperature_plus_minus"): (
-                    f"{_fmt(pair.get('temp_plus_used'), 1)} / "
-                    f"{_fmt(pair.get('temp_minus_used'), 1)}"
-                ),
-                t("split_pressure_plus_minus"): (
-                    f"{_fmt(pair.get('press_plus_used'), 2)} / "
-                    f"{_fmt(pair.get('press_minus_used'), 2)}"
-                ),
-                t("split_comparison_status"): _comparison_status_label(
-                    pair["status"],
-                    pair["warning_count"],
-                    t,
-                ),
+                t("split_corrected_f0_mean"): normalized["_F0"],
+                t("split_corrected_f2_mean"): normalized["_F2"],
+                t("split_energy_with_unit"): normalized["_energy"],
+                t("split_temperature_plus_minus"): normalized["_temp"],
+                t("split_pressure_plus_minus"): normalized["_press"],
             }
         )
     return rows
 
 
-def _source_colors(source: str) -> tuple[str, str]:
-    if source == "algorithm":
-        return "#D1FFBD", "#17210f"
-    if source == "manual":
-        return "#ADD8E6", "#102a35"
-    return "#E6E6E6", "#303030"
-
-
-def _cell_html(value, background: str, color: str, warning=False) -> str:
-    border = "border-left:4px solid #b42318;" if warning else ""
-    return (
-        f"<div style='text-align:center;background-color:{background};"
-        f"color:{color};padding:7px 5px;border-radius:4px;"
-        f"min-height:34px;font-size:var(--mda-font-table);{border}'>"
-        f"{value}</div>"
-    )
-
-
-def _format_value(value, precision: int) -> str:
-    try:
-        return f"{float(value):.{precision}f}"
-    except (TypeError, ValueError):
-        return "N/A"
-
-
-def _selection_widget_key(pair_id: str) -> str:
+def _split_selection_widget_key(pair_id: str) -> str:
+    """Return the Streamlit checkbox key for a Split comparison pair."""
     return f"split_final_pair_selected_{pair_id}"
 
 
-def _reset_final_outputs() -> None:
-    st.session_state.split_final_results = {}
-    st.session_state.excel_buffer = None
+def _reset_split_final_outputs() -> None:
+    """Invalidate Split final outputs derived from comparison selection."""
+    reset_split_final_outputs(st.session_state)
 
 
-def _set_all_selected(selected: bool) -> None:
-    pairs = st.session_state.get("split_comparison_pairs") or []
-    selected_ids = [pair.get("id") for pair in pairs if selected and pair.get("id")]
+def _current_pairs() -> list[dict]:
+    """Return session comparison pairs as a list and repair old selected flags."""
+    pairs, changed = force_uncorrected_split_pairs_unselected(
+        st.session_state.get("split_comparison_pairs") or []
+    )
+    if changed:
+        st.session_state.split_comparison_pairs = pairs
+        for pair in pairs:
+            if not is_split_pair_corrected(pair):
+                st.session_state[_split_selection_widget_key(pair["id"])] = False
+        _reset_split_final_outputs()
+    return pairs
+
+
+def get_selected_split_comparison_pairs() -> list[dict]:
+    """Return selected corrected Split pairs from the current comparison table."""
+    return selected_corrected_split_comparison_pairs(
+        st.session_state.get("split_comparison_pairs") or []
+    )
+
+
+def _set_split_pair_selected(pair_id: str, selected: bool) -> None:
+    """Synchronize one Split pair selection and its checkbox state."""
+    pairs = _current_pairs()
+    selected_ids = []
+    for pair in pairs:
+        item_id = pair.get("id")
+        if item_id == pair_id:
+            item_selected = selected and is_split_pair_corrected(pair)
+        else:
+            item_selected = bool(pair.get("selected", False))
+        if item_selected and item_id:
+            selected_ids.append(item_id)
+
     st.session_state.split_comparison_pairs = set_split_comparison_selected_ids(
         pairs,
         selected_ids,
     )
-    for pair in pairs:
-        pair_id = pair.get("id")
-        if pair_id:
-            st.session_state[_selection_widget_key(pair_id)] = selected
-    _reset_final_outputs()
+    st.session_state[_split_selection_widget_key(pair_id)] = (
+        selected and any(
+            pair.get("id") == pair_id and is_split_pair_corrected(pair)
+            for pair in pairs
+        )
+    )
+    _reset_split_final_outputs()
 
 
-def _clear_comparison() -> None:
-    for pair in st.session_state.get("split_comparison_pairs") or []:
-        pair_id = pair.get("id")
-        if pair_id:
-            st.session_state.pop(_selection_widget_key(pair_id), None)
+def _clear_split_pair_widget_state(pair_ids) -> None:
+    """Remove widget state for comparison pairs that left the table."""
+    for pair_id in pair_ids:
+        st.session_state.pop(_split_selection_widget_key(pair_id), None)
+
+
+def _clear_all_split_comparison_pairs() -> None:
+    """Clear only the Split final comparison table and derived outputs."""
+    pairs = _current_pairs()
+    _clear_split_pair_widget_state(pair.get("id") for pair in pairs if pair.get("id"))
+    clear_split_comparison_state(st.session_state)
     st.session_state.split_comparison_pairs = clear_split_comparison_pairs()
-    _reset_final_outputs()
 
 
-def _remove_pair(pair_id: str) -> None:
+def _remove_split_pair(pair_id: str) -> None:
+    """Remove one Split comparison pair without touching parsed runs."""
+    pairs = _current_pairs()
     st.session_state.split_comparison_pairs = remove_split_comparison_pair(
-        st.session_state.get("split_comparison_pairs") or [],
+        pairs,
         pair_id,
     )
-    st.session_state.pop(_selection_widget_key(pair_id), None)
-    _reset_final_outputs()
+    _clear_split_pair_widget_state([pair_id])
+    _reset_split_final_outputs()
 
 
 def _render_actions(t) -> None:
@@ -166,88 +148,90 @@ def _render_actions(t) -> None:
         t("split_select_all_pairs"),
         use_container_width=True,
     ):
-        _set_all_selected(True)
+        selected_ids = [
+            pair["id"]
+            for pair in _current_pairs()
+            if pair.get("id") and is_split_pair_corrected(pair)
+        ]
+        st.session_state.split_comparison_pairs = set_split_comparison_selected_ids(
+            _current_pairs(),
+            selected_ids,
+        )
+        for pair in _current_pairs():
+            st.session_state[_split_selection_widget_key(pair["id"])] = (
+                pair.get("id") in selected_ids
+            )
+        _reset_split_final_outputs()
         st.rerun()
+
     if deselect_col.button(
         t("split_deselect_all_pairs"),
         use_container_width=True,
     ):
-        _set_all_selected(False)
+        st.session_state.split_comparison_pairs = set_split_comparison_selected_ids(
+            _current_pairs(),
+            [],
+        )
+        for pair in _current_pairs():
+            st.session_state[_split_selection_widget_key(pair["id"])] = False
+        _reset_split_final_outputs()
         st.rerun()
+
     if clear_col.button(
         t("split_clear_final_comparison"),
         use_container_width=True,
     ):
-        _clear_comparison()
+        _clear_all_split_comparison_pairs()
         st.rerun()
 
 
-def _render_legend(t) -> None:
-    label_col, manual_col, algorithm_col, pending_col = st.columns(
-        [0.65, 1.0, 1.0, 1.0]
-    )
-    label_col.markdown(f"**{t('split_comparison_legend')}**")
-    manual_col.markdown(
-        _cell_html(
-            t("split_selection_source_manual"),
-            "#ADD8E6",
-            "#102a35",
-        ),
-        unsafe_allow_html=True,
-    )
-    algorithm_col.markdown(
-        _cell_html(
-            t("split_selection_source_algorithm"),
-            "#D1FFBD",
-            "#17210f",
-        ),
-        unsafe_allow_html=True,
-    )
-    pending_col.markdown(
-        _cell_html(
-            t("split_selection_source_unknown"),
-            "#E6E6E6",
-            "#303030",
-        ),
-        unsafe_allow_html=True,
+def _cell_html(value, *, warning: bool = False, reference: bool = False) -> str:
+    background = "rgba(255,152,0,0.16)" if reference else "#1f242c"
+    color = "#ffcf8a" if reference else "#ffffff"
+    border = "#f59e0b" if reference else "rgba(255,255,255,0.10)"
+    if warning:
+        color = "#ff6b6b"
+    escaped_value = html.escape(str(value)).replace("\n", "<br>")
+    return (
+        "<div style='text-align:center;"
+        f"background:{background};color:{color};border:1px solid {border};"
+        "padding:7px 5px;border-radius:4px;min-height:34px;"
+        "font-size:var(--mda-font-table);font-weight:"
+        f"{'700' if warning else '400'};'>"
+        f"{escaped_value}</div>"
     )
 
 
-def _render_header(t) -> None:
-    headers = [
-        t("split_selected_short"),
-        t("split_pair"),
-        t("split_selection_source"),
-        t("split_high_plus_run_short"),
-        t("split_low_plus_run_short"),
-        t("split_high_minus_run_short"),
-        t("split_low_minus_run_short"),
-        t("split_corrected_f0_mean"),
-        t("split_corrected_f2_mean"),
-        t("split_energy_with_unit"),
-        t("split_temperature_plus_minus"),
-        t("split_pressure_plus_minus"),
-        t("split_comparison_status"),
-        "",
-    ]
-    for column, header in zip(st.columns(ROW_RATIOS), headers):
+def _render_header(labels: list[str], *, reference: bool = False) -> None:
+    background = "#2a1f12" if reference else "#20242c"
+    color = "#ffcf8a" if reference else "#ffffff"
+    for column, header in zip(st.columns(ROW_RATIOS), labels):
         column.markdown(
             (
                 "<div style='text-align:center;font-size:var(--mda-font-table);"
-                "color:#ffffff;background:#20242c;padding:7px 4px;"
-                f"border-radius:4px;min-height:34px;'><strong>{header}</strong></div>"
+                f"color:{color};background:{background};padding:7px 4px;"
+                "border-radius:4px;min-height:34px;'>"
+                f"<strong>{html.escape(str(header))}</strong></div>"
             ),
             unsafe_allow_html=True,
         )
 
 
-def _render_pair_row(pair: dict, row: dict, t) -> None:
-    pair_id = pair.get("id")
-    source = row["selection_source"]
-    background, color = _source_colors(source)
-    warning = row["status"] == "warning"
-    selected_key = _selection_widget_key(pair_id)
-    previous = bool(pair.get("selected", True))
+def _render_remove_button(column, pair_id: str, label: str, t) -> None:
+    if column.button(
+        "x",
+        key=f"split_final_remove_{pair_id}",
+        help=f"{t('split_remove_pair')}: {label}",
+        use_container_width=True,
+    ):
+        _remove_split_pair(pair_id)
+        st.rerun()
+
+
+def _render_pair_row(pair: dict, normalized: dict, t) -> None:
+    pair_id = normalized["_pair_id"]
+    selected_key = _split_selection_widget_key(pair_id)
+    previous = bool(pair.get("selected", False))
     if selected_key not in st.session_state:
         st.session_state[selected_key] = previous
 
@@ -258,186 +242,284 @@ def _render_pair_row(pair: dict, row: dict, t) -> None:
         label_visibility="collapsed",
     )
     if selected != previous:
-        selected_ids = [
-            item.get("id")
-            for item in st.session_state.get("split_comparison_pairs") or []
-            if item.get("id") and (
-                selected if item.get("id") == pair_id else item.get("selected", True)
-            )
-        ]
-        st.session_state.split_comparison_pairs = set_split_comparison_selected_ids(
-            st.session_state.get("split_comparison_pairs") or [],
-            selected_ids,
-        )
-        _reset_final_outputs()
+        _set_split_pair_selected(pair_id, selected)
 
     values = [
-        format_split_pair_label(pair).replace(" | ", "<br>"),
-        _selection_source_label(source, t),
-        row["high_plus_run"] if row["high_plus_run"] is not None else "N/A",
-        row["low_plus_run"] if row["low_plus_run"] is not None else "N/A",
-        row["high_minus_run"] if row["high_minus_run"] is not None else "N/A",
-        row["low_minus_run"] if row["low_minus_run"] is not None else "N/A",
-        _format_value(row["F0_mean"], 3),
-        _format_value(row["F2_mean"], 6),
-        _format_value(row["energy"], 4),
-        (
-            f"{_format_value(row['temp_plus_used'], 1)} / "
-            f"{_format_value(row['temp_minus_used'], 1)}"
-        ),
-        (
-            f"{_format_value(row['press_plus_used'], 2)} / "
-            f"{_format_value(row['press_minus_used'], 2)}"
-        ),
-        _comparison_status_label(row["status"], row["warning_count"], t),
+        normalized["_pair_label"].replace(" | ", "\n"),
+        format_split_comparison_display_value(normalized["_temp"], 1),
+        format_split_comparison_display_value(normalized["_press"], 2),
+        format_split_comparison_display_value(normalized["_wind"], 2),
+        format_split_comparison_display_value(normalized["_F0"], 4),
+        format_split_comparison_display_value(normalized["_F2"], 6),
+        format_split_comparison_display_value(normalized["_cv_F0"], 2),
+        format_split_comparison_display_value(normalized["_cv_F2"], 2),
+        format_split_comparison_display_value(normalized["_energy"], 4),
     ]
-    for column, value in zip(columns[1:13], values):
+    warnings = [
+        False,
+        False,
+        False,
+        False,
+        False,
+        False,
+        split_comparison_cv_warning(normalized["_cv_F0"]),
+        split_comparison_cv_warning(normalized["_cv_F2"]),
+        False,
+    ]
+    for column, value, warning in zip(columns[1:10], values, warnings):
         column.markdown(
-            _cell_html(value, background, color, warning=warning),
+            _cell_html(value, warning=warning),
             unsafe_allow_html=True,
         )
-    if columns[13].button(
-        t("split_remove_pair_short"),
-        key=f"split_final_remove_{pair_id}",
-        help=t("split_remove_pair"),
-        use_container_width=True,
-    ):
-        _remove_pair(pair_id)
-        st.rerun()
+    _render_remove_button(columns[10], pair_id, normalized["_pair_label"], t)
 
 
-def _pair_component_rows(pair: dict, t) -> list[dict]:
+def _render_reference_row(pair: dict, normalized: dict, t) -> None:
+    pair_id = normalized["_pair_id"]
+    if pair.get("selected", False):
+        _set_split_pair_selected(pair_id, False)
+
+    columns = st.columns(ROW_RATIOS)
+    columns[0].markdown(_cell_html("!", reference=True), unsafe_allow_html=True)
+    values = [
+        normalized["_pair_label"].replace(" | ", "\n"),
+        format_split_comparison_display_value(normalized["_temp"], 1),
+        format_split_comparison_display_value(normalized["_press"], 2),
+        format_split_comparison_display_value(normalized["_wind"], 2),
+        format_split_comparison_display_value(normalized["_f0_prime"], 4),
+        format_split_comparison_display_value(normalized["_f2_prime"], 6),
+        format_split_comparison_display_value(normalized["_cv_f0_prime"], 2),
+        format_split_comparison_display_value(normalized["_cv_f2_prime"], 2),
+        format_split_comparison_display_value(normalized["_energy"], 4),
+    ]
+    warnings = [
+        False,
+        False,
+        False,
+        False,
+        False,
+        False,
+        split_comparison_cv_warning(normalized["_cv_f0_prime"]),
+        split_comparison_cv_warning(normalized["_cv_f2_prime"]),
+        False,
+    ]
+    for column, value, warning in zip(columns[1:10], values, warnings):
+        column.markdown(
+            _cell_html(value, warning=warning, reference=True),
+            unsafe_allow_html=True,
+        )
+    _render_remove_button(columns[10], pair_id, normalized["_pair_label"], t)
+
+
+def _render_corrected_pairs(pairs: list[tuple[dict, dict]], t) -> None:
+    st.subheader(t("split_corrected_pairs_section"))
+    if not pairs:
+        st.info(t("split_no_corrected_pairs"))
+        return
+
+    _render_header(
+        [
+            t("split_selected_short"),
+            t("split_pair"),
+            t("split_temp_short"),
+            t("split_press_short"),
+            t("split_wind_short"),
+            "F0 (N)",
+            "F2 (N/(km/h)^2)",
+            "CV F0 (%)",
+            "CV F2 (%)",
+            t("split_energy_with_unit"),
+            "x",
+        ]
+    )
+    st.markdown(
+        "<hr style='margin:4px 0;border-color:rgba(128,128,128,0.18);'>",
+        unsafe_allow_html=True,
+    )
+    for pair, normalized in pairs:
+        _render_pair_row(pair, normalized, t)
+        st.markdown(
+            "<hr style='margin:2px 0;border-color:rgba(128,128,128,0.18);'>",
+            unsafe_allow_html=True,
+        )
+
+
+def _render_reference_pairs(pairs: list[tuple[dict, dict]], t) -> None:
+    if not pairs:
+        return
+
+    st.markdown("---")
+    st.subheader(t("split_uncorrected_pairs_reference_section"))
+    st.caption(t("split_uncorrected_pairs_reference_caption"))
+    _render_header(
+        [
+            "-",
+            t("split_pair"),
+            t("split_temp_short"),
+            t("split_press_short"),
+            t("split_wind_short"),
+            "f'0 (N)",
+            "f'2 (N/(m/s)^2)",
+            "CV f'0 (%)",
+            "CV f'2 (%)",
+            t("split_energy_with_unit"),
+            "x",
+        ],
+        reference=True,
+    )
+    st.markdown(
+        "<hr style='margin:4px 0;border-color:rgba(245,158,11,0.28);'>",
+        unsafe_allow_html=True,
+    )
+    for pair, normalized in pairs:
+        _render_reference_row(pair, normalized, t)
+        st.markdown(
+            "<hr style='margin:2px 0;border-color:rgba(245,158,11,0.18);'>",
+            unsafe_allow_html=True,
+        )
+
+
+def _metric_value(value, precision: int, suffix: str = "") -> str:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return "N/A"
+    if pd.isna(number):
+        return "N/A"
+    return f"{number:.{precision}f}{suffix}"
+
+
+def _cv_value(value, t) -> str:
+    if value is None:
+        return t("split_cv_not_applicable_single_pair")
+    return _metric_value(value, 2, "%")
+
+
+def _conformity_label(status: str, t) -> str:
+    return t(f"split_results_status_{status}")
+
+
+def _render_selected_pair_statistics(selected_pairs: list[dict], t) -> dict:
+    """Render compact statistics using the same Split final-results helper."""
+    summary = consolidate_split_final_results(selected_pairs)
+    st.subheader(
+        t(
+            "split_selected_pair_statistics_title",
+            count=summary.get("num_pairs", 0),
+        )
+    )
+
+    count_col, f0_col, f2_col, energy_col = st.columns(4)
+    count_col.metric(
+        t("split_selected_pairs"),
+        str(summary.get("num_pairs", 0)),
+    )
+    f0_col.metric(
+        t("split_results_final_f0"),
+        _metric_value(summary.get("mean_f0"), 4, " N"),
+        delta=f"{t('split_results_cv_f0')}: {_cv_value(summary.get('cv_f0'), t)}",
+    )
+    f2_col.metric(
+        t("split_results_final_f2"),
+        _metric_value(summary.get("mean_f2"), 6, " N/(km/h)^2"),
+        delta=f"{t('split_results_cv_f2')}: {_cv_value(summary.get('cv_f2'), t)}",
+    )
+    energy_col.metric(
+        t("split_results_mean_energy"),
+        _metric_value(summary.get("mean_energy"), 4, " MJ/km"),
+        delta=(
+            f"{t('split_results_cv_energy')}: "
+            f"{_cv_value(summary.get('cv_energy'), t)}"
+        ),
+    )
+
+    status_col, warning_col = st.columns(2)
+    status_col.metric(
+        t("split_results_conformity"),
+        _conformity_label(summary.get("conformity_status"), t),
+    )
+    warning_col.metric(
+        t("split_card_warnings"),
+        str(len(summary.get("warnings") or [])),
+    )
+    return summary
+
+
+def _traceability_rows(selected_pairs: list[dict], t) -> list[dict]:
     rows = []
-    for component in ("high_plus", "low_plus", "high_minus", "low_minus"):
+    for pair in selected_pairs:
+        warnings = list(pair.get("warnings") or [])
+        ambient_by_component = pair.get("ambient_by_component") or {}
+        for ambient in ambient_by_component.values():
+            if isinstance(ambient, dict):
+                warnings.extend(ambient.get("warnings") or [])
+        warnings = list(dict.fromkeys(str(w) for w in warnings if str(w).strip()))
         rows.append(
             {
-                t("split_meteo_component"): t(COMPONENT_LABEL_KEYS[component]),
-                "File": pair.get(f"{component}_file"),
-                "Run": pair.get(f"{component}_run"),
-                "Direction": pair.get(f"{component}_direction"),
-                "Timestamp": pair.get(f"{component}_timestamp"),
-                "Delta t (s)": pair.get(f"{component}_delta_t_s"),
+                t("split_pair"): format_split_pair_label(pair),
+                "High+ / Low+": (
+                    f"Run {pair.get('high_plus_run', 'N/A')} / "
+                    f"Run {pair.get('low_plus_run', 'N/A')}"
+                ),
+                "High- / Low-": (
+                    f"Run {pair.get('high_minus_run', 'N/A')} / "
+                    f"Run {pair.get('low_minus_run', 'N/A')}"
+                ),
+                "Delta t high + / - (s)": (
+                    f"{_metric_value(pair.get('high_plus_delta_t_s'), 3)} / "
+                    f"{_metric_value(pair.get('high_minus_delta_t_s'), 3)}"
+                ),
+                "Delta t low + / - (s)": (
+                    f"{_metric_value(pair.get('low_plus_delta_t_s'), 3)} / "
+                    f"{_metric_value(pair.get('low_minus_delta_t_s'), 3)}"
+                ),
+                t("split_temperature_plus_minus"): (
+                    f"{_metric_value(pair.get('temp_plus_used'), 1)} / "
+                    f"{_metric_value(pair.get('temp_minus_used'), 1)}"
+                ),
+                t("split_pressure_plus_minus"): (
+                    f"{_metric_value(pair.get('press_plus_used'), 2)} / "
+                    f"{_metric_value(pair.get('press_minus_used'), 2)}"
+                ),
+                t("split_card_warnings"): "; ".join(warnings) or "N/A",
             }
         )
     return rows
 
 
-def _render_pair_card(pair: dict, t, pair_number: int) -> None:
-    source = _selection_source_label(
-        pair.get("selection_source", "manual"),
-        t,
-    )
-    label = (
-        f"{t('split_pair')} {pair_number} | "
-        f"{format_split_pair_label(pair)} | {source}"
-    )
-    with st.expander(label, expanded=False):
-        ambient_col, coefficients_col, variation_col, energy_col = st.columns(4)
-        with ambient_col:
-            st.markdown(f"##### {t('split_card_ambient_conditions')}")
-            st.write(
-                f"{t('split_temp_plus_used')}: "
-                f"{_fmt(pair.get('temp_plus_used'), 2)} C"
-            )
-            st.write(
-                f"{t('split_temp_minus_used')}: "
-                f"{_fmt(pair.get('temp_minus_used'), 2)} C"
-            )
-            st.write(
-                f"{t('split_press_plus_used')}: "
-                f"{_fmt(pair.get('press_plus_used'), 3)} kPa"
-            )
-            st.write(
-                f"{t('split_press_minus_used')}: "
-                f"{_fmt(pair.get('press_minus_used'), 3)} kPa"
-            )
-            st.caption(
-                f"{t('split_ambient_mode_label')}: "
-                f"{_ambient_mode_label(pair, t)}"
-            )
+def _render_selected_traceability(selected_pairs: list[dict], t) -> None:
+    with st.expander(t("split_selected_pairs_traceability"), expanded=False):
+        rows = _traceability_rows(selected_pairs, t)
+        if rows:
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+        else:
+            st.info(t("split_selected_pairs_traceability_empty"))
 
-        with coefficients_col:
-            st.markdown(f"##### {t('split_corrected_coefficients')}")
-            st.metric(
-                "F0",
-                f"{_fmt(_first_value(pair, 'F0_mean', 'F0'), 3)} N",
-            )
-            st.metric(
-                "F2",
-                f"{_fmt(_first_value(pair, 'F2_mean', 'F2'), 6)} N/(km/h)^2",
-            )
-            st.caption(
-                f"f'0: {_fmt(_first_value(pair, 'f0_prime_mean', 'f0_prime'), 3)} N | "
-                f"f'2: {_fmt(_first_value(pair, 'f2_prime_mean', 'f2_prime'), 6)} "
-                "N/(m/s)^2"
-            )
 
-        with variation_col:
-            st.markdown(f"##### {t('split_card_variations')}")
-            for coefficient, value in (
-                ("F0", pair.get("cv_F0_percent")),
-                ("F2", pair.get("cv_F2_percent")),
-            ):
-                if value is None:
-                    st.write(f"CV {coefficient}: N/A")
-                elif value > 10:
-                    st.warning(f"CV {coefficient}: {value:.2f}%")
-                else:
-                    st.write(f"CV {coefficient}: {value:.2f}%")
-
-        with energy_col:
-            st.markdown(f"##### {t('split_card_energy')}")
-            unit = pair.get("energy_unit") or "MJ/km"
-            st.metric(
-                t("split_card_energy"),
-                (
-                    f"{_fmt(pair.get('energy'), 4)} {unit}"
-                    if pair.get("energy") is not None
-                    else "N/A"
-                ),
-            )
-
-        st.markdown(f"**{t('split_card_traceability')}**")
-        st.dataframe(
-            pd.DataFrame(_pair_component_rows(pair, t)),
-            use_container_width=True,
-            hide_index=True,
+def _render_final_results_action(summary: dict, t) -> None:
+    if st.button(
+        t("split_calculate_final_results"),
+        type="primary",
+        use_container_width=True,
+    ):
+        stored_summary = consolidate_split_final_results(
+            st.session_state.get("split_comparison_pairs") or []
         )
-
-        ambient_by_component = pair.get("ambient_by_component") or {}
-        st.markdown(f"**{t('split_ambient_traceability')}**")
-        st.dataframe(
-            pd.DataFrame(_weather_sync_rows(ambient_by_component, t)),
-            use_container_width=True,
-            hide_index=True,
-        )
-
-        warnings = _weather_sync_warnings(ambient_by_component, t)
-        warnings.extend(
-            _translated_weather_warning(warning, t)
-            for warning in (pair.get("warnings") or [])
-        )
-        warnings = list(dict.fromkeys(warnings))
-        if warnings:
-            with st.popover(t("split_card_warnings")):
-                for warning in warnings:
-                    st.warning(warning)
+        if stored_summary.get("selected_pairs"):
+            st.session_state.split_final_results = stored_summary
+            st.session_state.navigate_to_results = True
+            st.rerun()
+        else:
+            st.warning(t("split_select_pairs_for_final_hint"))
 
 
 def render(t) -> None:
-    """Render the Split final comparison table and pair details."""
+    """Render the Split final comparison table."""
     st.header(t("page_split_final_comparison"))
-    pairs = st.session_state.get("split_comparison_pairs") or []
+    pairs = _current_pairs()
     if not pairs:
         st.info(t("split_comparison_empty"))
         return
-
-    _render_actions(t)
-    st.markdown("---")
-    _render_legend(t)
-    st.markdown("---")
-    st.subheader(t("split_final_comparison_table"))
-    _render_header(t)
 
     for pair in pairs:
         if pair.get("cv_F0_percent") is None:
@@ -450,36 +532,47 @@ def render(t) -> None:
                 pair.get("F2_plus"),
                 pair.get("F2_minus"),
             )
-    rows_by_id = {
-        row["id"]: row
-        for row in build_split_comparison_table_rows(pairs)
-    }
-    for pair in pairs:
-        pair_id = pair.get("id")
-        row = rows_by_id.get(pair_id)
-        if row:
-            _render_pair_row(pair, row, t)
-            st.markdown(
-                "<hr style='margin:2px 0;border-color:rgba(128,128,128,0.18);'>",
-                unsafe_allow_html=True,
-            )
+
+    normalized_pairs = [
+        (pair, normalize_split_pair_for_comparison(pair, index))
+        for index, pair in enumerate(pairs, start=1)
+    ]
+    corrected = [
+        (pair, normalized)
+        for pair, normalized in normalized_pairs
+        if normalized["_is_corrected"]
+    ]
+    reference = [
+        (pair, normalized)
+        for pair, normalized in normalized_pairs
+        if not normalized["_is_corrected"]
+    ]
+
+    _render_actions(t)
+    st.markdown("---")
+    st.subheader(t("split_final_comparison_table"))
+    _render_corrected_pairs(corrected, t)
+    _render_reference_pairs(reference, t)
 
     selected_count = sum(
-        1 for pair in st.session_state.split_comparison_pairs
-        if pair.get("selected", True)
+        1 for pair in st.session_state.get("split_comparison_pairs", [])
+        if pair.get("selected", False) and is_split_pair_corrected(pair)
     )
     st.caption(
         t(
             "split_selected_pairs_count",
             selected=selected_count,
-            total=len(st.session_state.split_comparison_pairs),
+            total=len(st.session_state.get("split_comparison_pairs", [])),
         )
     )
 
     st.markdown("---")
-    st.subheader(t("split_comparison_pair_cards"))
-    for pair_number, pair in enumerate(
-        st.session_state.split_comparison_pairs,
-        start=1,
-    ):
-        _render_pair_card(pair, t, pair_number)
+    selected_pairs = get_selected_split_comparison_pairs()
+    if not selected_pairs:
+        st.info(t("split_select_pairs_for_final_hint"))
+        return
+
+    summary = _render_selected_pair_statistics(selected_pairs, t)
+    st.markdown("---")
+    _render_selected_traceability(selected_pairs, t)
+    _render_final_results_action(summary, t)

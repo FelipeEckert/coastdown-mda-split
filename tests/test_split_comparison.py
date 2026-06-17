@@ -10,10 +10,16 @@ from core.split_comparison import (
     calculate_complete_split_pair,
     clear_split_comparison_pairs,
     coefficient_variation_percent,
+    force_uncorrected_split_pairs_unselected,
+    format_split_comparison_display_value,
     group_split_records_by_direction,
+    is_split_pair_corrected,
+    normalize_split_pair_for_comparison,
     normalize_split_selection_source,
     remove_split_comparison_pair,
+    selected_corrected_split_comparison_pairs,
     set_split_comparison_selected_ids,
+    split_comparison_cv_warning,
     validate_complete_split_pair_selection,
 )
 from core.split_corrections import (
@@ -22,6 +28,8 @@ from core.split_corrections import (
     weather_sync_ambient_conditions,
 )
 from data.split_parser import default_split_interval_config
+from core.split_state import clear_split_comparison_state
+from core.split_results import consolidate_split_final_results
 from pages.page_split_coefficient_calculation import _weather_sync_rows
 from pages.page_split_final_comparison import _comparison_rows
 from pages.page_split_results import _result_rows
@@ -314,6 +322,162 @@ class SplitComparisonTest(unittest.TestCase):
         self.assertEqual(row["high_plus_run"], 1)
         self.assertEqual(row["low_minus_run"], 4)
         self.assertEqual(row["status"], "ready")
+
+    def test_normalize_split_pair_for_comparison_complete_pair(self):
+        pair = {
+            "id": "split_pair_public",
+            "selected": True,
+            "high_plus_run": 1,
+            "low_plus_run": 2,
+            "high_minus_run": 3,
+            "low_minus_run": 4,
+            "F0_mean": 140.25,
+            "F2_mean": 0.00495,
+            "F0_plus": 139.0,
+            "F0_minus": 141.5,
+            "F2_plus": 0.0048,
+            "F2_minus": 0.0051,
+            "f0_prime_mean": 139.4,
+            "f2_prime_mean": 0.646,
+            "f0_prime_plus": 138.0,
+            "f0_prime_minus": 140.8,
+            "f2_prime_plus": 0.640,
+            "f2_prime_minus": 0.652,
+            "energy": 0.1987,
+            "temp_plus_used": 24.0,
+            "temp_minus_used": 25.0,
+            "press_plus_used": 101.0,
+            "press_minus_used": 102.0,
+            "wind_plus_ms": 0.0,
+            "wind_minus_ms": 1.5,
+        }
+
+        normalized = normalize_split_pair_for_comparison(pair)
+
+        self.assertTrue(normalized["_is_corrected"])
+        self.assertEqual(normalized["_pair_id"], "split_pair_public")
+        self.assertEqual(
+            normalized["_pair_label"],
+            "[+]: Run 1 / Run 2 | [-]: Run 3 / Run 4",
+        )
+        self.assertNotIn("split_pair_", normalized["_pair_label"])
+        self.assertEqual(normalized["_F0"], 140.25)
+        self.assertEqual(normalized["_F2"], 0.00495)
+        self.assertEqual(normalized["_f0_prime"], 139.4)
+        self.assertEqual(normalized["_f2_prime"], 0.646)
+        self.assertEqual(normalized["_energy"], 0.1987)
+        self.assertEqual(normalized["_temp"], (24.0, 25.0))
+        self.assertEqual(normalized["_press"], (101.0, 102.0))
+        self.assertEqual(normalized["_wind"], (0.0, 1.5))
+        self.assertIsNotNone(normalized["_cv_F0"])
+        self.assertIsNotNone(normalized["_cv_f0_prime"])
+
+    def test_normalize_split_pair_for_comparison_missing_values(self):
+        normalized = normalize_split_pair_for_comparison(
+            {"id": "missing", "selected": True},
+        )
+
+        self.assertFalse(normalized["_is_corrected"])
+        self.assertIsNone(normalized["_F0"])
+        self.assertIsNone(normalized["_F2"])
+        self.assertIsNone(normalized["_energy"])
+        self.assertEqual(
+            format_split_comparison_display_value(normalized["_F0"], 4),
+            "N/A",
+        )
+
+    def test_split_pair_corrected_detection_uses_corrected_coefficients(self):
+        self.assertTrue(
+            is_split_pair_corrected({"F0_mean": 100.0, "F2_mean": 0.004})
+        )
+        self.assertFalse(
+            is_split_pair_corrected(
+                {"f0_prime_mean": 100.0, "f2_prime_mean": 0.6}
+            )
+        )
+
+    def test_selected_corrected_pairs_excludes_unselected_and_uncorrected(self):
+        pairs = [
+            {"id": "selected", "selected": True, "F0_mean": 100.0, "F2_mean": 0.004},
+            {"id": "unselected", "selected": False, "F0_mean": 110.0, "F2_mean": 0.005},
+            {"id": "raw", "selected": True, "f0_prime_mean": 100.0, "f2_prime_mean": 0.6},
+        ]
+
+        selected = selected_corrected_split_comparison_pairs(pairs)
+
+        self.assertEqual([pair["id"] for pair in selected], ["selected"])
+
+    def test_selected_statistics_match_split_results_consolidation(self):
+        pairs = [
+            {"id": "pair-1", "selected": True, "F0_mean": 100.0, "F2_mean": 0.004, "energy": 0.20},
+            {"id": "pair-2", "selected": True, "F0_mean": 110.0, "F2_mean": 0.006, "energy": None},
+            {"id": "raw", "selected": False, "f0_prime_mean": 900.0, "f2_prime_mean": 9.0},
+        ]
+
+        selected_summary = consolidate_split_final_results(
+            selected_corrected_split_comparison_pairs(pairs)
+        )
+        result_page_summary = consolidate_split_final_results(pairs)
+
+        self.assertEqual(selected_summary["num_pairs"], 2)
+        self.assertEqual(selected_summary["mean_f0"], result_page_summary["mean_f0"])
+        self.assertEqual(selected_summary["mean_f2"], result_page_summary["mean_f2"])
+        self.assertEqual(selected_summary["mean_energy"], result_page_summary["mean_energy"])
+        self.assertEqual(selected_summary["cv_f0"], result_page_summary["cv_f0"])
+        self.assertEqual(selected_summary["cv_f2"], result_page_summary["cv_f2"])
+        self.assertIsNone(selected_summary["cv_energy"])
+
+    def test_uncorrected_pairs_are_forced_unselected(self):
+        pairs, changed = force_uncorrected_split_pairs_unselected(
+            [
+                {"id": "raw", "selected": True, "f0_prime_mean": 1.0},
+                {"id": "corrected", "selected": True, "F0_mean": 1.0, "F2_mean": 2.0},
+            ]
+        )
+
+        self.assertTrue(changed)
+        self.assertFalse(pairs[0]["selected"])
+        self.assertTrue(pairs[1]["selected"])
+
+    def test_comparison_pair_normalization_accepts_dict_and_incomplete_items(self):
+        pairs, changed = force_uncorrected_split_pairs_unselected(
+            {
+                "technical-id": {"selected": True, "F0_mean": 1.0, "F2_mean": 2.0},
+                "raw-id": {"selected": True, "f0_prime_mean": 1.0},
+            }
+        )
+
+        self.assertTrue(changed)
+        self.assertEqual(pairs[0]["id"], "technical-id")
+        self.assertTrue(pairs[0]["selected"])
+        self.assertEqual(pairs[1]["id"], "raw-id")
+        self.assertFalse(pairs[1]["selected"])
+
+    def test_split_comparison_display_formatting_and_cv_warning(self):
+        self.assertEqual(format_split_comparison_display_value(None), "N/A")
+        self.assertEqual(format_split_comparison_display_value(float("nan")), "N/A")
+        self.assertEqual(format_split_comparison_display_value(0.0, 2), "0.00")
+        self.assertEqual(
+            format_split_comparison_display_value((24.0, 25.5), 1),
+            "24.0 / 25.5",
+        )
+        self.assertTrue(split_comparison_cv_warning(10.01))
+        self.assertFalse(split_comparison_cv_warning(10.0))
+
+    def test_clear_split_comparison_state_preserves_parsed_runs(self):
+        state = {
+            "split_parsed_runs": {"high": [{"run_id": 1}]},
+            "split_comparison_pairs": [{"id": "pair-1"}],
+            "split_final_results": {"num_results": 1},
+            "excel_buffer": b"old",
+        }
+
+        clear_split_comparison_state(state)
+
+        self.assertEqual(state["split_parsed_runs"], {"high": [{"run_id": 1}]})
+        self.assertEqual(state["split_comparison_pairs"], [])
+        self.assertEqual(state["split_final_results"], {})
+        self.assertIsNone(state["excel_buffer"])
 
     def test_selection_source_supports_manual_algorithm_and_unknown(self):
         self.assertEqual(normalize_split_selection_source("manual"), "manual")

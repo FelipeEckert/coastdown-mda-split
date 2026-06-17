@@ -1474,3 +1474,49 @@ display especificos por contexto em vez de enfraquecer um label ja util em outra
 tela.
 
 ---
+
+## 2026-06-17 - Split: Comparativo Final Seleciona Apenas Pares Corrigidos
+
+### Decisao:
+A primeira etapa da refatoracao do Comparativo Final usa exclusivamente
+`split_comparison_pairs`. A tabela foi separada em pares com correcao climatica
+e pares de referencia sem correcao. Somente itens com `F0_mean/F2_mean` finitos
+sao selecionaveis; pares sem correcao sao automaticamente gravados como
+`selected=False` e ficam sem checkbox.
+
+A normalizacao da UI vive em helpers Split de `core/split_comparison.py`,
+retornando valores canonicos para F0/F2 corrigidos, f'0/f'2 nao corrigidos,
+CV, energia e condicoes ambientais sem substituir ausencias por zero. Acoes em
+lote e remocao invalidam apenas `split_final_results` e `excel_buffer`; runs
+parseadas, arquivos carregados e parser permanecem intactos.
+
+### Licao:
+Separar visualmente dados corrigidos de dados apenas referenciais evita que um
+par numericamente util para inspecao entre no resultado final sem contrato
+climatico completo. Em Streamlit, selecao programatica deve atualizar tanto o
+objeto de dominio quanto a widget key; quando o item nao e selecionavel, a
+renderizacao tambem deve reparar estados antigos.
+
+---
+
+## 2026-06-17 - Split: Comparativo E Resultados Compartilham Consolidacao
+
+### Decisao:
+A parte inferior do Comparativo Final coleta apenas pares em
+`split_comparison_pairs` com `selected=True` e F0/F2 corrigidos finitos. As
+estatisticas exibidas ali usam `consolidate_split_final_results`, o mesmo helper
+da aba Resultados Split, para medias de F0, F2, energia, CVs e status de
+conformidade.
+
+O botao de resultado final grava `split_final_results` com esse consolidado e
+sinaliza `navigate_to_results=True`; a navegacao continua sendo resolvida pelo
+`app.py`. A rastreabilidade complementar mostra somente campos ja persistidos no
+contrato Split, sem importar a analise de tempos Standard.
+
+### Licao:
+Telas diferentes podem projetar o mesmo resumo, mas nao devem recalcular regras
+paralelas. Quando uma pagina intermedia mostra estatisticas finais, ela deve usar
+o mesmo helper da pagina final ou vira uma segunda fonte de verdade. Analises
+tecnicas herdadas so entram depois de revisao metodologica Split.
+
+---

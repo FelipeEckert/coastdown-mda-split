@@ -156,6 +156,20 @@ def clear_split_final_state(test_data: dict) -> dict:
     return test_data
 
 
+def reset_split_final_outputs(test_data: dict) -> dict:
+    """Clear Split final/export outputs after comparison selection changes."""
+    test_data["split_final_results"] = {}
+    test_data["excel_buffer"] = None
+    return test_data
+
+
+def clear_split_comparison_state(test_data: dict) -> dict:
+    """Clear only final comparison pairs and their derived final outputs."""
+    test_data["split_comparison_pairs"] = []
+    reset_split_final_outputs(test_data)
+    return test_data
+
+
 def invalidate_split_ambient_state(test_data: dict) -> dict:
     """Clear results whose correction depends on changed ambient conditions."""
     test_data["split_results"] = []

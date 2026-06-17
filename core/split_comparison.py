@@ -42,10 +42,38 @@ VALID_SELECTION_SOURCES = {
     SELECTION_SOURCE_MANUAL,
     SELECTION_SOURCE_ALGORITHM,
 }
+COMPARISON_CV_LIMIT_PERCENT = 10.0
 
 
 def _record_value(record: dict, key: str):
     return record.get(key) if isinstance(record, dict) else None
+
+
+def _finite_float(value):
+    if isinstance(value, bool):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def _first_finite_number(source: dict, *keys):
+    for key in keys:
+        value = _finite_float(source.get(key))
+        if value is not None:
+            return value
+    return None
+
+
+def _pair_measure(source: dict, plus_key: str, minus_key: str, fallback_key: str):
+    plus = _finite_float(source.get(plus_key))
+    minus = _finite_float(source.get(minus_key))
+    if plus is not None or minus is not None:
+        return (plus, minus)
+    fallback = _finite_float(source.get(fallback_key))
+    return fallback
 
 
 def normalize_split_selection_source(value) -> str:
@@ -72,16 +100,177 @@ def normalized_record_direction(record: dict) -> str | None:
 
 def coefficient_variation_percent(first_value, second_value) -> float | None:
     """Return the sample CV for two directional results, or None if undefined."""
-    try:
-        values = [float(first_value), float(second_value)]
-    except (TypeError, ValueError):
+    values = [_finite_float(first_value), _finite_float(second_value)]
+    if any(value is None for value in values):
         return None
-    if not all(math.isfinite(value) for value in values):
-        return None
-    mean_value = statistics.mean(values)
+    mean_value = statistics.mean(values)  # type: ignore[arg-type]
     if mean_value == 0:
         return None
-    return statistics.stdev(values) / abs(mean_value) * 100.0
+    return statistics.stdev(values) / abs(mean_value) * 100.0  # type: ignore[arg-type]
+
+
+def normalize_split_comparison_pairs(pairs) -> list[dict]:
+    """Return Split comparison pairs as a list with stable technical ids."""
+    if isinstance(pairs, dict):
+        iterable = pairs.items()
+    else:
+        iterable = enumerate(pairs or [], start=1)
+
+    normalized = []
+    for key, pair in iterable:
+        if not isinstance(pair, dict):
+            continue
+        item = dict(pair)
+        fallback_id = str(key) if isinstance(key, str) else f"split_pair_{key}"
+        item.setdefault("id", fallback_id)
+        normalized.append(item)
+    return normalized
+
+
+def is_split_pair_corrected(pair: dict) -> bool:
+    """Return True only when corrected Split F0/F2 are finite numbers."""
+    source = pair if isinstance(pair, dict) else {}
+    return (
+        _first_finite_number(source, "F0_mean", "F0") is not None
+        and _first_finite_number(source, "F2_mean", "F2") is not None
+    )
+
+
+def selected_corrected_split_comparison_pairs(pairs) -> list[dict]:
+    """Return selected Split comparison pairs that have corrected coefficients."""
+    return [
+        pair
+        for pair in normalize_split_comparison_pairs(pairs)
+        if pair.get("selected", False) and is_split_pair_corrected(pair)
+    ]
+
+
+def normalize_split_pair_for_comparison(pair: dict, index: int = 1) -> dict:
+    """Adapt one Split pair to the Final Comparison table contract."""
+    from core.split_display import format_split_pair_label
+
+    source = pair if isinstance(pair, dict) else {}
+    pair_id = source.get("id") or f"split_pair_{index}"
+    corrected_cv_f0 = _first_finite_number(source, "cv_F0_percent")
+    corrected_cv_f2 = _first_finite_number(source, "cv_F2_percent")
+    if corrected_cv_f0 is None:
+        corrected_cv_f0 = coefficient_variation_percent(
+            source.get("F0_plus"),
+            source.get("F0_minus"),
+        )
+    if corrected_cv_f2 is None:
+        corrected_cv_f2 = coefficient_variation_percent(
+            source.get("F2_plus"),
+            source.get("F2_minus"),
+        )
+
+    raw_cv_f0 = _first_finite_number(
+        source,
+        "cv_f0_prime_percent",
+        "cv_f0_prime",
+    )
+    raw_cv_f2 = _first_finite_number(
+        source,
+        "cv_f2_prime_percent",
+        "cv_f2_prime",
+    )
+    if raw_cv_f0 is None:
+        raw_cv_f0 = coefficient_variation_percent(
+            source.get("f0_prime_plus"),
+            source.get("f0_prime_minus"),
+        )
+    if raw_cv_f2 is None:
+        raw_cv_f2 = coefficient_variation_percent(
+            source.get("f2_prime_plus"),
+            source.get("f2_prime_minus"),
+        )
+
+    normalized = dict(source)
+    normalized.update(
+        {
+            "_pair_id": pair_id,
+            "_pair_label": format_split_pair_label(source),
+            "_selected": bool(source.get("selected", False)),
+            "_is_corrected": is_split_pair_corrected(source),
+            "_F0": _first_finite_number(source, "F0_mean", "F0"),
+            "_F2": _first_finite_number(source, "F2_mean", "F2"),
+            "_cv_F0": corrected_cv_f0,
+            "_cv_F2": corrected_cv_f2,
+            "_energy": _first_finite_number(source, "energy"),
+            "_f0_prime": _first_finite_number(
+                source,
+                "f0_prime_mean",
+                "f0_prime",
+            ),
+            "_f2_prime": _first_finite_number(
+                source,
+                "f2_prime_mean",
+                "f2_prime",
+            ),
+            "_cv_f0_prime": raw_cv_f0,
+            "_cv_f2_prime": raw_cv_f2,
+            "_temp": _pair_measure(
+                source,
+                "temp_plus_used",
+                "temp_minus_used",
+                "temp_c",
+            ),
+            "_press": _pair_measure(
+                source,
+                "press_plus_used",
+                "press_minus_used",
+                "baro_kpa",
+            ),
+            "_wind": _pair_measure(
+                source,
+                "wind_plus_ms",
+                "wind_minus_ms",
+                "wind_ms",
+            ),
+        }
+    )
+    return normalized
+
+
+def force_uncorrected_split_pairs_unselected(pairs) -> tuple[list[dict], bool]:
+    """Return pairs with uncorrected items forced to selected=False."""
+    normalized_pairs = normalize_split_comparison_pairs(pairs)
+    updated = []
+    if isinstance(pairs, dict):
+        original_items = list(pairs.values())
+    else:
+        original_items = list(pairs or [])
+    original_dicts = [item for item in original_items if isinstance(item, dict)]
+    changed = not isinstance(pairs, list) or len(original_dicts) != len(original_items)
+
+    for original, pair in zip(original_dicts, normalized_pairs):
+        item = dict(pair)
+        if original.get("id") != item.get("id"):
+            changed = True
+        if not is_split_pair_corrected(item) and item.get("selected", False):
+            item["selected"] = False
+            changed = True
+        updated.append(item)
+    return updated, changed
+
+
+def format_split_comparison_display_value(value, precision: int = 2) -> str:
+    """Format Split comparison values, preserving zero and showing N/A."""
+    if isinstance(value, (tuple, list)):
+        return " / ".join(
+            format_split_comparison_display_value(item, precision)
+            for item in value
+        )
+    number = _finite_float(value)
+    if number is None:
+        return "N/A"
+    return f"{number:.{precision}f}"
+
+
+def split_comparison_cv_warning(value, limit: float = COMPARISON_CV_LIMIT_PERCENT) -> bool:
+    """Return True when a comparison CV exceeds the visual warning limit."""
+    number = _finite_float(value)
+    return bool(number is not None and number > limit)
 
 
 def group_split_records_by_direction(high_records: list[dict], low_records: list[dict]) -> dict:

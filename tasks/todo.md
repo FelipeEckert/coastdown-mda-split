@@ -137,6 +137,12 @@
 - [x] Replace the calculated-result summary with Split-specific HTML tables for uncorrected and corrected coefficients, including CV and wind threshold highlights, and remove the selected-pair technical summary from the calculation UI.
 - [x] Move the calculated coefficient HTML tables into a closed details expander while keeping the pair result title and add-to-comparison action visible.
 - [x] Diagnose and restart duplicate Streamlit servers on ports 8501/8502 that predated the display changes.
+- [x] Refactor Final Comparison first stage around `split_comparison_pairs`: Split-only selection helpers, batch actions, corrected/reference tables and per-row removal.
+- [x] Separate corrected Split pairs from uncorrected reference pairs; only corrected pairs can be selected for final results.
+- [x] Add regression coverage for Split comparison normalization, corrected-pair detection, N/A formatting, CV warning threshold, public labels and clear-all state scope.
+- [x] Add Final Comparison selected-pair statistics from `core/split_results.py`, keeping F0/F2/energy means and CVs aligned with Split Results.
+- [x] Add Final Comparison action to calculate/navigate to Split Results through `navigate_to_results`, without Standard final-result state.
+- [x] Add selected-pair traceability expander using existing Split comparison fields; defer Delta T conformity analysis for Split.
 - [ ] Adapt the Split Excel exporter to the new selected-pair consolidation contract; the UI keeps export disabled until then.
 - [ ] Run manual regression in the app before first commit: create test, replace high, replace low, remove low, replace meteo, remove meteo.
 - [ ] Run manual regression with one high-only CSV and confirm calculation remains blocked with friendly warning.
@@ -167,7 +173,7 @@
 - [ ] Add all four `ambient_by_component` records to Split results export/report.
 
 ## Energy status
-- [x] Energy is calculated from corrected `F0_mean/F2_mean` and shown in Split results, comparison table and cards.
+- [x] Energy is calculated from corrected `F0_mean/F2_mean` and shown in Split results and comparison surfaces.
 - [x] `core/split_energy.py` delegates explicitly to `core.calculations.calcular_energia(F0_mean, F2_mean)`.
 - [x] Save the inherited formula origin as `standard_formula_calcular_energia` with unit `MJ/km`.
 - [x] Save `energy=None` only when corrected F0/F2 are unavailable.
@@ -196,6 +202,7 @@
 - [ ] Add meteo synchronization details to Split Excel export without applying climatic correction implicitly.
 - [ ] Continue visual polish after functional validation; keep technical meteo warnings collapsed by default.
 - [ ] Validate the Final Comparison table manually with a larger number of pairs and narrow desktop widths.
+- [ ] Design a Split-specific Delta T conformity analysis for selected pairs; do not import Standard `build_selected_pairs_time_analysis` without review.
 - [ ] Connect future automatic Split selection to `selection_source="algorithm"` without importing the Standard algorithm workflow.
 - [ ] Keep `sample_data/Split/` and `sample_data/Standard/` separated as validation datasets for each method.
 

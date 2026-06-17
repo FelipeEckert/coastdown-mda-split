@@ -1575,13 +1575,69 @@ TRANSLATIONS = {
         "pt": "Desmarcar todos",
         "en": "Deselect all"
     },
+    "split_corrected_pairs_section": {
+        "pt": "Pares com Correção Climática",
+        "en": "Pairs with Climatic Correction"
+    },
+    "split_uncorrected_pairs_reference_section": {
+        "pt": "Pares sem Correção Climática - apenas referência",
+        "en": "Pairs without Climatic Correction - reference only"
+    },
+    "split_uncorrected_pairs_reference_caption": {
+        "pt": "Estes pares não possuem coeficientes corrigidos e não podem ser incluídos no cálculo de resultados finais.",
+        "en": "These pairs do not have corrected coefficients and cannot be included in final-results calculation."
+    },
+    "split_selected_pair_statistics_title": {
+        "pt": "Estatísticas dos Pares Selecionados ({count} pares)",
+        "en": "Selected Pair Statistics ({count} pairs)"
+    },
+    "split_select_pairs_for_final_hint": {
+        "pt": "Selecione pelo menos um par para ver as estatísticas e calcular os resultados finais.",
+        "en": "Select at least one pair to view statistics and calculate final results."
+    },
+    "split_calculate_final_results": {
+        "pt": "Calcular resultados finais",
+        "en": "Calculate final results"
+    },
+    "split_go_to_results": {
+        "pt": "Ir para Resultados Split",
+        "en": "Go to Split Results"
+    },
+    "split_selected_pairs_traceability": {
+        "pt": "Rastreabilidade dos pares selecionados",
+        "en": "Selected pair traceability"
+    },
+    "split_selected_pairs_traceability_empty": {
+        "pt": "Nenhuma rastreabilidade disponível para os pares selecionados.",
+        "en": "No traceability is available for the selected pairs."
+    },
+    "split_cv_not_applicable_single_pair": {
+        "pt": "N/A",
+        "en": "N/A"
+    },
+    "split_no_corrected_pairs": {
+        "pt": "Nenhum par com correção climática calculado ainda.",
+        "en": "No pair with climatic correction has been calculated yet."
+    },
+    "split_temp_short": {
+        "pt": "Temp (°C)",
+        "en": "Temp (°C)"
+    },
+    "split_press_short": {
+        "pt": "Press (kPa)",
+        "en": "Press (kPa)"
+    },
+    "split_wind_short": {
+        "pt": "Vento (m/s)",
+        "en": "Wind (m/s)"
+    },
     "split_comparison_legend": {
         "pt": "Legenda",
         "en": "Legend"
     },
     "split_selected_short": {
-        "pt": "Sel.",
-        "en": "Sel."
+        "pt": "Sel",
+        "en": "Sel"
     },
     "split_pair_id": {
         "pt": "ID do par",
@@ -1644,12 +1700,12 @@ TRANSLATIONS = {
         "en": "Incomplete"
     },
     "split_comparison_empty": {
-        "pt": "Nenhum par adicionado ao comparativo ainda.",
-        "en": "No pair has been added to the comparison yet."
+        "pt": "Nenhum par calculado ainda.",
+        "en": "No pair has been calculated yet."
     },
     "split_clear_final_comparison": {
-        "pt": "Limpar tabela comparativa",
-        "en": "Clear comparison table"
+        "pt": "Limpar todos",
+        "en": "Clear all"
     },
     "split_comparison_pair_cards": {
         "pt": "Pares adicionados ao comparativo",
