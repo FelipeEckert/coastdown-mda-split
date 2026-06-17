@@ -145,6 +145,9 @@
 - [x] Add selected-pair traceability expander using existing Split comparison fields; defer Delta T conformity analysis for Split.
 - [x] Fix Final Comparison checkbox state handling so widget keys are not modified after `st.checkbox` is instantiated.
 - [x] Rework Final Comparison Split rows to closer Standard-style `st.columns` + compact HTML cells, with red CV warnings and orange reference rows.
+- [x] Add Final Comparison visual legend and selected-row highlighting for corrected Split pairs.
+- [x] Align Final Comparison table cells with fixed 50px height, full-width flex cells and centered row controls.
+- [x] Stack Split Final Comparison ambient ida/volta values and standardize table coefficients to F0 `.2f` and F2 `.4f`.
 - [ ] Adapt the Split Excel exporter to the new selected-pair consolidation contract; the UI keeps export disabled until then.
 - [ ] Run manual regression in the app before first commit: create test, replace high, replace low, remove low, replace meteo, remove meteo.
 - [ ] Run manual regression with one high-only CSV and confirm calculation remains blocked with friendly warning.

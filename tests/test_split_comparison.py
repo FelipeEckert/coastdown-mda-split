@@ -32,8 +32,11 @@ from core.split_state import clear_split_comparison_state
 from core.split_results import consolidate_split_final_results
 from pages.page_split_coefficient_calculation import _weather_sync_rows
 from pages.page_split_final_comparison import (
+    _cell_style,
     _comparison_rows,
+    _row_colors,
     _split_selection_widget_key,
+    _stacked_display_value,
 )
 from pages.page_split_results import _result_rows
 from translations import get_translator
@@ -466,6 +469,42 @@ class SplitComparisonTest(unittest.TestCase):
         )
         self.assertTrue(split_comparison_cv_warning(10.01))
         self.assertFalse(split_comparison_cv_warning(10.0))
+
+    def test_split_table_stacks_ambient_values_and_formats_coefficients(self):
+        self.assertEqual(_stacked_display_value((24.0, 25.5), 1), "24.0\n25.5")
+        self.assertEqual(_stacked_display_value(None, 1), "N/A")
+        self.assertEqual(format_split_comparison_display_value(140.256, 2), "140.26")
+        self.assertEqual(format_split_comparison_display_value(0.00495, 4), "0.0050")
+
+    def test_split_visual_styles_for_selected_reference_and_cv_warning(self):
+        selected_bg, selected_text = _row_colors(selected=True)
+        reference_bg, reference_text = _row_colors(reference=True)
+        normal_style = _cell_style()
+        warning_style = _cell_style(warning=True)
+
+        self.assertEqual(selected_bg, "#D1FFBD")
+        self.assertEqual(selected_text, "black")
+        self.assertEqual(reference_bg, "rgba(255,152,0,0.10)")
+        self.assertEqual(reference_text, "#ffb74d")
+        self.assertIn("background-color:#D1FFBD", _cell_style(selected=True))
+        self.assertIn(
+            "background-color:rgba(255,152,0,0.10)",
+            _cell_style(reference=True),
+        )
+        self.assertIn("height:50px", normal_style)
+        self.assertIn("width:100%", normal_style)
+        self.assertIn("box-sizing:border-box", normal_style)
+        self.assertIn("display:flex", normal_style)
+        self.assertIn("align-items:center", normal_style)
+        self.assertIn("justify-content:center", normal_style)
+        self.assertIn("line-height:1.45", normal_style)
+        self.assertIn("color:#ff6b6b", warning_style)
+        self.assertIn("height:50px", warning_style)
+        self.assertIn("border:1px solid rgba(255,107,107,0.35)", warning_style)
+        self.assertIn(
+            "calc(var(--mda-font-table) * 0.95)",
+            _cell_style(pair=True),
+        )
 
     def test_split_selection_widget_key_is_stable(self):
         key = _split_selection_widget_key("split_pair_abc123")

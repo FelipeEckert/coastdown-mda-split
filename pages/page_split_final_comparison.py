@@ -27,6 +27,14 @@ from core.split_state import clear_split_comparison_state, reset_split_final_out
 
 
 ROW_RATIOS = [0.5, 2.2, 0.9, 0.9, 1.0, 1.1, 1.1, 0.8, 0.8, 1.0, 0.5]
+SELECTED_ROW_BG = "#D1FFBD"
+SELECTED_ROW_TEXT = "black"
+DEFAULT_ROW_BG = "#1e1e1e"
+DEFAULT_ROW_TEXT = "white"
+REFERENCE_ROW_BG = "rgba(255,152,0,0.10)"
+REFERENCE_ROW_TEXT = "#ffb74d"
+CV_WARNING_TEXT = "#ff6b6b"
+TABLE_CELL_HEIGHT = "50px"
 
 
 def _selection_source_label(source: str, t) -> str:
@@ -176,21 +184,65 @@ def _render_actions(t) -> None:
         st.rerun()
 
 
-def _cell_html(value, *, warning: bool = False, reference: bool = False) -> str:
-    bg_color = "rgba(255,152,0,0.10)" if reference else "#1e1e1e"
-    text_color = "#ffb74d" if reference else "white"
-    cell = (
-        f"text-align:center;background-color:{bg_color};color:{text_color};"
-        "padding:8px;border-radius:4px;font-size:var(--mda-font-table);"
+def _row_colors(*, selected: bool = False, reference: bool = False) -> tuple[str, str]:
+    if reference:
+        return REFERENCE_ROW_BG, REFERENCE_ROW_TEXT
+    if selected:
+        return SELECTED_ROW_BG, SELECTED_ROW_TEXT
+    return DEFAULT_ROW_BG, DEFAULT_ROW_TEXT
+
+
+def _cell_style(
+    *,
+    selected: bool = False,
+    reference: bool = False,
+    warning: bool = False,
+    pair: bool = False,
+) -> str:
+    bg_color, text_color = _row_colors(selected=selected, reference=reference)
+    font_size = (
+        "calc(var(--mda-font-table) * 0.95)"
+        if pair
+        else "var(--mda-font-table)"
+    )
+    border = (
+        "1px solid rgba(255,107,107,0.35)"
+        if warning
+        else "1px solid rgba(255,255,255,0.06)"
     )
     if warning:
-        cell = (
-            f"text-align:center;background-color:{bg_color};color:#ff6b6b;"
-            "padding:8px;border-radius:4px;font-weight:bold;"
-            "font-size:var(--mda-font-table);"
-        )
+        text_color = CV_WARNING_TEXT
+    return (
+        f"text-align:center;background-color:{bg_color};color:{text_color};"
+        "padding:8px;border-radius:4px;"
+        f"font-size:{font_size};border:{border};height:{TABLE_CELL_HEIGHT};"
+        "width:100%;box-sizing:border-box;display:flex;"
+        "align-items:center;justify-content:center;line-height:1.45;"
+        f"font-weight:{'bold' if warning else 'normal'};"
+    )
+
+
+def _cell_html(
+    value,
+    *,
+    warning: bool = False,
+    reference: bool = False,
+    selected: bool = False,
+    pair: bool = False,
+) -> str:
+    cell = _cell_style(
+        warning=warning,
+        reference=reference,
+        selected=selected,
+        pair=pair,
+    )
     escaped_value = html.escape(str(value)).replace("\n", "<br>")
     return f"<div style='{cell}'>{escaped_value}</div>"
+
+
+def _stacked_display_value(value, precision: int) -> str:
+    """Format ida/volta display values on separate visual lines."""
+    return format_split_comparison_display_value(value, precision).replace(" / ", "\n")
 
 
 def _render_header(labels: list[str], *, reference: bool = False) -> None:
@@ -204,6 +256,36 @@ def _render_header(labels: list[str], *, reference: bool = False) -> None:
             ),
             unsafe_allow_html=True,
         )
+
+
+def _legend_badge(label: str, bg_color: str, text_color: str) -> str:
+    return (
+        f"<span style='background-color:{bg_color};padding:4px 12px;"
+        f"border-radius:4px;color:{text_color};font-size:var(--mda-font-table);"
+        "display:inline-block;text-align:center;'>"
+        f"{html.escape(label)}</span>"
+    )
+
+
+def _render_legend(t) -> None:
+    label_col, selected_col, reference_col, cv_col = st.columns([0.8, 1.2, 1.4, 1.2])
+    label_col.markdown(f"**{t('split_comparison_legend')}:**")
+    selected_col.markdown(
+        _legend_badge(t("split_legend_selected_pair"), SELECTED_ROW_BG, "black"),
+        unsafe_allow_html=True,
+    )
+    reference_col.markdown(
+        _legend_badge(
+            t("split_legend_uncorrected_pair"),
+            "rgba(255,152,0,0.18)",
+            REFERENCE_ROW_TEXT,
+        ),
+        unsafe_allow_html=True,
+    )
+    cv_col.markdown(
+        _legend_badge(t("split_legend_cv_warning"), CV_WARNING_TEXT, "black"),
+        unsafe_allow_html=True,
+    )
 
 
 def _render_remove_button(column, pair_id: str, label: str, t) -> None:
@@ -224,7 +306,7 @@ def _render_pair_row(pair: dict, normalized: dict, t) -> None:
     if selected_key not in st.session_state:
         st.session_state[selected_key] = previous
 
-    columns = st.columns(ROW_RATIOS)
+    columns = st.columns(ROW_RATIOS, vertical_alignment="center")
     selected = columns[0].checkbox(
         t("split_selected"),
         key=selected_key,
@@ -235,11 +317,11 @@ def _render_pair_row(pair: dict, normalized: dict, t) -> None:
 
     values = [
         normalized["_pair_label"].replace(" | ", "\n"),
-        format_split_comparison_display_value(normalized["_temp"], 1),
-        format_split_comparison_display_value(normalized["_press"], 2),
-        format_split_comparison_display_value(normalized["_wind"], 2),
-        format_split_comparison_display_value(normalized["_F0"], 4),
-        format_split_comparison_display_value(normalized["_F2"], 6),
+        _stacked_display_value(normalized["_temp"], 1),
+        _stacked_display_value(normalized["_press"], 2),
+        _stacked_display_value(normalized["_wind"], 2),
+        format_split_comparison_display_value(normalized["_F0"], 2),
+        format_split_comparison_display_value(normalized["_F2"], 4),
         format_split_comparison_display_value(normalized["_cv_F0"], 2),
         format_split_comparison_display_value(normalized["_cv_F2"], 2),
         format_split_comparison_display_value(normalized["_energy"], 4),
@@ -255,9 +337,16 @@ def _render_pair_row(pair: dict, normalized: dict, t) -> None:
         split_comparison_cv_warning(normalized["_cv_F2"]),
         False,
     ]
-    for column, value, warning in zip(columns[1:10], values, warnings):
+    for index, (column, value, warning) in enumerate(
+        zip(columns[1:10], values, warnings)
+    ):
         column.markdown(
-            _cell_html(value, warning=warning),
+            _cell_html(
+                value,
+                warning=warning,
+                selected=selected,
+                pair=index == 0,
+            ),
             unsafe_allow_html=True,
         )
     _render_remove_button(columns[10], pair_id, normalized["_pair_label"], t)
@@ -269,15 +358,15 @@ def _render_reference_row(pair: dict, normalized: dict, t) -> None:
         _set_split_pair_selected_data_only(pair_id, False)
     st.session_state.pop(_split_selection_widget_key(pair_id), None)
 
-    columns = st.columns(ROW_RATIOS)
+    columns = st.columns(ROW_RATIOS, vertical_alignment="center")
     columns[0].markdown(_cell_html("⚠️", reference=True), unsafe_allow_html=True)
     values = [
         normalized["_pair_label"].replace(" | ", "\n"),
-        format_split_comparison_display_value(normalized["_temp"], 1),
-        format_split_comparison_display_value(normalized["_press"], 2),
-        format_split_comparison_display_value(normalized["_wind"], 2),
-        format_split_comparison_display_value(normalized["_f0_prime"], 4),
-        format_split_comparison_display_value(normalized["_f2_prime"], 6),
+        _stacked_display_value(normalized["_temp"], 1),
+        _stacked_display_value(normalized["_press"], 2),
+        _stacked_display_value(normalized["_wind"], 2),
+        format_split_comparison_display_value(normalized["_f0_prime"], 2),
+        format_split_comparison_display_value(normalized["_f2_prime"], 4),
         format_split_comparison_display_value(normalized["_cv_f0_prime"], 2),
         format_split_comparison_display_value(normalized["_cv_f2_prime"], 2),
         format_split_comparison_display_value(normalized["_energy"], 4),
@@ -293,9 +382,16 @@ def _render_reference_row(pair: dict, normalized: dict, t) -> None:
         split_comparison_cv_warning(normalized["_cv_f2_prime"]),
         False,
     ]
-    for column, value, warning in zip(columns[1:10], values, warnings):
+    for index, (column, value, warning) in enumerate(
+        zip(columns[1:10], values, warnings)
+    ):
         column.markdown(
-            _cell_html(value, warning=warning, reference=True),
+            _cell_html(
+                value,
+                warning=warning,
+                reference=True,
+                pair=index == 0,
+            ),
             unsafe_allow_html=True,
         )
     _render_remove_button(columns[10], pair_id, normalized["_pair_label"], t)
@@ -540,7 +636,9 @@ def render(t) -> None:
 
     _render_actions(t)
     st.markdown("---")
-    st.subheader(t("split_final_comparison_table"))
+    st.subheader(t("split_comparison_pair_cards"))
+    _render_legend(t)
+    st.markdown("---")
     _render_corrected_pairs(corrected, t)
     _render_reference_pairs(reference, t)
 

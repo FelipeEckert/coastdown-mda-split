@@ -1635,6 +1635,18 @@ TRANSLATIONS = {
         "pt": "Legenda",
         "en": "Legend"
     },
+    "split_legend_selected_pair": {
+        "pt": "Par selecionado",
+        "en": "Selected pair"
+    },
+    "split_legend_uncorrected_pair": {
+        "pt": "Sem correção",
+        "en": "No correction"
+    },
+    "split_legend_cv_warning": {
+        "pt": "CV > 10%",
+        "en": "CV > 10%"
+    },
     "split_selected_short": {
         "pt": "Sel",
         "en": "Sel"

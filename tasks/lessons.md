@@ -1547,3 +1547,54 @@ key do widget. Sincronizacao programatica de widget deve acontecer antes da
 instanciacao ou em uma execucao nova apos `st.rerun()`.
 
 ---
+
+## 2026-06-17 - Split: Legenda Visual Nao Pode Inventar Origem
+
+### Decisao:
+A rodada visual do Comparativo Final adicionou uma legenda para estados reais do
+Split: par selecionado, par sem correcao e CV acima de 10%. A tabela passou a
+destacar linhas selecionadas em verde claro, manter corrigidos nao selecionados
+em fundo escuro e mostrar pares sem correcao em laranja. As celulas usam o
+padrao visual compacto do Standard como referencia, com borda suave,
+arredondamento, `display:flex` e conteudo centralizado.
+
+### Licao:
+Referencia visual nao autoriza criar significado operacional inexistente. Se o
+Split ainda nao possui selecao automatica por energia/target, a legenda deve
+explicar apenas os estados persistidos em `split_comparison_pairs` e os limites
+visuais aplicados na propria tela.
+
+---
+
+## 2026-06-17 - Split: Tabela HTML Precisa De Altura De Linha Estavel
+
+### Decisao:
+As celulas do Comparativo Final usam `height:50px`, `width:100%`,
+`box-sizing:border-box`, `display:flex`, alinhamento central e `line-height:1.45`.
+O mesmo helper alimenta celulas normais, selecionadas, sem correcao, par e CV em
+warning, para que linhas com uma ou duas quebras tenham a mesma altura visual.
+
+### Licao:
+Em tabelas montadas com `st.columns` e HTML, `min-height` nao basta quando uma
+coluna tem duas linhas e outra tem uma. A altura precisa fazer parte do contrato
+do estilo base, inclusive nos estados especiais, ou a tabela volta a parecer
+desalinhada.
+
+---
+
+## 2026-06-17 - Split: Valores Ida/Volta Devem Empilhar Na Tabela Compacta
+
+### Decisao:
+No Comparativo Final, os valores ambientais ida/volta de temperatura, pressao e
+vento sao exibidos em linhas separadas dentro da mesma celula. Os coeficientes
+da tabela foram padronizados para leitura compacta: F0/f'0 com duas casas e
+F2/f'2 com quatro casas. A mudanca e apenas de apresentacao; os valores
+persistidos em `split_comparison_pairs` continuam intactos.
+
+### Licao:
+Em tabelas compactas, usar separador horizontal para valores ida/volta compete
+com colunas estreitas e deixa o alinhamento dependente da quebra automatica do
+navegador. Quebra controlada na camada de display preserva a leitura sem alterar
+o contrato numerico.
+
+---
