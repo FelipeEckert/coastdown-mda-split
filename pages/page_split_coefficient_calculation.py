@@ -37,10 +37,19 @@ from core.split_state import (
 )
 from data.split_parser import default_split_interval_config
 from utils.split_graphs import (
+    SPLIT_GRAPH_MINUS_COLOR,
+    SPLIT_GRAPH_OTHER_COLORS,
+    SPLIT_GRAPH_PLUS_COLOR,
+    apply_split_plotly_theme,
     apply_split_run_selection_action,
     build_split_run_plot_series,
     collect_split_run_options,
     filter_split_run_options,
+    format_graph_run_label,
+    split_active_component_runs,
+    split_graph_hover_title,
+    split_graph_trace_name,
+    split_record_matches_active_component,
     split_pair_component_records,
 )
 
@@ -1278,34 +1287,86 @@ def _render_coefficient_calculation(t):
 
 def _graph_interval_label(interval_name: str, t) -> str:
     if interval_name == "high":
-        return t("split_graph_high_speed")
+        return t("split_graph_high_section_title")
     if interval_name == "low":
-        return t("split_graph_low_speed")
+        return t("split_graph_low_section_title")
     return str(interval_name or "N/A")
+
+
+def _graph_pair_selection_key() -> str:
+    return (
+        f"split_graph_pair_"
+        f"{st.session_state.get('active_test_id', 'test')}_"
+        f"{st.session_state.get('split_input_version', 0)}"
+    )
+
+
+def _graph_pair_options(pairs: list[dict]) -> dict:
+    return {
+        pair.get("id") or f"pair_{index}": pair
+        for index, pair in enumerate(pairs or [])
+    }
+
+
+def _active_graph_pair() -> dict | None:
+    pair_options = _graph_pair_options(st.session_state.get("split_comparison_pairs") or [])
+    if not pair_options:
+        return None
+    selected_pair_id = st.session_state.get(_graph_pair_selection_key())
+    if selected_pair_id in pair_options:
+        return pair_options[selected_pair_id]
+    return next(iter(pair_options.values()))
+
+
+def _render_active_pair_legend(interval_name: str, active_pair: dict | None, t) -> None:
+    active_runs = split_active_component_runs(active_pair, interval_name)
+    if not active_runs:
+        return
+    section_label = (
+        t("split_graph_high_section_title")
+        if interval_name == "high"
+        else t("split_graph_low_section_title")
+    )
+    prefix = "High" if interval_name == "high" else "Low"
+    plus_run = active_runs.get("+")
+    minus_run = active_runs.get("-")
+    plus_label = f"{prefix} Run {plus_run}" if plus_run not in (None, "") else "N/A"
+    minus_label = f"{prefix} Run {minus_run}" if minus_run not in (None, "") else "N/A"
+    st.markdown(
+        (
+            "<div style='font-size:var(--mda-font-small);color:#a0a0a0;"
+            "margin-bottom:6px'>"
+            f"{t('split_graph_active_pair')} — {section_label}: "
+            f"<span style='color:{SPLIT_GRAPH_PLUS_COLOR};font-weight:600'>"
+            f"● {plus_label} [+]</span>&nbsp;&nbsp;"
+            f"<span style='color:{SPLIT_GRAPH_MINUS_COLOR};font-weight:600'>"
+            f"● {minus_label} [-]</span>"
+            "</div>"
+        ),
+        unsafe_allow_html=True,
+    )
 
 
 def _render_split_series_chart(series_items: list[dict], title: str, t):
     import plotly.graph_objects as go
 
-    colors = [
-        "#4a9eff",
-        "#ff9800",
-        "#38b2ac",
-        "#ef5da8",
-        "#9b8afb",
-        "#f4c95d",
-        "#4bc0c8",
-        "#ff6b6b",
-    ]
     fig = go.Figure()
+    other_color_index = 0
     for index, item in enumerate(series_items):
         series = item["series"]
         record = series["record"]
-        name = item.get("display_name") or (
-            f"{_graph_interval_label(series.get('interval_name'), t)} "
-            f"[{series.get('direction')}] | Run {record.get('run_id')}"
-        )
+        active = bool(item.get("active"))
+        name = item.get("display_name") or split_graph_trace_name(record, active)
         is_aggregate = series.get("data_mode") == "aggregate"
+        if item.get("color"):
+            color = item["color"]
+        elif active and series.get("direction") == "+":
+            color = SPLIT_GRAPH_PLUS_COLOR
+        elif active and series.get("direction") == "-":
+            color = SPLIT_GRAPH_MINUS_COLOR
+        else:
+            color = SPLIT_GRAPH_OTHER_COLORS[other_color_index % len(SPLIT_GRAPH_OTHER_COLORS)]
+            other_color_index += 1
         fig.add_trace(
             go.Scatter(
                 x=series["times_s"],
@@ -1313,17 +1374,17 @@ def _render_split_series_chart(series_items: list[dict], title: str, t):
                 mode="lines+markers",
                 name=name,
                 line={
-                    "color": item.get("color") or colors[index % len(colors)],
-                    "width": 2.5 if not is_aggregate else 2,
+                    "color": color,
+                    "width": 3.2 if active else (2 if is_aggregate else 1.5),
                     "dash": "dot" if is_aggregate else "solid",
                 },
                 marker={
-                    "size": 7,
+                    "size": 7 if active else 5,
                     "symbol": "diamond" if is_aggregate else "circle",
                 },
+                opacity=1.0 if active else 0.58,
                 hovertemplate=(
-                    f"<b>{name}</b><br>"
-                    f"{t('split_file')}: {record.get('filename', 'N/A')}<br>"
+                    f"<b>{split_graph_hover_title(record)}</b><br>"
                     f"{t('split_graph_elapsed_time')}: %{{x:.3f}} s<br>"
                     f"{t('split_graph_speed')}: %{{y:.2f}} km/h"
                     "<extra></extra>"
@@ -1331,19 +1392,11 @@ def _render_split_series_chart(series_items: list[dict], title: str, t):
             )
         )
 
-    fig.update_layout(
-        title={"text": title, "font": {"size": 15}},
+    apply_split_plotly_theme(
+        fig,
+        title,
         xaxis_title=t("split_graph_elapsed_time_axis"),
         yaxis_title=t("split_graph_speed_axis"),
-        template="plotly_dark",
-        hovermode="x unified",
-        height=500,
-        margin={"l": 60, "r": 20, "t": 55, "b": 55},
-        legend={
-            "bgcolor": "rgba(30,30,46,0.85)",
-            "bordercolor": "#3d3d3d",
-            "borderwidth": 1,
-        },
     )
     st.plotly_chart(fig, use_container_width=True)
 
@@ -1369,11 +1422,11 @@ def _render_delta_t_chart(selected_options: list[dict], title: str, t):
             continue
         direction = _record_direction(record)
         interval_name = option["interval_name"]
-        labels.append(format_run_option_label(record))
+        labels.append(format_graph_run_label(record))
         values.append(delta_t)
         colors.append(color_by_group.get((interval_name, direction), "#9b8afb"))
         hover_text.append(
-            f"{_graph_interval_label(interval_name, t)} [{direction}]"
+            f"Run {record.get('run_id', 'N/A')} [{direction}]"
         )
     if not values:
         return
@@ -1385,26 +1438,30 @@ def _render_delta_t_chart(selected_options: list[dict], title: str, t):
             marker_color=colors,
             customdata=hover_text,
             hovertemplate=(
-                "<b>%{x}</b><br>"
-                "%{customdata}<br>"
+                "<b>%{customdata}</b><br>"
                 f"{t('split_graph_delta_t')}: %{{y:.3f}} s"
                 "<extra></extra>"
             ),
         )
     )
-    fig.update_layout(
-        title={"text": title, "font": {"size": 15}},
+    apply_split_plotly_theme(
+        fig,
+        title,
         xaxis_title=t("split_graph_available_runs"),
         yaxis_title=t("split_graph_delta_t_axis"),
-        template="plotly_dark",
         height=390,
-        margin={"l": 60, "r": 20, "t": 55, "b": 120},
     )
+    fig.update_layout(margin={"l": 60, "r": 20, "t": 55, "b": 120})
     fig.update_xaxes(tickangle=-25)
     st.plotly_chart(fig, use_container_width=True)
 
 
-def _render_split_run_section(interval_name: str, all_options: list[dict], t):
+def _render_split_run_section(
+    interval_name: str,
+    all_options: list[dict],
+    active_pair: dict | None,
+    t,
+):
     section_title = t(
         "split_graph_high_section_title"
         if interval_name == "high"
@@ -1507,7 +1564,7 @@ def _render_split_run_section(interval_name: str, all_options: list[dict], t):
     selected_ids = st.multiselect(
         t("split_graph_selected_runs"),
         options=option_ids,
-        format_func=lambda option_id: format_run_option_label(
+        format_func=lambda option_id: format_graph_run_label(
             options_by_id[option_id]["record"]
         ),
         key=selection_key,
@@ -1518,6 +1575,7 @@ def _render_split_run_section(interval_name: str, all_options: list[dict], t):
 
     selected_options = [options_by_id[option_id] for option_id in selected_ids]
     input_sources = st.session_state.get("split_input_sources") or []
+    active_runs = split_active_component_runs(active_pair, interval_name)
     series_items = []
     aggregate_count = 0
     for option in selected_options:
@@ -1525,16 +1583,29 @@ def _render_split_run_section(interval_name: str, all_options: list[dict], t):
         if not series:
             continue
         aggregate_count += series.get("data_mode") == "aggregate"
-        series_items.append({"series": series})
+        series_items.append(
+            {
+                "series": series,
+                "active": split_record_matches_active_component(
+                    option["record"],
+                    active_runs,
+                ),
+            }
+        )
 
     if not series_items:
         st.warning(t("split_graph_insufficient_curve_data"))
     else:
         if aggregate_count:
             st.info(t("split_graph_aggregate_data_notice", count=aggregate_count))
+        _render_active_pair_legend(interval_name, active_pair, t)
         _render_split_series_chart(
             series_items,
-            t("split_graph_section_curve_title", section=section_title),
+            t(
+                "split_graph_high_curve_title"
+                if interval_name == "high"
+                else "split_graph_low_curve_title"
+            ),
             t,
         )
     _render_delta_t_chart(
@@ -1552,9 +1623,10 @@ def _render_available_split_runs(t):
         return
 
     st.subheader(t("split_graph_available_runs"))
-    _render_split_run_section("high", all_options, t)
+    active_pair = _active_graph_pair()
+    _render_split_run_section("high", all_options, active_pair, t)
     st.markdown("---")
-    _render_split_run_section("low", all_options, t)
+    _render_split_run_section("low", all_options, active_pair, t)
 
 
 def _render_calculated_pair_graphs(t):
@@ -1565,27 +1637,21 @@ def _render_calculated_pair_graphs(t):
         st.info(t("split_graph_no_calculated_pairs"))
         return
 
-    pair_options = {
-        pair.get("id") or f"pair_{index}": pair
-        for index, pair in enumerate(pairs)
-    }
+    pair_options = _graph_pair_options(pairs)
     selected_pair_id = st.selectbox(
         t("split_graph_select_pair"),
         options=list(pair_options),
         format_func=lambda pair_id: format_split_pair_label(pair_options[pair_id]),
-        key=(
-            f"split_graph_pair_"
-            f"{st.session_state.get('active_test_id', 'test')}_"
-            f"{st.session_state.get('split_input_version', 0)}"
-        ),
+        key=_graph_pair_selection_key(),
     )
     selected_pair = pair_options[selected_pair_id]
+    st.caption(format_split_pair_label(selected_pair))
     input_sources = st.session_state.get("split_input_sources") or []
     component_colors = {
-        "high_plus": "#4a9eff",
-        "low_plus": "#38b2ac",
-        "high_minus": "#ff9800",
-        "low_minus": "#ef5da8",
+        "high_plus": SPLIT_GRAPH_PLUS_COLOR,
+        "low_plus": SPLIT_GRAPH_PLUS_COLOR,
+        "high_minus": SPLIT_GRAPH_MINUS_COLOR,
+        "low_minus": SPLIT_GRAPH_MINUS_COLOR,
     }
     series_items = []
     aggregate_count = 0
@@ -1600,10 +1666,11 @@ def _render_calculated_pair_graphs(t):
             {
                 "series": series,
                 "display_name": (
-                    f"{t(COMPONENT_LABEL_KEYS[component])} | "
-                    f"Run {record.get('run_id')}"
+                    f"{'High' if component.startswith('high') else 'Low'} "
+                    f"{split_graph_trace_name(record, active=True)}"
                 ),
                 "color": component_colors[component],
+                "active": True,
             }
         )
 
@@ -1614,10 +1681,7 @@ def _render_calculated_pair_graphs(t):
         st.info(t("split_graph_aggregate_data_notice", count=aggregate_count))
     _render_split_series_chart(
         series_items,
-        t(
-            "split_graph_pair_title",
-            pair=format_split_pair_label(selected_pair),
-        ),
+        t("split_graph_pair_title"),
         t,
     )
 
@@ -1632,7 +1696,6 @@ def _render_graphical_analysis(t):
         return
 
     _render_available_split_runs(t)
-    _render_calculated_pair_graphs(t)
 
 
 def render(t):

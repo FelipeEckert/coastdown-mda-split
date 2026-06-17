@@ -1440,3 +1440,37 @@ tabulares altos devem ser consultaveis sob demanda. O botao operacional deve fic
 na superficie principal para nao esconder a acao esperada apos o calculo.
 
 ---
+
+## 2026-06-17 - Split: Graficos Podem Reusar Tema, Nao Estado Standard
+
+### Decisao:
+Os graficos velocidade x tempo da Analise Grafica Split adotam o tema escuro
+visual inspirado no Standard, mas continuam lendo somente split_parsed_runs,
+split_input_sources e split_comparison_pairs. O par ativo e resolvido pelo
+selectbox Split de pares calculados, usando labels publicos e componentes
+high/low por direcao.
+
+### Licao:
+Tema Plotly, cores, espessuras e hover sao apresentacao reutilizavel. Fonte de
+dados, selecao ativa e nomes de traces devem permanecer no contrato Split para
+evitar acoplamento com all_run_data, current_pair_results ou run_ida/run_volta
+do metodo Standard.
+
+---
+
+## 2026-06-17 - Split: Labels De Grafico Devem Ser Mais Curtos Que Labels De Calculo
+
+### Decisao:
+A Analise Grafica usa um label proprio com Run e Delta t, sem arquivo ou horario.
+Os hovers dos graficos velocidade x tempo e Delta t tambem omitem arquivo e
+timestamp. A secao visual de pares calculados foi removida da sub-aba grafica; o
+estado split_comparison_pairs permanece intacto para Comparativo Final e demais
+paginas.
+
+### Licao:
+Labels bons para selecao tecnica podem ser longos, mas graficos precisam de menos
+ruido visual. Quando a mesma run aparece em contextos diferentes, use helpers de
+display especificos por contexto em vez de enfraquecer um label ja util em outra
+tela.
+
+---

@@ -12,6 +12,19 @@ from data.split_parser import (
     required_subintervals,
 )
 
+SPLIT_GRAPH_PLUS_COLOR = "#4a9eff"
+SPLIT_GRAPH_MINUS_COLOR = "#ff9800"
+SPLIT_GRAPH_OTHER_COLORS = [
+    "#a0c4ff",
+    "#b9fbc0",
+    "#ffd6a5",
+    "#ffadad",
+    "#caffbf",
+    "#9bf6ff",
+    "#bdb2ff",
+    "#ffc6ff",
+]
+
 
 def collect_split_run_options(parsed_runs: dict | None) -> list[dict]:
     """Return stable option records from the processed high/low Split runs."""
@@ -176,6 +189,99 @@ def build_split_run_plot_series(
             "data_mode": "aggregate",
         }
     return None
+
+
+def apply_split_plotly_theme(
+    fig,
+    title: str,
+    xaxis_title: str = "Tempo (s)",
+    yaxis_title: str = "Velocidade (km/h)",
+    height: int = 500,
+):
+    """Apply the Standard-inspired dark Plotly theme used by Split charts."""
+    fig.update_layout(
+        title={
+            "text": title,
+            "font": {"size": 15, "color": "white"},
+        },
+        xaxis={
+            "title": xaxis_title,
+            "color": "white",
+            "gridcolor": "#2a2a2a",
+            "showgrid": True,
+        },
+        yaxis={
+            "title": yaxis_title,
+            "color": "white",
+            "gridcolor": "#2a2a2a",
+            "showgrid": True,
+        },
+        plot_bgcolor="#1a1a2e",
+        paper_bgcolor="#0e1117",
+        font={"color": "white"},
+        legend={
+            "bgcolor": "#1e1e2e",
+            "bordercolor": "#3d3d3d",
+            "borderwidth": 1,
+            "font": {"size": 11},
+        },
+        hovermode="x unified",
+        height=height,
+        margin={"l": 60, "r": 20, "t": 50, "b": 50},
+    )
+    return fig
+
+
+def split_graph_trace_name(record: dict | None, active: bool = False) -> str:
+    """Return a compact chart legend label without file or timestamp noise."""
+    source = record if isinstance(record, dict) else {}
+    run_id = source.get("run_id")
+    direction = normalized_record_direction(source) or "N/A"
+    star = " ★" if active else ""
+    return f"Run {run_id if run_id not in (None, '') else 'N/A'}{star} [{direction}]"
+
+
+def format_graph_run_label(record: dict | None) -> str:
+    """Return a compact Split graph selector/axis label with run and Delta t only."""
+    source = record if isinstance(record, dict) else {}
+    run_id = source.get("run_id")
+    delta_t = _finite_float(source.get("delta_t_s"))
+    run_label = f"Run {run_id if run_id not in (None, '') else 'N/A'}"
+    delta_label = f"{delta_t:.2f} s" if delta_t is not None else "N/A"
+    return f"{run_label} | dt={delta_label}"
+
+
+def split_graph_hover_title(record: dict | None) -> str:
+    """Return the first hover line for a Split speed curve."""
+    source = record if isinstance(record, dict) else {}
+    return split_graph_trace_name(source)
+
+
+def split_active_component_runs(pair: dict | None, interval_name: str) -> dict[str, object]:
+    """Return active + and - run IDs for the requested Split interval."""
+    source = pair if isinstance(pair, dict) else {}
+    if interval_name == "high":
+        components = {"+": "high_plus", "-": "high_minus"}
+    elif interval_name == "low":
+        components = {"+": "low_plus", "-": "low_minus"}
+    else:
+        return {}
+
+    active_runs = {}
+    for direction, component in components.items():
+        record = source.get(component)
+        if isinstance(record, dict) and record.get("run_id") not in (None, ""):
+            active_runs[direction] = record.get("run_id")
+    return active_runs
+
+
+def split_record_matches_active_component(record: dict | None, active_runs: dict) -> bool:
+    """Return whether a parsed run belongs to the active pair component set."""
+    source = record if isinstance(record, dict) else {}
+    direction = normalized_record_direction(source)
+    if direction not in active_runs:
+        return False
+    return str(source.get("run_id")) == str(active_runs.get(direction))
 
 
 def split_pair_component_records(pair: dict | None) -> list[dict]:

@@ -1107,6 +1107,14 @@ TRANSLATIONS = {
         "pt": "{section} - Velocidade × tempo decorrido",
         "en": "{section} - Speed × elapsed time"
     },
+    "split_graph_high_curve_title": {
+        "pt": "Curvas de Desaceleração — Alta velocidade",
+        "en": "Deceleration Curves — High speed"
+    },
+    "split_graph_low_curve_title": {
+        "pt": "Curvas de Desaceleração — Baixa velocidade",
+        "en": "Deceleration Curves — Low speed"
+    },
     "split_graph_delta_t_title": {
         "pt": "Tempo de desaceleração por passada",
         "en": "Deceleration time by run"
@@ -1152,8 +1160,12 @@ TRANSLATIONS = {
         "en": "This pair's components do not contain enough data for graphical visualization."
     },
     "split_graph_pair_title": {
-        "pt": "Componentes do par - {pair}",
-        "en": "Pair components - {pair}"
+        "pt": "Componentes do par selecionado — Velocidade × Tempo",
+        "en": "Selected pair components — Speed × Time"
+    },
+    "split_graph_active_pair": {
+        "pt": "Par ativo",
+        "en": "Active pair"
     },
     "page_split_final_comparison": {
         "pt": "Comparativo Final",

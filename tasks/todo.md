@@ -107,6 +107,8 @@
 - [x] Split Graphical Analysis into independent High speed and Low speed sections.
 - [x] Give each graphical section its own direction filter, selected-run state, Add all and Clear selection actions.
 - [x] Reconcile each section selection against its current direction filter without changing the other section.
+- [x] Apply a Standard-inspired dark Plotly theme to Split speed curves, highlight active pair components in high/low charts and keep graph trace labels compact.
+- [x] Simplify Graphical Analysis labels and hovers to run plus Delta t only, remove filenames from speed/Delta t charts and hide the calculated-pair visualization section.
 - [ ] Run a manual UI regression of Graphical Analysis with real separate high/low files and a saved complete pair.
 - [ ] Manually confirm High speed Add/Clear actions do not change Low speed selection, and vice versa.
 - [x] Coefficient Calculation tab manually selects high+, low+, high- and low- before calculating.

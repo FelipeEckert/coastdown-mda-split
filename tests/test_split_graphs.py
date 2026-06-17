@@ -5,12 +5,18 @@ import unittest
 
 from data.split_parser import default_split_interval_config, parse_split_sources
 from utils.split_graphs import (
+    apply_split_plotly_theme,
     apply_split_run_selection_action,
     build_split_run_plot_series,
     collect_split_run_options,
     filter_split_run_options,
+    format_graph_run_label,
     reconcile_split_run_selection,
+    split_active_component_runs,
+    split_graph_hover_title,
+    split_graph_trace_name,
     split_pair_component_records,
+    split_record_matches_active_component,
 )
 
 
@@ -204,6 +210,72 @@ class SplitGraphsTest(unittest.TestCase):
             ["high_plus", "low_plus", "high_minus", "low_minus"],
         )
         self.assertNotIn("id", components[0])
+
+    def test_plotly_theme_applies_title_and_accepts_empty_figure(self):
+        import plotly.graph_objects as go
+
+        fig = go.Figure()
+
+        themed = apply_split_plotly_theme(fig, "Curvas de Desaceleração — Alta velocidade")
+
+        self.assertIs(themed, fig)
+        self.assertEqual(fig.layout.title.text, "Curvas de Desaceleração — Alta velocidade")
+        self.assertEqual(fig.layout.plot_bgcolor, "#1a1a2e")
+        self.assertEqual(fig.layout.hovermode, "x unified")
+        self.assertEqual(fig.layout.height, 500)
+
+    def test_active_component_runs_are_interval_specific(self):
+        pair = {
+            "id": "split_pair_technical",
+            "high_plus": {"run_id": 2},
+            "low_plus": {"run_id": 1},
+            "high_minus": {"run_id": 1},
+            "low_minus": {"run_id": 4},
+        }
+
+        self.assertEqual(split_active_component_runs(pair, "high"), {"+": 2, "-": 1})
+        self.assertEqual(split_active_component_runs(pair, "low"), {"+": 1, "-": 4})
+        self.assertEqual(split_active_component_runs(pair, "other"), {})
+
+    def test_trace_labels_are_clean_and_match_active_components(self):
+        record = {
+            "id": "split_pair_should_not_leak",
+            "run_id": 2,
+            "heading": "+",
+            "filename": "split eliezer high.csv",
+            "start_time_str": "18:47:17.147",
+            "delta_t_s": 18.72,
+        }
+
+        label = split_graph_trace_name(record, active=True)
+        selector_label = format_graph_run_label(record)
+        hover_title = split_graph_hover_title(record)
+
+        self.assertEqual(label, "Run 2 ★ [+]")
+        self.assertNotIn("split_pair_", label)
+        self.assertNotIn("18:47", label)
+        self.assertNotIn("split eliezer", label)
+        self.assertIn("Run 2", selector_label)
+        self.assertIn("dt=18.72 s", selector_label)
+        self.assertNotIn(".csv", selector_label)
+        self.assertEqual(hover_title, "Run 2 [+]")
+        self.assertNotIn(".csv", hover_title)
+        self.assertNotIn("18:47", hover_title)
+        self.assertTrue(split_record_matches_active_component(record, {"+": 2, "-": 1}))
+        self.assertFalse(split_record_matches_active_component(record, {"+": 3, "-": 1}))
+
+    def test_graph_run_label_handles_missing_delta_time(self):
+        label = format_graph_run_label(
+            {
+                "run_id": 5,
+                "filename": "low.csv",
+                "start_time_str": "18:50:00",
+            }
+        )
+
+        self.assertEqual(label, "Run 5 | dt=N/A")
+        self.assertNotIn(".csv", label)
+        self.assertNotIn("18:50", label)
 
 
 if __name__ == "__main__":
