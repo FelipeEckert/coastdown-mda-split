@@ -1,4 +1,4 @@
-# Lições Aprendidas - Coastdown MDA
+git commit -m "Add Split graphical analysis sections"# Lições Aprendidas - Coastdown MDA
 
 
 
@@ -1379,5 +1379,64 @@ Chaves estaveis devem permanecer independentes do texto apresentado. Um identifi
 publico derivado dos componentes de dominio melhora a leitura sem alterar referencias
 internas, e um unico helper evita que tabelas, cards e seletores descrevam o mesmo par
 de maneiras divergentes.
+
+---
+
+## 2026-06-17 - Split: Preview Compacto Nao Duplica Rastreabilidade
+
+### Decisao:
+A sub-aba Calculo dos Coeficientes deve priorizar a acao imediata: selecionar
+passadas, calcular f'0/f'2, conferir F0/F2 corrigidos, energia e adicionar o par ao
+comparativo. O resumo tecnico do par selecionado fica em expander fechado, e os
+detalhes de sincronizacao meteorologica aparecem uma unica vez no expander da secao
+ambiental.
+
+Os cards de pares adicionados nessa sub-aba sao apenas uma previa compacta baseada
+em `split_comparison_pairs`, com titulo publico via `format_split_pair_label()` e
+chaves canonicas Split (`F0_mean`, `F2_mean`, `energy`,
+`ambient_by_component` e medias ida/volta). A selecao e comparacao seguem
+concentradas no Comparativo Final.
+
+### Licao:
+Limpeza visual nao deve apagar rastreabilidade nem criar um segundo fluxo de
+comparacao. Dados tecnicos permanecem salvos no contrato Split e em expanders
+fechados; a tela principal mostra so o necessario para a proxima decisao do usuario.
+
+---
+
+## 2026-06-17 - Split: Resultado Calculado Usa Tabela HTML Especifica
+
+### Decisao:
+O resumo tecnico do par selecionado saiu da sub-aba Calculo dos Coeficientes. Apos
+calcular, a tela passa a mostrar `Resultados do Par` com duas tabelas HTML
+escopadas por classes `split-*`: uma para f'0/f'2 nao corrigidos e outra para
+F0/F2 corrigidos quando a correcao estiver disponivel.
+
+A tabela nao corrigida usa `f0_prime_plus/minus/mean` e
+`f2_prime_plus/minus/mean`, mantendo f'2 em `N/(m/s)^2`. A tabela corrigida usa
+`F0_plus/minus/mean`, `F2_plus/minus/mean`, `temp_plus/minus_used`,
+`press_plus/minus_used`, vento medio por direcao a partir de
+`ambient_by_component` e `energy`. Labels publicos de direcao sao derivados das
+runs high/low de cada sentido, nunca do `id` tecnico `split_pair_*`.
+
+### Licao:
+Copiar o estilo visual Standard requer um adaptador de apresentacao Split, nao
+copiar variaveis Standard como `selected_ida` ou `f0_corr`. Tabelas ricas devem
+usar classes CSS escopadas, formatadores tolerantes a `None`/`NaN` e thresholds
+visuais que nao alteram os valores calculados nem a persistencia do par.
+
+---
+
+## 2026-06-17 - Split: Tabelas Altas Devem Ficar Em Detalhes
+
+### Decisao:
+As tabelas HTML de coeficientes calculados permanecem no fluxo de Resultados do
+Par, mas ficam dentro de um expander fechado por padrao. O titulo da secao e a
+acao de adicionar ao comparativo continuam visiveis fora do expander.
+
+### Licao:
+Quando uma tela de calculo precisa confirmar rapidamente o proximo passo, detalhes
+tabulares altos devem ser consultaveis sob demanda. O botao operacional deve ficar
+na superficie principal para nao esconder a acao esperada apos o calculo.
 
 ---

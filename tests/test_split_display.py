@@ -8,7 +8,15 @@ from core.split_display import (
     format_run_option_label,
     format_split_pair_label,
 )
-from pages.page_split_coefficient_calculation import _selected_from_group
+from pages.page_split_coefficient_calculation import (
+    _build_uncorrected_results_html,
+    _format_cv_cell_class,
+    _format_optional_float,
+    _format_wind_cell_class,
+    _selected_from_group,
+    _split_result_direction_label,
+)
+from translations import get_translator
 
 
 class SplitDisplayTest(unittest.TestCase):
@@ -132,6 +140,48 @@ class SplitDisplayTest(unittest.TestCase):
         )
         self.assertNotIn("dir +", label)
         self.assertNotIn("18:47:17.147", label)
+
+    def test_split_result_table_format_helpers_handle_missing_values(self):
+        self.assertEqual(_format_optional_float(None, 2), "N/A")
+        self.assertEqual(_format_optional_float(float("nan"), 2), "N/A")
+        self.assertEqual(_format_optional_float(12.3456, 2), "12.35")
+
+    def test_split_result_warning_classes_follow_thresholds(self):
+        self.assertEqual(
+            _format_cv_cell_class(10.01),
+            "split-cv-cell split-warning-cv",
+        )
+        self.assertEqual(_format_cv_cell_class(10.0), "split-cv-cell")
+        self.assertEqual(_format_wind_cell_class(3.01), "split-warning-wind")
+        self.assertEqual(_format_wind_cell_class(3.0), "")
+
+    def test_split_result_direction_labels_do_not_expose_internal_id(self):
+        result = {
+            "id": "split_pair_b5b56a2f",
+            "high_plus": {"run_id": 2},
+            "low_plus": {"run_id": 1},
+            "high_minus": {"run_id": 1},
+            "low_minus": {"run_id": 4},
+            "f0_prime_plus": 100.0,
+            "f2_prime_plus": 0.2,
+            "f0_prime_minus": 110.0,
+            "f2_prime_minus": 0.22,
+            "f0_prime_mean": 105.0,
+            "f2_prime_mean": 0.21,
+        }
+
+        self.assertEqual(
+            _split_result_direction_label(result, "plus"),
+            "[+] High Run 2 / Low Run 1",
+        )
+        self.assertEqual(
+            _split_result_direction_label(result, "minus"),
+            "[-] High Run 1 / Low Run 4",
+        )
+        html = _build_uncorrected_results_html(result, get_translator("en"))
+        self.assertNotIn("split_pair_", html)
+        self.assertIn("[+] High Run 2 / Low Run 1", html)
+        self.assertIn("[-] High Run 1 / Low Run 4", html)
 
 
 if __name__ == "__main__":

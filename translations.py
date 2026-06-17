@@ -1407,6 +1407,18 @@ TRANSLATIONS = {
         "pt": "Coeficientes corrigidos",
         "en": "Corrected coefficients"
     },
+    "split_pair_results_title": {
+        "pt": "Resultados do Par",
+        "en": "Pair Results"
+    },
+    "split_coefficient_details": {
+        "pt": "Detalhes dos coeficientes calculados",
+        "en": "Calculated coefficient details"
+    },
+    "split_components": {
+        "pt": "Componentes",
+        "en": "Components"
+    },
     "split_corrected_results_unavailable": {
         "pt": "F0/F2 corrigidos não estão disponíveis porque as condições ambientais válidas estão incompletas.",
         "en": "Corrected F0/F2 are unavailable because valid ambient conditions are incomplete."
@@ -1620,16 +1632,20 @@ TRANSLATIONS = {
         "en": "Incomplete"
     },
     "split_comparison_empty": {
-        "pt": "Nenhum par foi adicionado à tabela comparativa final.",
-        "en": "No pair has been added to the final comparison table."
+        "pt": "Nenhum par adicionado ao comparativo ainda.",
+        "en": "No pair has been added to the comparison yet."
     },
     "split_clear_final_comparison": {
         "pt": "Limpar tabela comparativa",
         "en": "Clear comparison table"
     },
     "split_comparison_pair_cards": {
-        "pt": "Cards dos pares adicionados",
-        "en": "Added pair cards"
+        "pt": "Pares adicionados ao comparativo",
+        "en": "Pairs added to the comparison"
+    },
+    "split_comparison_final_hint": {
+        "pt": "Vá para Comparativo Final para selecionar e comparar os pares.",
+        "en": "Go to Final Comparison to select and compare the pairs."
     },
     "split_remove_pair": {
         "pt": "Remover par",

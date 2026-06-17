@@ -1,6 +1,9 @@
 # coding: utf-8
 """Manual Split ida/volta run selection and coefficient calculation."""
 
+import html
+import math
+
 import pandas as pd
 import streamlit as st
 
@@ -228,12 +231,20 @@ def _render_weather_sync_details(
     weather_sync: dict,
     t,
     extra_warnings: list[str] | None = None,
+    sync_limit_seconds: int | None = None,
 ):
     if not weather_sync and not extra_warnings:
         return
-    if weather_sync:
-        st.caption(_weather_sync_summary(weather_sync, t))
     with st.expander(t("split_weather_sync_details"), expanded=False):
+        if weather_sync:
+            st.write(_weather_sync_summary(weather_sync, t))
+        if sync_limit_seconds is not None:
+            st.caption(
+                t(
+                    "split_meteo_sync_limit",
+                    seconds=sync_limit_seconds,
+                )
+            )
         if weather_sync:
             st.dataframe(
                 pd.DataFrame(_weather_sync_rows(weather_sync, t)),
@@ -257,19 +268,11 @@ def _render_weather_sync(selection: dict, t) -> dict:
         st.warning(t("split_meteo_not_available_warning"))
         return weather_sync
 
-    mode_key = (
-        "meteo_sync_mode_time_only"
-        if st.session_state.get("sync_meteo_by_time_only")
-        else "meteo_sync_mode_full_datetime"
+    _render_weather_sync_details(
+        weather_sync,
+        t,
+        sync_limit_seconds=DEFAULT_MAX_TIME_DELTA_SECONDS,
     )
-    st.info(t("split_meteo_loaded_for_correction", mode=t(mode_key)))
-    st.caption(
-        t(
-            "split_meteo_sync_limit",
-            seconds=DEFAULT_MAX_TIME_DELTA_SECONDS,
-        )
-    )
-    _render_weather_sync_details(weather_sync, t)
     return weather_sync
 
 
@@ -322,7 +325,6 @@ def _render_ambient_conditions(selection: dict, t) -> dict:
             ("fixed", round(float(temperature), 6), round(float(pressure), 6)),
             t,
         )
-        st.info(t("split_fixed_conditions_apply_all"))
         return fixed_ambient_conditions(temperature, pressure)
 
     weather_sync = _render_weather_sync(selection, t)
@@ -373,6 +375,50 @@ def _fmt(value, precision=3):
     return "N/A" if value in (None, "") else str(value)
 
 
+def _format_optional_float(value, decimals=2) -> str:
+    try:
+        if value is None or pd.isna(value):
+            return "N/A"
+        numeric_value = float(value)
+    except (TypeError, ValueError):
+        return "N/A"
+    if not math.isfinite(numeric_value):
+        return "N/A"
+    return f"{numeric_value:.{decimals}f}"
+
+
+def _format_cv_cell_class(value) -> str:
+    try:
+        if value is None or pd.isna(value):
+            return "split-cv-cell"
+        return "split-cv-cell split-warning-cv" if float(value) > 10.0 else "split-cv-cell"
+    except (TypeError, ValueError):
+        return "split-cv-cell"
+
+
+def _format_wind_cell_class(value) -> str:
+    try:
+        if value is None or pd.isna(value):
+            return ""
+        return "split-warning-wind" if float(value) > 3.0 else ""
+    except (TypeError, ValueError):
+        return ""
+
+
+def _mean_numeric(values):
+    valid_values = []
+    for value in values:
+        try:
+            if value is None or pd.isna(value):
+                continue
+            numeric_value = float(value)
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(numeric_value):
+            valid_values.append(numeric_value)
+    return sum(valid_values) / len(valid_values) if valid_values else None
+
+
 def _first_value(data: dict, *keys):
     for key in keys:
         value = data.get(key)
@@ -396,6 +442,207 @@ def _selection_source_label(source: str, t) -> str:
     if source == "algorithm":
         return t("split_selection_source_algorithm")
     return t("split_selection_source_unknown")
+
+
+def _component_run_label(result: dict, component: str) -> str:
+    record = (result or {}).get(component) or {}
+    run_id = record.get("run_id")
+    if run_id in (None, ""):
+        return "N/A"
+    return str(run_id)
+
+
+def _split_result_direction_label(result: dict, direction: str) -> str:
+    if direction == "plus":
+        return (
+            f"[+] High Run {_component_run_label(result, 'high_plus')} / "
+            f"Low Run {_component_run_label(result, 'low_plus')}"
+        )
+    if direction == "minus":
+        return (
+            f"[-] High Run {_component_run_label(result, 'high_minus')} / "
+            f"Low Run {_component_run_label(result, 'low_minus')}"
+        )
+    return "N/A"
+
+
+def _direction_wind_average(result: dict, direction: str):
+    ambient_by_component = (result or {}).get("ambient_by_component") or {}
+    if direction == "plus":
+        components = ("high_plus", "low_plus")
+    elif direction == "minus":
+        components = ("high_minus", "low_minus")
+    else:
+        return None
+    return _mean_numeric(
+        ((ambient_by_component.get(component) or {}).get("wind_speed_ms"))
+        for component in components
+    )
+
+
+def _split_results_table_css() -> str:
+    return """
+    <style>
+        .split-results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0 18px;
+        }
+        .split-results-table th,
+        .split-results-table td {
+            border: 1px solid #444;
+            padding: 10px 8px;
+            text-align: center;
+        }
+        .split-results-table th {
+            background-color: #1f1f1f;
+            font-weight: 700;
+        }
+        .split-results-table tr:nth-child(even) {
+            background-color: #2a2a2a;
+        }
+        .split-results-table .split-text-cell {
+            text-align: left;
+        }
+        .split-cv-cell {
+            vertical-align: middle;
+            font-weight: 700;
+            background-color: #1a1a1a;
+        }
+        .split-warning-cv {
+            background-color: #ff6b6b;
+            color: #000;
+        }
+        .split-warning-wind {
+            background-color: #fff3cd;
+            color: #000;
+            font-weight: 700;
+        }
+    </style>
+    """
+
+
+def _build_uncorrected_results_html(result: dict, t) -> str:
+    cv_f0 = coefficient_variation_percent(
+        _first_value(result, "f0_prime_plus"),
+        _first_value(result, "f0_prime_minus"),
+    )
+    cv_f2 = coefficient_variation_percent(
+        _first_value(result, "f2_prime_plus"),
+        _first_value(result, "f2_prime_minus"),
+    )
+    cv_f0_display = _format_optional_float(cv_f0, 2)
+    cv_f2_display = _format_optional_float(cv_f2, 2)
+    cv_f0_class = _format_cv_cell_class(cv_f0)
+    cv_f2_class = _format_cv_cell_class(cv_f2)
+    plus_components = html.escape(_split_result_direction_label(result, "plus"))
+    minus_components = html.escape(_split_result_direction_label(result, "minus"))
+    average_label = html.escape(t("split_pair_average"))
+
+    return f"""
+    {_split_results_table_css()}
+    <table class="split-results-table">
+        <thead>
+            <tr>
+                <th>{html.escape(t("split_direction"))}</th>
+                <th>{html.escape(t("split_components"))}</th>
+                <th>f'0 (N)</th>
+                <th>f'2 (N/(m/s)²)</th>
+                <th>CV f'0 (%)</th>
+                <th>CV f'2 (%)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{html.escape(t("split_direction_plus_result"))}</td>
+                <td class="split-text-cell">{plus_components}</td>
+                <td>{_format_optional_float(_first_value(result, "f0_prime_plus"), 4)}</td>
+                <td>{_format_optional_float(_first_value(result, "f2_prime_plus"), 6)}</td>
+                <td rowspan="3" class="{cv_f0_class}">{cv_f0_display}</td>
+                <td rowspan="3" class="{cv_f2_class}">{cv_f2_display}</td>
+            </tr>
+            <tr>
+                <td>{html.escape(t("split_direction_minus_result"))}</td>
+                <td class="split-text-cell">{minus_components}</td>
+                <td>{_format_optional_float(_first_value(result, "f0_prime_minus"), 4)}</td>
+                <td>{_format_optional_float(_first_value(result, "f2_prime_minus"), 6)}</td>
+            </tr>
+            <tr>
+                <td><strong>{average_label}</strong></td>
+                <td>N/A</td>
+                <td><strong>{_format_optional_float(_first_value(result, "f0_prime_mean", "f0_prime"), 4)}</strong></td>
+                <td><strong>{_format_optional_float(_first_value(result, "f2_prime_mean", "f2_prime"), 6)}</strong></td>
+            </tr>
+        </tbody>
+    </table>
+    """
+
+
+def _build_corrected_results_html(result: dict, t) -> str:
+    cv_f0 = coefficient_variation_percent(
+        _first_value(result, "F0_plus"),
+        _first_value(result, "F0_minus"),
+    )
+    cv_f2 = coefficient_variation_percent(
+        _first_value(result, "F2_plus"),
+        _first_value(result, "F2_minus"),
+    )
+    wind_plus = _direction_wind_average(result, "plus")
+    wind_minus = _direction_wind_average(result, "minus")
+    wind_mean = _mean_numeric((wind_plus, wind_minus))
+    temp_mean = _mean_numeric((result.get("temp_plus_used"), result.get("temp_minus_used")))
+    press_mean = _mean_numeric((result.get("press_plus_used"), result.get("press_minus_used")))
+    cv_f0_class = _format_cv_cell_class(cv_f0)
+    cv_f2_class = _format_cv_cell_class(cv_f2)
+    energy_unit = result.get("energy_unit") or "MJ/km"
+    energy_display = _format_optional_float(result.get("energy"), 2)
+
+    return f"""
+    <table class="split-results-table">
+        <thead>
+            <tr>
+                <th>{html.escape(t("split_direction"))}</th>
+                <th>T (°C)</th>
+                <th>P (kPa)</th>
+                <th>{html.escape(t("split_meteo_wind_speed"))}</th>
+                <th>F0 (N)</th>
+                <th>F2 (N/(km/h)²)</th>
+                <th>CV F0 (%)</th>
+                <th>CV F2 (%)</th>
+                <th>{html.escape(t("split_card_energy"))}</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{html.escape(t("split_direction_plus_result"))}</td>
+                <td>{_format_optional_float(result.get("temp_plus_used"), 1)}</td>
+                <td>{_format_optional_float(result.get("press_plus_used"), 2)}</td>
+                <td class="{_format_wind_cell_class(wind_plus)}">{_format_optional_float(wind_plus, 1)}</td>
+                <td>{_format_optional_float(_first_value(result, "F0_plus"), 4)}</td>
+                <td>{_format_optional_float(_first_value(result, "F2_plus"), 6)}</td>
+                <td rowspan="3" class="{cv_f0_class}">{_format_optional_float(cv_f0, 2)}</td>
+                <td rowspan="3" class="{cv_f2_class}">{_format_optional_float(cv_f2, 2)}</td>
+                <td rowspan="3" class="split-cv-cell">{energy_display}<br><span>{html.escape(energy_unit)}</span></td>
+            </tr>
+            <tr>
+                <td>{html.escape(t("split_direction_minus_result"))}</td>
+                <td>{_format_optional_float(result.get("temp_minus_used"), 1)}</td>
+                <td>{_format_optional_float(result.get("press_minus_used"), 2)}</td>
+                <td class="{_format_wind_cell_class(wind_minus)}">{_format_optional_float(wind_minus, 1)}</td>
+                <td>{_format_optional_float(_first_value(result, "F0_minus"), 4)}</td>
+                <td>{_format_optional_float(_first_value(result, "F2_minus"), 6)}</td>
+            </tr>
+            <tr>
+                <td><strong>{html.escape(t("split_pair_average"))}</strong></td>
+                <td><strong>{_format_optional_float(temp_mean, 1)}</strong></td>
+                <td><strong>{_format_optional_float(press_mean, 2)}</strong></td>
+                <td class="{_format_wind_cell_class(wind_mean)}"><strong>{_format_optional_float(wind_mean, 1)}</strong></td>
+                <td><strong>{_format_optional_float(_first_value(result, "F0_mean", "F0"), 4)}</strong></td>
+                <td><strong>{_format_optional_float(_first_value(result, "F2_mean", "F2"), 6)}</strong></td>
+            </tr>
+        </tbody>
+    </table>
+    """
 
 
 def _comparison_status_label(status: str, warning_count: int, t) -> str:
@@ -628,202 +875,91 @@ def _corrected_result_rows(result: dict, t) -> list[dict]:
 
 
 def _render_result_summary(result: dict, t):
-    st.subheader(t("split_uncorrected_results"))
-    col_f0, col_f2 = st.columns(2)
-    col_f0.metric(
-        "f'0",
-        f"{_first_value(result, 'f0_prime_mean', 'f0_prime'):.6f} N",
-    )
-    col_f2.metric(
-        "f'2",
-        f"{_first_value(result, 'f2_prime_mean', 'f2_prime'):.9f} N/(m/s)^2",
-    )
-    st.dataframe(pd.DataFrame(_result_rows(result, t)), use_container_width=True, hide_index=True)
-    st.subheader(t("split_corrected_results"))
-    if result.get("correction_available"):
-        col_f0_corr, col_f2_corr = st.columns(2)
-        col_f0_corr.metric(
-            "F0",
-            f"{_first_value(result, 'F0_mean', 'F0'):.6f} N",
+    st.markdown("---")
+    st.subheader(t("split_pair_results_title"))
+    with st.expander(t("split_coefficient_details"), expanded=False):
+        st.markdown(f"#### {t('split_uncorrected_results')}")
+        st.markdown(
+            _build_uncorrected_results_html(result, t),
+            unsafe_allow_html=True,
         )
-        col_f2_corr.metric(
-            "F2",
-            f"{_first_value(result, 'F2_mean', 'F2'):.9f} N/(km/h)^2",
-        )
-        st.dataframe(
-            pd.DataFrame(_corrected_result_rows(result, t)),
-            use_container_width=True,
-            hide_index=True,
-        )
-        st.caption(
-            t(
-                "split_ambient_source_summary",
-                source=t(f"split_ambient_source_{result.get('ambient_source')}"),
+
+        if result.get("correction_available"):
+            st.markdown(f"#### {t('split_corrected_results')}")
+            st.markdown(
+                _build_corrected_results_html(result, t),
+                unsafe_allow_html=True,
             )
-        )
-    else:
-        st.warning(t("split_corrected_results_unavailable"))
-    st.write(
-        f"{t('split_ambient_mode_label')}: "
-        f"{_ambient_mode_label(result, t)}"
-    )
-    st.write(
-        f"{t('split_temp_plus_used')}: "
-        f"{_fmt(result.get('temp_plus_used'), 2)} C"
-    )
-    st.write(
-        f"{t('split_temp_minus_used')}: "
-        f"{_fmt(result.get('temp_minus_used'), 2)} C"
-    )
-    st.write(
-        f"{t('split_press_plus_used')}: "
-        f"{_fmt(result.get('press_plus_used'), 3)} kPa"
-    )
-    st.write(
-        f"{t('split_press_minus_used')}: "
-        f"{_fmt(result.get('press_minus_used'), 3)} kPa"
-    )
-    st.write(
-        f"{t('split_card_energy')}: "
-        f"{_fmt(result.get('energy'), 4)} "
-        f"{result.get('energy_unit') or ''}"
-    )
-    if result.get("energy") is None:
-        st.caption(t("split_energy_unavailable_contract"))
-    if result.get("ambient_mode") == "weather_sync":
-        _render_weather_sync_details(
-            result.get("ambient_by_component") or result.get("weather_sync") or {},
-            t,
-            result.get("warnings") or [],
-        )
+        else:
+            st.warning(t("split_corrected_results_unavailable"))
+            st.caption(t("split_energy_unavailable_contract"))
 
 
 def _render_pair_card(pair: dict, t, pair_number: int):
-    selection_source = _selection_source_label(
-        pair.get("selection_source", "manual"),
-        t,
-    )
-    label = (
-        f"{t('split_pair')} {pair_number} | "
-        f"{format_split_pair_label(pair)} | "
-        f"{selection_source} | "
-        f"F0={_fmt(_first_value(pair, 'F0_mean', 'F0'), 2)} N"
-    )
+    label = format_split_pair_label(pair)
     with st.expander(label, expanded=False):
-        st.caption(
-            f"{t('split_selection_source')}: {selection_source} | "
-            f"{t('split_selected')}: "
-            f"{t('yes') if pair.get('selected', True) else t('no')}"
-        )
         ambient_col, coefficients_col, variation_col, energy_col = st.columns(4)
 
         with ambient_col:
             st.markdown(f"##### {t('split_card_ambient_conditions')}")
             st.write(
-                f"{t('split_temp_plus_used')}: "
-                f"{_fmt(pair.get('temp_plus_used'), 2)} C"
+                f"Temp: {_fmt(pair.get('temp_plus_used'), 1)} / "
+                f"{_fmt(pair.get('temp_minus_used'), 1)} °C"
             )
             st.write(
-                f"{t('split_temp_minus_used')}: "
-                f"{_fmt(pair.get('temp_minus_used'), 2)} C"
+                f"Press: {_fmt(pair.get('press_plus_used'), 2)} / "
+                f"{_fmt(pair.get('press_minus_used'), 2)} kPa"
             )
             st.write(
-                f"{t('split_press_plus_used')}: "
-                f"{_fmt(pair.get('press_plus_used'), 3)} kPa"
-            )
-            st.write(
-                f"{t('split_press_minus_used')}: "
-                f"{_fmt(pair.get('press_minus_used'), 3)} kPa"
-            )
-            st.caption(
-                f"{t('split_ambient_mode_label')}: "
-                f"{_ambient_mode_label(pair, t)}"
+                f"Vento: "
+                f"{_fmt(_first_value(pair, 'wind_plus_ms', 'wind_plus_used'), 2)} / "
+                f"{_fmt(_first_value(pair, 'wind_minus_ms', 'wind_minus_used'), 2)} m/s"
             )
 
         with coefficients_col:
             st.markdown(f"##### {t('split_corrected_results')}")
             if pair.get("correction_available"):
-                st.metric(
-                    "F0",
-                    f"{_fmt(_first_value(pair, 'F0_mean', 'F0'), 3)} N",
+                st.write(
+                    f"F0: {_fmt(_first_value(pair, 'F0_mean', 'F0'), 4)} N"
                 )
-                st.metric(
-                    "F2",
-                    f"{_fmt(_first_value(pair, 'F2_mean', 'F2'), 6)} "
-                    "N/(km/h)^2",
+                st.write(
+                    f"F2: {_fmt(_first_value(pair, 'F2_mean', 'F2'), 6)} "
+                    "N/(km/h)²"
                 )
-                st.caption(t("split_f2_explicit_conversion_note"))
             else:
                 st.write(t("split_corrected_results_unavailable"))
-            st.caption(
-                f"f'0: {_fmt(_first_value(pair, 'f0_prime_mean', 'f0_prime'), 3)} N | "
-                f"f'2: {_fmt(_first_value(pair, 'f2_prime_mean', 'f2_prime'), 6)} "
-                "N/(m/s)^2"
-            )
 
         with variation_col:
             st.markdown(f"##### {t('split_card_variations')}")
             for coefficient, value in (
-                ("F0", pair.get("cv_F0_percent")),
-                ("F2", pair.get("cv_F2_percent")),
+                ("F0", _first_value(pair, "cv_F0_percent", "cv_f0")),
+                ("F2", _first_value(pair, "cv_F2_percent", "cv_f2")),
             ):
                 if value is None:
                     st.write(f"CV {coefficient}: N/A")
                 elif value > 10:
-                    st.warning(f"CV {coefficient}: {value:.2f}%")
+                    st.write(f"CV {coefficient}: :red[{value:.2f}%] ⚠️")
                 else:
                     st.write(f"CV {coefficient}: {value:.2f}%")
 
         with energy_col:
             st.markdown(f"##### {t('split_card_energy')}")
             if pair.get("energy") is None:
-                st.metric(t("split_card_energy"), "N/A")
+                st.markdown(
+                    "<h2 class='mda-pair-energy-value'>N/A</h2>",
+                    unsafe_allow_html=True,
+                )
                 st.caption(t("split_energy_unavailable_contract"))
             else:
                 unit = pair.get("energy_unit") or "MJ/km"
-                st.metric(t("split_card_energy"), f"{_fmt(pair.get('energy'), 4)} {unit}")
-                if pair.get("energy_profile"):
-                    st.caption(str(pair["energy_profile"]))
-
-        st.caption(
-            f"{t('split_effective_mass_available')}: "
-            f"{_fmt(pair.get('effective_mass'))} kg | "
-            f"V1/V2: {_fmt(pair.get('v1_reference_kmh'))} / "
-            f"{_fmt(pair.get('v2_reference_kmh'))} km/h | "
-            f"Delta V1/V2: {_fmt(pair.get('delta_v1_kmh'))} / "
-            f"{_fmt(pair.get('delta_v2_kmh'))} km/h"
-        )
-
-        st.markdown(f"**{t('split_card_traceability')}**")
-        st.dataframe(
-            pd.DataFrame(_pair_component_rows(pair, t)),
-            use_container_width=True,
-            hide_index=True,
-        )
-        st.markdown(f"**{t('split_ambient_traceability')}**")
-        ambient_by_component = pair.get("ambient_by_component") or {}
-        st.dataframe(
-            pd.DataFrame(_weather_sync_rows(ambient_by_component, t)),
-            use_container_width=True,
-            hide_index=True,
-        )
-        warnings = _weather_sync_warnings(ambient_by_component, t)
-        warnings.extend(
-            _translated_weather_warning(warning, t)
-            for warning in (pair.get("warnings") or [])
-        )
-        warnings = list(dict.fromkeys(warnings))
-        if warnings:
-            st.warning("\n".join(warnings))
-
-        if st.button(t("split_remove_pair"), key=f"remove_{pair.get('id')}"):
-            st.session_state.split_comparison_pairs = remove_split_comparison_pair(
-                st.session_state.get("split_comparison_pairs") or [],
-                pair.get("id"),
-            )
-            st.session_state.split_final_results = {}
-            st.session_state.excel_buffer = None
-            st.rerun()
+                st.markdown(
+                    f"<h2 class='mda-pair-energy-value'>{_fmt(pair.get('energy'), 2)}</h2>",
+                    unsafe_allow_html=True,
+                )
+                st.markdown(
+                    f"<p class='mda-pair-energy-unit'>{unit}</p>",
+                    unsafe_allow_html=True,
+                )
 
 
 def _render_comparison_area(t):
@@ -964,12 +1100,24 @@ def _render_add_to_comparison(t):
         st.session_state.excel_buffer = None
         st.success(t("split_pair_added_to_comparison"))
 
-    st.caption(
-        t(
-            "split_comparison_pairs_count",
-            count=len(st.session_state.get("split_comparison_pairs") or []),
-        )
-    )
+    pairs = st.session_state.get("split_comparison_pairs") or []
+    st.subheader(t("split_comparison_pair_cards"))
+    if not pairs:
+        st.info(t("split_comparison_empty"))
+        return
+    for pair_number, pair in enumerate(pairs, start=1):
+        if pair.get("cv_F0_percent") is None:
+            pair["cv_F0_percent"] = coefficient_variation_percent(
+                pair.get("F0_plus"),
+                pair.get("F0_minus"),
+            )
+        if pair.get("cv_F2_percent") is None:
+            pair["cv_F2_percent"] = coefficient_variation_percent(
+                pair.get("F2_plus"),
+                pair.get("F2_minus"),
+            )
+        _render_pair_card(pair, t, pair_number)
+    st.info(t("split_comparison_final_hint"))
 
 
 def _selected_from_group(grouped: dict, component: str, label_key: str, selection_key_suffix: str):
@@ -1094,13 +1242,6 @@ def _render_coefficient_calculation(t):
         "high_minus": high_minus,
         "low_minus": low_minus,
     }
-
-    st.subheader(t("split_selected_pair_inputs"))
-    st.dataframe(
-        _input_summary(selection, effective_mass, config, t),
-        use_container_width=True,
-        hide_index=True,
-    )
 
     ambient_conditions = _render_ambient_conditions(selection, t)
 

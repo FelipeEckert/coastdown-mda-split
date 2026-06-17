@@ -131,6 +131,9 @@
 - [x] Replace technical `split_pair_*` labels in Split tables, cards, expanders and selectors with public high/low run composition.
 - [x] Simplify coefficient-calculation run options to `Run | dt | filename`, keeping direction and timestamps in traceability sections.
 - [x] Add regression coverage for the actual coefficient `selectbox` formatter and public pair columns.
+- [x] Clean the Coefficient Calculation visual flow: collapse the selected-pair technical summary, keep meteo sync details in one closed expander, remove loose ambient text after coefficient results and show compact `split_comparison_pairs` preview cards.
+- [x] Replace the calculated-result summary with Split-specific HTML tables for uncorrected and corrected coefficients, including CV and wind threshold highlights, and remove the selected-pair technical summary from the calculation UI.
+- [x] Move the calculated coefficient HTML tables into a closed details expander while keeping the pair result title and add-to-comparison action visible.
 - [x] Diagnose and restart duplicate Streamlit servers on ports 8501/8502 that predated the display changes.
 - [ ] Adapt the Split Excel exporter to the new selected-pair consolidation contract; the UI keeps export disabled until then.
 - [ ] Run manual regression in the app before first commit: create test, replace high, replace low, remove low, replace meteo, remove meteo.
