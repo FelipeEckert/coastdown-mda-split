@@ -1598,3 +1598,126 @@ navegador. Quebra controlada na camada de display preserva a leitura sem alterar
 o contrato numerico.
 
 ---
+
+## 2026-06-19 - Split: Algoritmo Automatico Deve Reusar O Motor Manual
+
+### Decisao:
+A auditoria para a futura selecao automatica confirmou que o fluxo manual ativo ja
+possui a cadeia de calculo que deve ser reutilizada: `calculate_complete_split_pair`,
+`apply_split_pair_correction` e `build_split_comparison_pair`. A proxima etapa deve
+extrair um helper puro de candidato automatico sobre essa cadeia, sem duplicar
+formulas e sem importar o workflow legado de `page_4_selecao_algoritmo.py`.
+
+Pares sugeridos por algoritmo devem entrar em `split_comparison_pairs` com
+`selection_source="algorithm"` e `selected=False`. A selecao final continua sendo
+uma decisao manual do usuario no Comparativo Final.
+
+### Licao:
+No Split, "sugerir candidato" e "selecionar para o resultado final" sao estados
+diferentes. O algoritmo pode preencher o comparativo, mas nao deve marcar o par
+como selecionado. Flags visuais de energia/target devem ser adicionadas ao contrato
+Split de forma explicita, porque hoje a tela ativa reconhece origem generica
+`algorithm`, par selecionado, par sem correcao e CV alto.
+
+---
+
+## 2026-06-19 - Split: Candidato Automatico Tem Identidade Por Componentes
+
+### Decisao:
+O helper puro `core/split_pair_candidate.py` cria um candidato automatico usando o
+mesmo trio do calculo manual: `calculate_complete_split_pair`,
+`apply_split_pair_correction` e `build_split_comparison_pair`. O helper nao acessa
+estado de UI e forca `selection_source="algorithm"` com `selected=False`.
+
+A identidade `run_usage` e a assinatura estavel sao baseadas nas quatro passadas,
+na ordem high+, low+, high-, low-, incluindo tipo high/low, direcao, `run_id`,
+arquivo, `source_role` e hash de fonte quando disponivel. Valores ausentes viram
+`"<missing>"` para manter uma assinatura controlada sem mascarar a falta de
+rastreabilidade.
+
+### Licao:
+O `id` tecnico do par e adequado para widget/remocao, mas nao para deduplicar
+candidatos automaticos. Duplicidade de algoritmo deve ser decidida pelos quatro
+componentes de dominio usados no calculo, pois o mesmo candidato pode receber ids
+diferentes quando reconstruido.
+
+---
+
+## 2026-06-19 - Split: Top-k Automatico Nao Completa Repeticoes
+
+### Decisao:
+Os helpers puros de ranking ficam separados da geracao de candidatos e da UI. O
+ranking por energia usa `energy`; o ranking por target usa `F0_mean` e `F2_mean`
+corrigidos, adicionando apenas metadados de score em copias dos candidatos.
+
+O top-k com `avoid_repeated_runs=True` compara itens exatos de `run_usage`.
+Passadas com mesmo `run_id` nao conflitam se diferem por high/low, direcao,
+arquivo, papel ou hash. Se nao houver candidatos suficientes sem repeticao, a
+funcao retorna menos que `k` e registra warning; ela nao completa automaticamente
+com repetidos.
+
+### Licao:
+A camada de algoritmo deve ser previsivel e auditavel: ranquear, filtrar
+repeticoes e reportar perdas sao responsabilidades puras. A decisao de aceitar
+repeticao por falta de candidatos, se existir, deve ser uma etapa explicita de UI
+ou politica normativa, nao um fallback silencioso dentro do seletor.
+
+---
+
+## 2026-06-19 - Split: Validacao De Tempos Pode Ser Inconclusiva
+
+### Decisao:
+A validacao normativa pura dos tempos trabalha sobre o conjunto de candidatos
+selecionados e monta quatro grupos: high+, high-, low+ e low-. O CV usa desvio
+padrao amostral e so e avaliavel com pelo menos dois tempos validos no grupo.
+A diferenca entre sentidos compara as medias high+/high- e low+/low-.
+
+O resultado geral usa tres estados: `True` quando tudo e avaliavel e passa,
+`False` quando qualquer verificacao avaliavel falha, e `None` quando falta amostra
+para avaliar tudo mas nenhuma verificacao avaliavel falhou.
+
+### Licao:
+Amostra insuficiente nao deve ser mascarada como aprovado nem reprovado. Para o
+Split automatico, diagnostico inconclusivo precisa chegar como warning e estado
+neutro para a camada de UI/politica decidir se bloqueia, avisa ou solicita mais
+candidatos.
+
+---
+
+## 2026-06-19 - Split: Geracao Exata Deve Ter Limite Explícito
+
+### Decisao:
+A geracao pura de candidatos completos usa o produto cartesiano high+ x low+ x
+high- x low- e chama `build_algorithm_split_pair_candidate` para cada combinacao.
+O modulo calcula o total estimado antes de gerar e respeita `max_combinations`;
+quando o limite e excedido, ele nao tenta gerar parcialmente.
+
+Erros de uma combinacao individual sao capturados em metadata e nao abortam a
+geracao das demais combinacoes.
+
+### Licao:
+O modo exato e simples, auditavel e util para conjuntos pequenos, mas pode crescer
+rapidamente. A decisao entre modo exato e modo otimizado deve acontecer antes da
+geracao, com um limite explicito, para evitar custo computacional surpresa e para
+manter a futura UI honesta sobre quantos candidatos existem.
+
+---
+
+## 2026-06-19 - Split: Orquestrador Automatico Nao Persiste Candidatos
+
+### Decisao:
+O orquestrador puro `run_split_auto_selection_exact` combina geracao exata,
+ranking, top-k, marcacao de origem e diagnostico normativo de tempos, mas retorna
+apenas candidatos e metadata. Ele nao adiciona nada em `split_comparison_pairs` e
+nao toca estado de UI.
+
+Mesmo apos top-k, os candidatos passam por `mark_algorithm_source`, preservando
+`selected=False`, `selection_source="algorithm"` e `algorithm_source` especifico
+do algoritmo.
+
+### Licao:
+A selecao automatica deve permanecer em duas fases: sugerir candidatos e depois,
+em outra camada explicita, adiciona-los ao comparativo. Separar orquestracao pura
+de persistencia evita que algoritmo vire selecao final por efeito colateral.
+
+---

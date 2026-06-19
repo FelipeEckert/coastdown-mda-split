@@ -210,6 +210,18 @@
 - [ ] Manually recheck Final Comparison checkbox/batch/remove/results navigation with real browser state after the Streamlit session-state fix.
 - [ ] Design a Split-specific Delta T conformity analysis for selected pairs; do not import Standard `build_selected_pairs_time_analysis` without review.
 - [ ] Connect future automatic Split selection to `selection_source="algorithm"` without importing the Standard algorithm workflow.
+- [x] Audit the current manual Split pair calculation and comparison contracts before implementing automatic selection algorithms.
+- [x] Extract a pure Split candidate-builder helper that reuses `calculate_complete_split_pair`, `apply_split_pair_correction` and `build_split_comparison_pair`.
+- [x] Ensure future automatic Split candidates enter `split_comparison_pairs` with `selection_source="algorithm"` and `selected=False`.
+- [x] Add pure ranking and top-k selection helpers for automatic Split candidates.
+- [x] Add pure normative time diagnostics for selected automatic Split candidates.
+- [x] Add pure automatic-candidate enumeration from grouped Split runs without UI state.
+- [ ] Implement normative time/direction validation for generated automatic candidates before UI integration.
+- [x] Implement exact complete-candidate generation from grouped high+/low+/high-/low- Split runs.
+- [x] Create a pure automatic-selection orchestrator combining exact generation, ranking, top-k and time diagnostics.
+- [ ] Implement directional preselection for large Split candidate sets.
+- [ ] Implement controlled UI/sub-tab integration for exact automatic Split selection without auto-selecting final results.
+- [ ] Decide and implement Split-specific visual flags for energy/target suggestions if separate colors are required.
 - [ ] Keep `sample_data/Split/` and `sample_data/Standard/` separated as validation datasets for each method.
 
 ## Split/Standard separation audit - 2026-06-10
