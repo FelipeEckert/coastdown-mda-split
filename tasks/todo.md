@@ -208,7 +208,7 @@
 - [ ] Continue visual polish after functional validation; keep technical meteo warnings collapsed by default.
 - [ ] Validate the Final Comparison table manually with a larger number of pairs and narrow desktop widths.
 - [ ] Manually recheck Final Comparison checkbox/batch/remove/results navigation with real browser state after the Streamlit session-state fix.
-- [ ] Design a Split-specific Delta T conformity analysis for selected pairs; do not import Standard `build_selected_pairs_time_analysis` without review.
+- [x] Add Split-specific Delta T conformity diagnostics for selected Final Comparison pairs by reusing `core/split_time_validation.py`.
 - [ ] Connect future automatic Split selection to `selection_source="algorithm"` without importing the Standard algorithm workflow.
 - [x] Audit the current manual Split pair calculation and comparison contracts before implementing automatic selection algorithms.
 - [x] Extract a pure Split candidate-builder helper that reuses `calculate_complete_split_pair`, `apply_split_pair_correction` and `build_split_comparison_pair`.
@@ -256,3 +256,12 @@
 - [ ] Keep `core/corrections.py`, `data/exporters.py`, `utils/pair_time_analysis.py` and pages 3-6 isolated as Standard legacy.
 - [ ] Review the inherited 3% rotational-inertia default in Vehicle Data against the final Split normative workflow.
 - [ ] Update stale `app.py` comments that still describe pages 2-6 and inherited compatibility as the current architecture.
+
+## Round 10A - Final Comparison deviation analysis
+- [x] Preserve the existing Final Comparison behavior in the `Tabela` sub-tab.
+- [x] Analyze only pairs explicitly stored with `selected=True`.
+- [x] Add pure F0/F2 sample CV, per-pair deviation and leave-one-out diagnostics.
+- [x] Reuse Split time validation for the four deltaT groups and opposite-direction means.
+- [x] Add configurable diagnostic alerts for wind above 3 m/s and temperature above 35 °C; pressure remains display-only.
+- [x] Add PT/EN labels and unit coverage for the pure analysis module.
+- [ ] Complete the required real-browser manual regression for both sub-tabs, selection persistence, weather alerts and Split Results navigation.

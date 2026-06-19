@@ -1919,3 +1919,23 @@ reproduzir uma acao antiga; um flag de ciclo de vida e callback de dismiss torna
 a transicao explicita.
 
 ---
+
+## 2026-06-19 - Split: Analise De Desvios E Diagnostica
+
+### Decisao:
+A Analise de desvios do Comparativo Final consome exclusivamente pares com
+`selected=True` e nao altera selecao, ordem ou conteudo persistido. O modulo puro
+reutiliza a consolidacao de resultados para CV amostral de F0/F2 e a validacao
+Split existente para CV dos quatro grupos deltaT e diferenca entre sentidos.
+
+Os limites ambientais iniciais sao parametros diagnosticos: vento acima de 3 m/s
+e temperatura acima de 35 graus Celsius geram alerta potencialmente invalidante.
+Pressao e exibida para rastreabilidade, mas nao produz reprovacao sem uma regra
+explicita. Leave-one-out apenas simula novos CVs e nunca remove o par.
+
+### Licao:
+Uma tela de diagnostico deve projetar as mesmas fontes numericas das telas finais,
+nao recriar formulas paralelas. Dados insuficientes precisam permanecer
+inconclusivos; ausencia de amostra nao equivale a aprovacao nem reprovacao.
+
+---

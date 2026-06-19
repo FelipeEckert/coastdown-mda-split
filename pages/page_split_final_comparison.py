@@ -21,6 +21,7 @@ from core.split_comparison import (
     set_split_comparison_selected_ids,
     split_comparison_cv_warning,
 )
+from core.split_deviation_analysis import analyze_split_selected_deviations
 from core.split_display import format_split_pair_label
 from core.split_results import consolidate_split_final_results
 from core.split_state import (
@@ -669,10 +670,18 @@ def _render_final_results_action(summary: dict, t) -> None:
             st.warning(t("split_select_pairs_for_final_hint"))
 
 
-def render(t) -> None:
-    """Render the Split final comparison table."""
-    st.header(t("page_split_final_comparison"))
-    pairs = _current_pairs()
+def _diagnostic_status(status: str, t) -> str:
+    icons = {
+        "approved": "✅",
+        "warning": "⚠️",
+        "failed": "❌",
+        "insufficient_data": "ℹ️",
+    }
+    return f"{icons.get(status, 'ℹ️')} {t(f'split_deviation_status_{status}')}"
+
+
+def _render_table_tab(pairs: list[dict], t) -> None:
+    """Render the existing Final Comparison behavior inside its tab."""
     if not pairs:
         st.info(t("split_comparison_empty"))
         return
@@ -734,3 +743,133 @@ def render(t) -> None:
     st.markdown("---")
     _render_selected_traceability(selected_pairs, t)
     _render_final_results_action(summary, t)
+
+
+def _render_deviation_analysis(t) -> None:
+    selected_pairs = [
+        pair
+        for pair in st.session_state.get("split_comparison_pairs", [])
+        if isinstance(pair, dict) and pair.get("selected") is True
+    ]
+    if not selected_pairs:
+        st.warning(t("split_deviation_select_pairs_hint"))
+        return
+
+    analysis = analyze_split_selected_deviations(selected_pairs)
+    coefficients = analysis["coefficient_summary"]
+    times = analysis["time_summary"]
+    weather = analysis["weather_summary"]
+
+    cards = st.columns(6)
+    cards[0].metric(t("split_deviation_selected_count"), analysis["pair_count"])
+    cards[1].metric("CV F0", _metric_value(coefficients["cv_f0_pct"], 2, "%"))
+    cards[2].metric("CV F2", _metric_value(coefficients["cv_f2_pct"], 2, "%"))
+    cards[3].metric(t("split_deviation_coefficients_status"), _diagnostic_status(coefficients["status"], t))
+    cards[4].metric(t("split_deviation_times_status"), _diagnostic_status(times["status"], t))
+    cards[5].metric(t("split_deviation_weather_status"), _diagnostic_status(weather["status"], t))
+
+    st.subheader(t("split_deviation_coefficients_title"))
+    coefficient_rows = [
+        {
+            t("split_deviation_coefficient"): "F0",
+            t("split_deviation_mean"): coefficients["mean_f0"],
+            t("split_deviation_sample_stdev"): coefficients["stdev_f0"],
+            "CV [%]": coefficients["cv_f0_pct"],
+            t("split_deviation_limit"): coefficients["limit_pct"],
+            t("split_deviation_status"): _diagnostic_status(coefficients["status"], t),
+        },
+        {
+            t("split_deviation_coefficient"): "F2",
+            t("split_deviation_mean"): coefficients["mean_f2"],
+            t("split_deviation_sample_stdev"): coefficients["stdev_f2"],
+            "CV [%]": coefficients["cv_f2_pct"],
+            t("split_deviation_limit"): coefficients["limit_pct"],
+            t("split_deviation_status"): _diagnostic_status(coefficients["status"], t),
+        },
+    ]
+    st.dataframe(pd.DataFrame(coefficient_rows), use_container_width=True, hide_index=True)
+
+    st.subheader(t("split_deviation_times_title"))
+    group_labels = {"high_plus": "high [+]", "high_minus": "high [-]", "low_plus": "low [+]", "low_minus": "low [-]"}
+    time_rows = []
+    for component, group in times["groups"].items():
+        status = "insufficient_data" if group["passed"] is None else ("approved" if group["passed"] else "failed")
+        time_rows.append({
+            t("split_deviation_group"): group_labels[component],
+            "n": group["count"],
+            t("split_deviation_mean_time"): group["mean"],
+            t("split_deviation_sample_stdev"): group["stdev"],
+            "CV deltaT [%]": group["cv_pct"],
+            t("split_deviation_limit"): times["cv_limit_pct"],
+            t("split_deviation_status"): _diagnostic_status(status, t),
+        })
+    st.dataframe(pd.DataFrame(time_rows), use_container_width=True, hide_index=True)
+    opposite_rows = []
+    for interval, result in times["opposite_direction"].items():
+        status = "insufficient_data" if result["passed"] is None else ("approved" if result["passed"] else "failed")
+        opposite_rows.append({
+            t("split_deviation_speed"): interval,
+            t("split_deviation_mean_plus"): result["mean_plus"],
+            t("split_deviation_mean_minus"): result["mean_minus"],
+            t("split_deviation_difference_pct"): result["diff_pct"],
+            t("split_deviation_limit"): times["opposite_mean_limit_pct"],
+            t("split_deviation_status"): _diagnostic_status(status, t),
+        })
+    st.dataframe(pd.DataFrame(opposite_rows), use_container_width=True, hide_index=True)
+
+    st.subheader(t("split_deviation_pairs_title"))
+    deviation_rows = []
+    for row in analysis["pair_deviations"]:
+        deviation_rows.append({
+            t("split_pair"): row["pair"], "F0": row["f0"],
+            t("split_deviation_f0_abs"): row["f0_deviation_abs"],
+            t("split_deviation_f0_pct"): row["f0_deviation_pct"], "F2": row["f2"],
+            t("split_deviation_f2_abs"): row["f2_deviation_abs"],
+            t("split_deviation_f2_pct"): row["f2_deviation_pct"],
+            t("split_energy_with_unit"): row["energy"],
+            t("split_deviation_alert"): "; ".join(row["alerts"]),
+        })
+    st.dataframe(pd.DataFrame(deviation_rows), use_container_width=True, hide_index=True)
+
+    st.subheader(t("split_deviation_weather_title"))
+    weather_rows = [{
+        t("split_pair"): row["pair"], t("split_temp_short"): row["temperature_c"],
+        t("split_press_short"): row["pressure_kpa"], t("split_wind_short"): row["wind_speed_mps"],
+        t("split_deviation_status"): _diagnostic_status(row["status"], t),
+        t("split_deviation_alert"): "; ".join(row["alerts"]) or "-",
+    } for row in weather["pairs"]]
+    st.dataframe(pd.DataFrame(weather_rows), use_container_width=True, hide_index=True)
+    st.caption(t("split_deviation_weather_note"))
+
+    st.subheader(t("split_deviation_leave_one_out_title"))
+    if not analysis["leave_one_out"]:
+        st.info(t("split_deviation_leave_one_out_minimum"))
+    else:
+        leave_rows = []
+        for row in analysis["leave_one_out"]:
+            interpretations = []
+            if row["largest_f0_improvement"]:
+                interpretations.append(t("split_deviation_best_f0"))
+            if row["largest_f2_improvement"]:
+                interpretations.append(t("split_deviation_best_f2"))
+            leave_rows.append({
+                t("split_deviation_remove_pair"): row["pair"],
+                "CV F0": f"{_metric_value(row['current_cv_f0_pct'], 2)} → {_metric_value(row['new_cv_f0_pct'], 2)}",
+                "CV F2": f"{_metric_value(row['current_cv_f2_pct'], 2)} → {_metric_value(row['new_cv_f2_pct'], 2)}",
+                t("split_deviation_interpretation"): "; ".join(interpretations) or t("split_deviation_diagnostic_only"),
+            })
+        st.dataframe(pd.DataFrame(leave_rows), use_container_width=True, hide_index=True)
+
+
+def render(t) -> None:
+    """Render Final Comparison as table and deviation-analysis sub-tabs."""
+    st.header(t("page_split_final_comparison"))
+    pairs = _current_pairs()
+    tab_table, tab_deviation = st.tabs([
+        t("split_final_comparison_tab_table"),
+        t("split_final_comparison_tab_deviation"),
+    ])
+    with tab_table:
+        _render_table_tab(pairs, t)
+    with tab_deviation:
+        _render_deviation_analysis(t)
