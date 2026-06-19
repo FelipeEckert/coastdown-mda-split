@@ -3,12 +3,17 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 import math
 
 import pandas as pd
 import streamlit as st
 
-from core.split_auto_selection import run_split_auto_selection_exact
+from core.split_auto_selection import (
+    find_replacement_candidate,
+    replace_pending_candidate,
+    run_split_auto_selection_exact,
+)
 from core.split_candidate_generation import (
     estimate_full_candidate_count,
     split_runs_by_role_and_heading,
@@ -18,7 +23,13 @@ from core.split_comparison_merge import (
     merge_algorithm_candidates_into_comparison_pairs,
 )
 from core.split_display import format_split_pair_label
-from core.split_state import reset_split_final_outputs, split_parse_is_current
+from core.split_pair_candidate import split_candidate_signature
+from core.split_state import (
+    ensure_split_comparison_pairs,
+    reset_split_final_outputs,
+    split_parse_is_current,
+)
+from core.split_time_validation import split_candidate_component_time
 
 
 ALGORITHM_VALUES = {
@@ -89,29 +100,140 @@ def _format_number(value, decimals: int = 2) -> str:
     return f"{number:.{decimals}f}"
 
 
+def _format_candidate_display_value(value, decimals: int | None = None) -> str:
+    """Format one candidate-table value without mutating the source candidate."""
+    if value is None:
+        return "-"
+    try:
+        if bool(pd.isna(value)):
+            return "-"
+    except (TypeError, ValueError):
+        pass
+    if (
+        isinstance(value, str)
+        and value.strip().lower() in {"", "nan", "n/a", "none"}
+    ):
+        return "-"
+    if decimals is None:
+        number = _finite_float(value)
+        if number is None:
+            return str(value)
+        return str(int(number)) if number.is_integer() else str(number)
+    number = _finite_float(value)
+    return "-" if number is None else f"{number:.{decimals}f}"
+
+
+def _candidate_run_time_label(candidate: dict, component: str) -> str:
+    """Format one run and Delta t for candidate display only."""
+    run_value = candidate.get(f"{component}_run")
+    if run_value is None:
+        record = candidate.get(component)
+        if isinstance(record, dict):
+            run_value = record.get("run_id")
+    run_label = _format_candidate_display_value(run_value)
+    delta_t = split_candidate_component_time(candidate, component)
+    delta_t_label = _format_candidate_display_value(delta_t, 2)
+    if delta_t_label == "-":
+        return f"Run {run_label} | dt = -"
+    return f"Run {run_label} | dt = {delta_t_label} s"
+
+
 def _candidate_rows(candidates: list[dict], algorithm: str, t) -> list[dict]:
     rows = []
     for candidate in candidates or []:
-        row = {
-            t("split_pair"): format_split_pair_label(candidate),
-            "F0": _finite_float(candidate.get("F0_mean")),
-            "F2": _finite_float(candidate.get("F2_mean")),
-            t("split_energy_with_unit"): _finite_float(candidate.get("energy")),
-            "CV F0 [%]": coefficient_variation_percent(
-                candidate.get("F0_plus"),
-                candidate.get("F0_minus"),
-            ),
-            "CV F2 [%]": coefficient_variation_percent(
-                candidate.get("F2_plus"),
-                candidate.get("F2_minus"),
-            ),
-        }
-        if algorithm == "target":
-            row[t("split_auto_target_score")] = _finite_float(
-                candidate.get("target_score")
+        pair_label = format_split_pair_label(candidate)
+        directional_rows = (
+            (t("split_auto_outbound"), "plus"),
+            (t("split_auto_return"), "minus"),
+            (t("split_auto_average"), "mean"),
+        )
+        for section_label, suffix in directional_rows:
+            is_average = suffix == "mean"
+            rows.append(
+                {
+                    t("split_pair"): pair_label,
+                    t("split_auto_section"): section_label,
+                    t("split_auto_high_run"): (
+                        None if is_average else _candidate_run_time_label(
+                            candidate,
+                            f"high_{suffix}",
+                        )
+                    ),
+                    t("split_auto_low_run"): (
+                        None if is_average else _candidate_run_time_label(
+                            candidate,
+                            f"low_{suffix}",
+                        )
+                    ),
+                    "F0 [N]": _finite_float(candidate.get(f"F0_{suffix}")),
+                    "F2 [N/(km/h)^2]": _finite_float(candidate.get(f"F2_{suffix}")),
+                    "CV F0 [%]": (
+                        coefficient_variation_percent(
+                            candidate.get("F0_plus"), candidate.get("F0_minus")
+                        ) if is_average else None
+                    ),
+                    "CV F2 [%]": (
+                        coefficient_variation_percent(
+                            candidate.get("F2_plus"), candidate.get("F2_minus")
+                        ) if is_average else None
+                    ),
+                    t("split_auto_temperature"): (
+                        None if is_average else _finite_float(
+                            candidate.get(f"temp_{suffix}_used")
+                        )
+                    ),
+                    t("split_auto_pressure"): (
+                        None if is_average else _finite_float(
+                            candidate.get(f"press_{suffix}_used")
+                        )
+                    ),
+                    t("split_auto_target_score"): (
+                        _finite_float(candidate.get("target_score"))
+                        if is_average and algorithm == "target" else None
+                    ),
+                    t("split_energy_with_unit"): (
+                        _finite_float(candidate.get("energy")) if is_average else None
+                    ),
+                    "_is_average": is_average,
+                }
             )
-        rows.append(row)
     return rows
+
+
+def _candidate_table(candidate: dict, algorithm: str, t):
+    rows = _candidate_rows([candidate], algorithm, t)
+    dataframe = pd.DataFrame(rows)
+    average_flags = dataframe.pop("_is_average")
+    dataframe = dataframe.drop(columns=[t("split_pair")])
+    run_columns = [t("split_auto_high_run"), t("split_auto_low_run")]
+    for column in run_columns:
+        dataframe[column] = dataframe[column].map(_format_candidate_display_value)
+    numeric_formats = {
+        "F0 [N]": 4,
+        "F2 [N/(km/h)^2]": 6,
+        "CV F0 [%]": 2,
+        "CV F2 [%]": 2,
+        t("split_auto_temperature"): 1,
+        t("split_auto_pressure"): 2,
+        t("split_auto_target_score"): 6,
+        t("split_energy_with_unit"): 4,
+    }
+    for column, decimals in numeric_formats.items():
+        dataframe[column] = dataframe[column].map(
+            lambda value, precision=decimals: _format_candidate_display_value(
+                value,
+                precision,
+            )
+        )
+
+    def highlight_average(row):
+        if bool(average_flags.loc[row.name]):
+            return [
+                "background-color: rgba(209,255,189,0.18); font-weight: bold"
+            ] * len(row)
+        return [""] * len(row)
+
+    return dataframe.style.apply(highlight_average, axis=1)
 
 
 def _time_status_label(passed, t) -> str:
@@ -176,11 +298,235 @@ def _render_time_validation(time_validation: dict | None, t) -> None:
             st.warning("\n".join(str(warning) for warning in warnings))
 
 
-def _render_execution_result(result: dict, t) -> None:
-    metadata = result.get("metadata") or {}
-    merge_metadata = result.get("merge_metadata") or {}
-    candidates = result.get("candidates") or []
-    algorithm = metadata.get("algorithm") or result.get("algorithm") or "energy"
+def _store_pending_selection(pending: dict) -> None:
+    st.session_state.split_auto_selection_pending = pending
+    st.session_state.split_auto_selection_last_result = pending
+    active_test_id = st.session_state.get("active_test_id")
+    tests = st.session_state.get("tests") or {}
+    if active_test_id in tests:
+        tests[active_test_id]["split_auto_selection_pending"] = pending
+        tests[active_test_id]["split_auto_selection_last_result"] = pending
+
+
+def _set_replace_request(
+    replace_index: int,
+    old_candidate: dict,
+    new_candidate: dict,
+    metadata: dict,
+) -> None:
+    request = {
+        "index": replace_index,
+        "old_candidate": deepcopy(old_candidate),
+        "new_candidate": deepcopy(new_candidate),
+        "old_signature": split_candidate_signature(old_candidate),
+        "new_signature": split_candidate_signature(new_candidate),
+        "metadata": deepcopy(metadata),
+    }
+    st.session_state.split_auto_replace_request = request
+    st.session_state.split_auto_replace_dialog_open = True
+
+
+def _clear_replace_request() -> None:
+    st.session_state.split_auto_replace_request = None
+    st.session_state.split_auto_replace_dialog_open = False
+
+
+def _replace_dialog_state_is_valid(
+    pending,
+    request,
+    dialog_open,
+) -> bool:
+    """Return whether a replacement dialog has a live, actionable request."""
+    if not isinstance(pending, dict) or not pending.get("candidates"):
+        return False
+    if not isinstance(request, dict) or not request:
+        return False
+    if dialog_open is not True:
+        return False
+    if isinstance(pending.get("merge_metadata"), dict):
+        return False
+    return pending.get("pool_strategy") == "balanced_v2"
+
+
+def _sanitize_replace_dialog_state(pending=None) -> bool:
+    current_pending = (
+        st.session_state.get("split_auto_selection_pending")
+        if pending is None
+        else pending
+    )
+    valid = _replace_dialog_state_is_valid(
+        current_pending,
+        st.session_state.get("split_auto_replace_request"),
+        st.session_state.get("split_auto_replace_dialog_open"),
+    )
+    if not valid:
+        _clear_replace_request()
+    return valid
+
+
+def _preview_pending_suggestion(replace_index: int) -> bool:
+    pending = dict(st.session_state.get("split_auto_selection_pending") or {})
+    candidates = pending.get("candidates") or []
+    replacement, replacement_metadata = find_replacement_candidate(
+        candidates,
+        pending.get("ranked_pool") or [],
+        replace_index,
+        avoid_repeated_runs=bool(pending.get("avoid_repeated_runs", True)),
+    )
+    if replacement is None:
+        replacement_metadata["replaced"] = False
+        pending["replacement_feedback"] = replacement_metadata
+        _store_pending_selection(pending)
+        _clear_replace_request()
+        return False
+    _set_replace_request(
+        replace_index,
+        candidates[replace_index],
+        replacement,
+        replacement_metadata,
+    )
+    return True
+
+
+def _confirm_pending_replacement() -> bool:
+    request = dict(st.session_state.get("split_auto_replace_request") or {})
+    pending = dict(st.session_state.get("split_auto_selection_pending") or {})
+    replace_index = request.get("index")
+    candidates = pending.get("candidates") or []
+    if not isinstance(replace_index, int) or replace_index >= len(candidates):
+        _clear_replace_request()
+        return False
+    if split_candidate_signature(candidates[replace_index]) != request.get(
+        "old_signature"
+    ):
+        _clear_replace_request()
+        return False
+
+    candidates, replacement_metadata = replace_pending_candidate(
+        pending.get("candidates") or [],
+        [request.get("new_candidate")],
+        replace_index,
+        avoid_repeated_runs=bool(pending.get("avoid_repeated_runs", True)),
+    )
+    inserted_signature = (
+        split_candidate_signature(candidates[replace_index])
+        if replacement_metadata.get("replaced")
+        else None
+    )
+    if inserted_signature != request.get("new_signature"):
+        _clear_replace_request()
+        return False
+    pending["candidates"] = candidates
+    pending["replacement_feedback"] = replacement_metadata
+    pending["replacement_history"] = list(pending.get("replacement_history") or []) + [
+        replacement_metadata
+    ]
+    pending["merge_metadata"] = None
+    _store_pending_selection(pending)
+    _clear_replace_request()
+    return True
+
+
+def _replace_dialog_content(t) -> None:
+    request = st.session_state.get("split_auto_replace_request") or {}
+    old_candidate = request.get("old_candidate")
+    new_candidate = request.get("new_candidate")
+    if not isinstance(old_candidate, dict) or not isinstance(new_candidate, dict):
+        st.error(t("split_auto_replace_request_invalid"))
+        return
+
+    pending = st.session_state.get("split_auto_selection_pending") or {}
+    algorithm = pending.get("algorithm") or "energy"
+    st.write(t("split_auto_replace_modal_description"))
+    st.markdown(f"### {t('split_auto_replace_current_pair')}")
+    st.markdown(f"**{format_split_pair_label(old_candidate)}**")
+    st.dataframe(
+        _candidate_table(old_candidate, algorithm, t),
+        width="stretch",
+        hide_index=True,
+    )
+    st.markdown(f"### {t('split_auto_replace_next_pair')}")
+    st.markdown(f"**{format_split_pair_label(new_candidate)}**")
+    st.dataframe(
+        _candidate_table(new_candidate, algorithm, t),
+        width="stretch",
+        hide_index=True,
+    )
+
+    confirm_column, cancel_column = st.columns(2)
+    if confirm_column.button(
+        t("split_auto_replace_confirm"),
+        type="primary",
+        width="stretch",
+        key="split_auto_dialog_confirm",
+    ):
+        if not _confirm_pending_replacement():
+            st.session_state.split_auto_replace_error = True
+        st.rerun()
+    if cancel_column.button(
+        t("cancel"),
+        width="stretch",
+        key="split_auto_dialog_cancel",
+    ):
+        _clear_replace_request()
+        st.rerun()
+
+
+if hasattr(st, "dialog"):
+    _render_replace_dialog = st.dialog(
+        "\U0001F501 Confirmar substitui\u00e7\u00e3o de sugest\u00e3o",
+        width="large",
+        on_dismiss=_clear_replace_request,
+    )(_replace_dialog_content)
+else:
+    def _render_replace_dialog(t) -> None:
+        st.error(t("split_auto_dialog_not_supported"))
+        _clear_replace_request()
+
+
+def _merge_pending_suggestions() -> None:
+    pending = dict(st.session_state.get("split_auto_selection_pending") or {})
+    candidates = pending.get("candidates") or []
+    algorithm = pending.get("algorithm") or "energy"
+    updated_pairs, merge_metadata = merge_algorithm_candidates_into_comparison_pairs(
+        st.session_state.split_comparison_pairs,
+        candidates,
+        algorithm_source=algorithm,
+    )
+    st.session_state.split_comparison_pairs = updated_pairs
+    reset_split_final_outputs(st.session_state)
+    pending["merge_metadata"] = merge_metadata
+    _store_pending_selection(pending)
+    _clear_replace_request()
+
+
+def _clear_pending_suggestions() -> None:
+    st.session_state.split_auto_selection_pending = None
+    _clear_replace_request()
+    active_test_id = st.session_state.get("active_test_id")
+    tests = st.session_state.get("tests") or {}
+    if active_test_id in tests:
+        tests[active_test_id]["split_auto_selection_pending"] = None
+
+
+def _render_merge_feedback(merge_metadata: dict, t) -> None:
+    st.success(
+        t(
+            "split_auto_merge_completed",
+            added=merge_metadata.get("added_count", 0),
+            duplicates=merge_metadata.get("duplicate_count", 0),
+            updated=merge_metadata.get("updated_existing_count", 0),
+            preserved=merge_metadata.get("preserved_selected_count", 0),
+        )
+    )
+    st.info(t("split_auto_comparison_guidance"))
+
+
+def _render_execution_result(pending: dict, t) -> None:
+    metadata = pending.get("metadata") or {}
+    merge_metadata = pending.get("merge_metadata")
+    candidates = pending.get("candidates") or []
+    algorithm = metadata.get("algorithm") or pending.get("algorithm") or "energy"
 
     st.success(t("split_auto_completed"))
     first_row = st.columns(4)
@@ -196,60 +542,105 @@ def _render_execution_result(result: dict, t) -> None:
         t("split_auto_suggested_count"),
         str(metadata.get("selected_count", 0)),
     )
-    first_row[3].metric(
-        t("split_auto_added_count"),
-        str(merge_metadata.get("added_count", 0)),
-    )
+    first_row[3].metric(t("split_auto_mode"), str(metadata.get("mode", "exact")))
 
     selection_metadata = metadata.get("selection") or {}
-    second_row = st.columns(4)
+    second_row = st.columns(3)
     second_row[0].metric(
-        t("split_auto_duplicates_count"),
-        str(merge_metadata.get("duplicate_count", 0)),
-    )
-    second_row[1].metric(
         t("split_auto_repeated_skipped"),
         str(selection_metadata.get("skipped_repeated_count", 0)),
     )
-    second_row[2].metric(t("split_auto_mode"), str(metadata.get("mode", "exact")))
-    second_row[3].metric(
+    second_row[1].metric(
         t("split_auto_algorithm"),
         t(ALGORITHM_VALUES.get(algorithm, "split_auto_algorithm_energy")),
+    )
+    second_row[2].metric(
+        t("split_auto_replacement_pool_count"),
+        str(len(pending.get("ranked_pool") or [])),
     )
 
     warnings = []
     warnings.extend(metadata.get("warnings") or [])
-    warnings.extend(merge_metadata.get("warnings") or [])
+    if isinstance(merge_metadata, dict):
+        warnings.extend(merge_metadata.get("warnings") or [])
     warnings = list(dict.fromkeys(str(warning) for warning in warnings))
     if warnings:
         st.warning("\n".join(warnings))
 
     if candidates:
         st.subheader(t("split_auto_suggested_candidates"))
-        st.dataframe(
-            pd.DataFrame(_candidate_rows(candidates, algorithm, t)),
+        st.caption(t("split_auto_pending_review_help"))
+        replacement_feedback = pending.get("replacement_feedback") or {}
+        if replacement_feedback.get("replaced"):
+            st.success(t("split_auto_replacement_succeeded"))
+        elif replacement_feedback.get("warnings"):
+            st.warning(
+                t(
+                    "split_auto_replacement_unavailable_diagnostic",
+                    pool_size=replacement_feedback.get("pool_size", 0),
+                    checked=replacement_feedback.get("checked_pool_count", 0),
+                    old=replacement_feedback.get("skipped_old_candidate_count", 0),
+                    existing=replacement_feedback.get("skipped_existing_count", 0),
+                    repeated=replacement_feedback.get("skipped_repeated_count", 0),
+                )
+            )
+
+        suggestions_merged = isinstance(merge_metadata, dict)
+        pool_is_current = pending.get("pool_strategy") == "balanced_v2"
+        if not pool_is_current:
+            st.warning(t("split_auto_pending_pool_outdated"))
+        dialog_state_valid = _sanitize_replace_dialog_state(pending)
+        replace_request = st.session_state.get("split_auto_replace_request") or {}
+        if st.session_state.pop("split_auto_replace_error", False):
+            st.warning(t("split_auto_replace_preview_changed"))
+        if dialog_state_valid and replace_request:
+            _render_replace_dialog(t)
+        for index, candidate in enumerate(candidates):
+            with st.container(border=True):
+                title_column, action_column = st.columns([0.78, 0.22])
+                title_column.markdown(f"### {format_split_pair_label(candidate)}")
+                if action_column.button(
+                    t("split_auto_replace"),
+                    key=f"split_auto_replace_{index}",
+                    help=t("split_auto_replace_help"),
+                    width="stretch",
+                    disabled=suggestions_merged or not pool_is_current,
+                ):
+                    _preview_pending_suggestion(index)
+                    st.rerun()
+                st.dataframe(
+                    _candidate_table(candidate, algorithm, t),
+                    width="stretch",
+                    hide_index=True,
+                )
+        add_column, clear_column = st.columns([0.72, 0.28])
+        if add_column.button(
+            t("split_auto_add_pending_to_comparison"),
+            type="primary",
             width="stretch",
-            hide_index=True,
-        )
+            disabled=suggestions_merged,
+        ):
+            _merge_pending_suggestions()
+            st.rerun()
+        if clear_column.button(
+            t("split_auto_clear_pending"),
+            width="stretch",
+        ):
+            _clear_pending_suggestions()
+            st.rerun()
     _render_time_validation(metadata.get("time_validation"), t)
-    if merge_metadata.get("added_count", 0) or merge_metadata.get(
-        "updated_existing_count", 0
-    ):
-        st.info(t("split_auto_comparison_guidance"))
-
-
-def _persist_last_result(result: dict) -> None:
-    st.session_state.split_auto_selection_last_result = result
-    active_test_id = st.session_state.get("active_test_id")
-    tests = st.session_state.get("tests") or {}
-    if active_test_id in tests:
-        tests[active_test_id]["split_auto_selection_last_result"] = result
+    if isinstance(merge_metadata, dict):
+        _render_merge_feedback(merge_metadata, t)
 
 
 def render(t) -> None:
     """Render exact automatic selection without changing final user selection."""
     st.subheader(t("split_auto_title"))
     st.write(t("split_auto_description"))
+    ensure_split_comparison_pairs(st.session_state)
+    _sanitize_replace_dialog_state(
+        st.session_state.get("split_auto_selection_pending")
+    )
 
     if not st.session_state.get("data_loaded"):
         st.info(t("split_auto_process_intervals_first"))
@@ -375,6 +766,7 @@ def render(t) -> None:
                     target_f2=target_f2,
                     avoid_repeated_runs=avoid_repeated_runs,
                     max_combinations=max_combinations,
+                    replacement_pool_size=max(100, k * 10, k + 50),
                     progress_callback=progress_callback,
                 )
         except ValueError as exc:
@@ -382,34 +774,26 @@ def render(t) -> None:
             st.error(str(exc))
         else:
             progress.progress(1.0)
+            ranked_pool = list(metadata.pop("replacement_pool", []))
+            pending = {
+                "algorithm": algorithm,
+                "candidates": candidates,
+                "ranked_pool": ranked_pool,
+                "metadata": metadata,
+                "avoid_repeated_runs": avoid_repeated_runs,
+                "target_f0": target_f0,
+                "target_f2": target_f2,
+                "replacement_history": [],
+                "replacement_feedback": None,
+                "merge_metadata": None,
+                "pool_strategy": "balanced_v2",
+            }
+            _store_pending_selection(pending)
+            _clear_replace_request()
             if not candidates:
-                result = {
-                    "algorithm": algorithm,
-                    "metadata": metadata,
-                    "merge_metadata": {},
-                    "candidates": [],
-                }
-                _persist_last_result(result)
                 st.warning(t("split_auto_no_candidates_returned"))
-            else:
-                updated_pairs, merge_metadata = (
-                    merge_algorithm_candidates_into_comparison_pairs(
-                        st.session_state.get("split_comparison_pairs") or [],
-                        candidates,
-                        algorithm_source=algorithm,
-                    )
-                )
-                st.session_state.split_comparison_pairs = updated_pairs
-                reset_split_final_outputs(st.session_state)
-                result = {
-                    "algorithm": algorithm,
-                    "metadata": metadata,
-                    "merge_metadata": merge_metadata,
-                    "candidates": candidates,
-                }
-                _persist_last_result(result)
 
-    last_result = st.session_state.get("split_auto_selection_last_result")
-    if isinstance(last_result, dict):
+    pending = st.session_state.get("split_auto_selection_pending")
+    if isinstance(pending, dict):
         st.markdown("---")
-        _render_execution_result(last_result, t)
+        _render_execution_result(pending, t)

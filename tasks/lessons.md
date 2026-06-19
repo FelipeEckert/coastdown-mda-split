@@ -1766,3 +1766,156 @@ daquela combinacao ou o modo precisa permanecer indisponivel. Um bloqueio explic
 e tecnicamente melhor do que aplicar meteo incorreto silenciosamente.
 
 ---
+
+## 2026-06-19 - Split: Origem Algoritmica Nao E Selecao Final
+
+### Decisao:
+O Comparativo Final deriva a cor da linha de `algorithm_sources`,
+`algorithm_source` e `selection_source`, usando os flags de energia/target apenas
+como compatibilidade. Energia, target e origem combinada possuem cores proprias;
+o checkbox `selected` continua sendo somente a decisao do usuario para o resultado
+final. CV acima de 10% sobrescreve apenas o estilo da celula correspondente.
+
+`split_comparison_pairs` passa por inicializacao idempotente somente quando a chave
+nao existe. Renderizar ou navegar entre abas nunca substitui uma lista existente;
+limpezas permanecem restritas a acoes explicitas e invalidacoes reais de entrada,
+parser ou ambiente.
+
+A tabela de sugestoes e uma projecao dos campos direcionais ja calculados. Cada
+candidato gera linhas Ida, Volta e Media, com ausencias exibidas como `N/A`, sem
+alterar o motor puro nem inferir valores.
+
+### Licao:
+Origem, selecao final e disponibilidade de correcao sao dimensoes independentes de
+estado. A UI deve representa-las sem fazer uma substituir a outra, e inicializacao
+de session state deve distinguir chave ausente de colecao legitimamente preenchida.
+
+---
+
+## 2026-06-19 - Split: Sugestoes Automaticas Precisam De Hierarquia Por Par
+
+### Decisao:
+A secao de candidatos sugeridos renderiza cada candidato em um bloco proprio. O
+label publico identifica o bloco uma unica vez e a tabela interna mostra somente
+Ida, Volta e Media. A linha Media permanece destacada e Energia continua como a
+ultima coluna.
+
+Ausencias sao convertidas para `-` apenas na projecao visual. O helper aceita
+`None`, `NaN` e strings sentinela como `N/A`, sem alterar o dicionario do candidato
+nem os metadados persistidos.
+
+### Licao:
+Quando uma tabela repete uma entidade composta em varias linhas, o identificador
+funciona melhor como titulo do grupo. A formatacao de ausencias deve acontecer
+depois que o pandas normaliza tipos, pois `None` em coluna numerica pode virar
+`NaN` durante a construcao do DataFrame.
+
+---
+
+## 2026-06-19 - Split: Sugestao Pendente Precede O Comparativo
+
+### Decisao:
+Executar a selecao automatica passa a preencher somente
+`split_auto_selection_pending`. O merge com `split_comparison_pairs` acontece
+exclusivamente na acao explicita de adicionar o conjunto revisado. Limpar
+sugestoes remove apenas o estado temporario e nunca altera o comparativo.
+
+O orquestrador pode expor uma reserva opcional e limitada na mesma ordem do
+ranking energy ou target. A UI usa no minimo 100 itens e cresce ate `k * 5` para
+pedidos maiores, evitando que uma pequena alteracao de K seja necessaria apenas
+para revelar a proxima substituicao valida, sem persistir o
+universo completo de combinacoes. O helper puro de substituicao percorre essa
+reserva, ignora identidades ja visiveis e compara os itens completos de
+`run_usage` com os demais candidatos quando repeticao esta bloqueada.
+
+### Licao:
+Gerar, revisar, adicionar ao comparativo e selecionar para o resultado final sao
+quatro transicoes distintas. Representa-las em estados separados evita efeitos
+colaterais e permite trocar uma sugestao sem reexecutar formulas ou mudar o
+criterio original do ranking.
+
+---
+
+## 2026-06-19 - Split: Candidato De Saida Nao E Conflito Remanescente
+
+### Decisao:
+Na substituicao, a assinatura do candidato antigo e tratada separadamente apenas
+para impedir uma troca por ele mesmo. Duplicidade e conflito de `run_usage` sao
+calculados exclusivamente contra os candidatos que permanecem. O metadata separa
+`skipped_old_candidate_count`, `skipped_existing_count` e
+`skipped_repeated_count`.
+
+A tabela de sugestoes mostra run e Delta t usando a mesma ordem de fallback do
+diagnostico de tempos: `time_components`, campo achatado e registro embutido. Essa
+projecao visual nao altera os candidatos.
+
+### Licao:
+Remover um item antes de validar seu substituto exige separar identidade do item
+de saida de conflitos com o conjunto restante. Reservas curtas dependentes de K
+tambem podem imitar um erro de conflito; o limite deve ser explicito e suficiente
+para a interacao esperada.
+
+---
+
+## 2026-06-19 - Split: Primeiros N Do Ranking Nao Garantem Reserva Util
+
+### Decisao:
+A reserva de substituicao nao e mais um recorte cego dos primeiros candidatos.
+O orquestrador percorre o ranking completo e coleta, na ordem, opcoes validas
+distribuidas entre as posicoes visiveis, sob o limite
+`max(100, k * 10, k + 50)`. O estado recebe `pool_strategy="balanced_v2"`; uma
+pendencia antiga fica bloqueada para troca ate nova execucao.
+
+Antes da troca, um `st.dialog` mostra o candidato atual e o proximo candidato em
+tabelas completas. Cancelar limpa apenas o pedido; confirmar valida a assinatura
+pre-visualizada, executa o helper, registra metadata, limpa o pedido e faz rerun. Falhas
+mostram tamanho da pool, quantidade verificada e descartes por candidato antigo,
+duplicidade visivel e conflito de passadas.
+
+### Licao:
+Uma lista globalmente bem ranqueada pode ser uma reserva ruim para uma restricao
+local. Quando cada posicao tem um conjunto diferente de substitutos validos, a
+reserva limitada deve ser construida considerando essa utilidade, sem reordenar o
+ranking original.
+
+---
+
+## 2026-06-19 - Split: Preview E Aplicacao Compartilham A Mesma Busca
+
+### Decisao:
+`find_replacement_candidate()` localiza o primeiro substituto valido e retorna
+metadata sem mutar entradas. `replace_pending_candidate()` reutiliza esse helper.
+A UI guarda candidatos atual/novo e suas assinaturas no pedido do modal; ao
+confirmar, restringe a aplicacao ao candidato mostrado e compara a assinatura
+inserida antes de persistir.
+
+Nao existe filtro de CV na substituicao. Os motivos reais de descarte sao:
+candidato antigo, identidade ja visivel, conflito exato de `run_usage`, uso
+invalido e esgotamento da reserva balanceada.
+
+### Licao:
+Confirmacao confiavel exige que preview e escrita nao implementem buscas paralelas.
+Guardar e validar uma identidade estavel evita que uma mudanca de estado transforme
+o candidato confirmado em outro candidato silenciosamente.
+
+---
+
+## 2026-06-19 - Split: Request Persistido Nao Significa Dialog Aberto
+
+### Decisao:
+O modal de substituicao usa dois estados: `split_auto_replace_request` guarda o
+preview e `split_auto_replace_dialog_open` autoriza a abertura. `st.dialog` usa
+`on_dismiss` para limpar ambos ao fechar pelo X. Cancelar, confirmar, mesclar,
+limpar sugestoes e invalidar entradas tambem limpam os dois estados.
+
+Antes de renderizar, a UI saneia requests orfaos, pendencias ja mescladas, pools
+obsoletas e ausencia de sugestoes pendentes. O dialog so e chamado quando request
+e flag formam um estado acionavel.
+
+### Licao:
+Em Streamlit, dados necessarios ao modal e intencao de abri-lo sao estados
+diferentes. Vincular abertura apenas a existencia dos dados faz qualquer rerun
+reproduzir uma acao antiga; um flag de ciclo de vida e callback de dismiss tornam
+a transicao explicita.
+
+---

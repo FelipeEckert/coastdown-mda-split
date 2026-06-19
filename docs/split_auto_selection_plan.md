@@ -1205,3 +1205,40 @@ or select candidates.
 This round does not implement optimized mode, directional preselection,
 per-candidate weather sync, normative blocking, or automatic final-result
 selection.
+
+## Round 9A.2 - Pending Suggestions
+
+Automatic execution no longer merges candidates immediately. The UI stores a
+temporary per-test state in `split_auto_selection_pending` containing the current
+suggestions, algorithm, metadata, repeated-run policy, target inputs, replacement
+history and a bounded ranked reserve.
+
+The orchestrator can expose an optional `replacement_pool` without changing its
+default return contract. The UI requests `max(100, k * 10, k + 50)` reserves.
+The orchestrator scans the full ranking and balances useful replacement options
+across the visible positions before storing that bounded pool. The pending state
+records this as `pool_strategy="balanced_v2"`; older persisted pools require a new
+execution instead of silently reusing incomplete reserves.
+
+`replace_pending_candidate()` walks the stored pool in ranking order, skips
+current candidate identities, and, when enabled, rejects any candidate whose
+exact `run_usage` intersects the suggestions that remain. Its metadata reports
+pool size, checked candidates and separate old/existing/repeated skip counts.
+`find_replacement_candidate()` supplies a mutation-free preview, and
+`replace_pending_candidate()` reuses the same lookup contract. The UI opens a
+real `st.dialog` with current/next candidate tables and explicit confirm/cancel
+actions. Confirmation validates and inserts the exact previewed signature.
+Dialog lifecycle uses separate request and open-state keys. `on_dismiss` clears
+both when the dialog is closed by the user; cancel, confirm, merge and input
+invalidation do the same. Rendering sanitizes orphan requests, merged suggestions,
+outdated pools and missing pending state before deciding whether to call the
+dialog.
+
+There is no CV filter in replacement. Candidate exclusion is based only on the
+outgoing identity, identities already visible, exact `run_usage` conflicts when
+enabled, and exhaustion of the bounded reserve.
+
+Only the explicit Add to Final Comparison action calls
+`merge_algorithm_candidates_into_comparison_pairs()`. New algorithm candidates
+still enter with `selected=False`; clearing pending suggestions never clears
+`split_comparison_pairs`.

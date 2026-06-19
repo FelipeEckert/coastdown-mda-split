@@ -1012,8 +1012,8 @@ TRANSLATIONS = {
         "en": "Automatic Pair Selection"
     },
     "split_auto_description": {
-        "pt": "Esta ferramenta gera candidatos completos Split, ranqueia por energia ou target e adiciona sugest\u00f5es ao Comparativo Final. A decis\u00e3o final continua sendo manual no Comparativo Final.",
-        "en": "This tool generates complete Split candidates, ranks them by energy or target, and adds suggestions to Final Comparison. Final selection remains manual in Final Comparison."
+        "pt": "Esta ferramenta gera e ranqueia candidatos completos Split. Revise ou substitua as sugest\u00f5es antes de adicion\u00e1-las ao Comparativo Final.",
+        "en": "This tool generates and ranks complete Split candidates. Review or replace suggestions before adding them to Final Comparison."
     },
     "split_auto_process_intervals_first": {
         "pt": "Processe os intervalos Split antes de executar a sele\u00e7\u00e3o autom\u00e1tica.",
@@ -1048,8 +1048,8 @@ TRANSLATIONS = {
         "en": "F0/F2 Target Proximity"
     },
     "split_auto_k": {
-        "pt": "Quantidade de pares a adicionar ao Comparativo Final",
-        "en": "Number of pairs to add to Final Comparison"
+        "pt": "Quantidade inicial de sugest\u00f5es",
+        "en": "Initial number of suggestions"
     },
     "split_auto_max_combinations": {
         "pt": "Limite m\u00e1ximo de combina\u00e7\u00f5es no modo exato",
@@ -1100,8 +1100,8 @@ TRANSLATIONS = {
         "en": "No candidates were returned. Review the execution warnings."
     },
     "split_auto_completed": {
-        "pt": "Sele\u00e7\u00e3o autom\u00e1tica conclu\u00edda",
-        "en": "Automatic selection completed"
+        "pt": "Candidatos sugeridos",
+        "en": "Candidates suggested"
     },
     "split_auto_generated_count": {
         "pt": "Candidatos gerados",
@@ -1135,9 +1135,117 @@ TRANSLATIONS = {
         "pt": "Candidatos sugeridos",
         "en": "Suggested candidates"
     },
+    "split_auto_pending_review_help": {
+        "pt": "Revise as sugest\u00f5es abaixo. Voc\u00ea pode substituir pares individuais ou adicionar o conjunto ao Comparativo Final.",
+        "en": "Review the suggestions below. You can replace individual pairs or add the set to Final Comparison."
+    },
+    "split_auto_replace": {
+        "pt": "\U0001F501 Substituir",
+        "en": "\U0001F501 Replace"
+    },
+    "split_auto_replace_help": {
+        "pt": "Substitui este par pelo pr\u00f3ximo candidato v\u00e1lido do mesmo ranking.",
+        "en": "Replaces this pair with the next valid candidate from the same ranking."
+    },
+    "split_auto_replacement_succeeded": {
+        "pt": "Sugest\u00e3o substitu\u00edda pelo pr\u00f3ximo candidato v\u00e1lido do ranking.",
+        "en": "Suggestion replaced by the next valid candidate in the ranking."
+    },
+    "split_auto_replacement_unavailable": {
+        "pt": "N\u00e3o h\u00e1 pr\u00f3xima sugest\u00e3o v\u00e1lida sem os conflitos configurados.",
+        "en": "There is no next valid suggestion under the configured conflict rules."
+    },
+    "split_auto_replacement_unavailable_diagnostic": {
+        "pt": "Nenhuma substitui\u00e7\u00e3o v\u00e1lida encontrada. Pool: {pool_size}; verificados: {checked}; pr\u00f3prio candidato: {old}; j\u00e1 vis\u00edveis: {existing}; conflito de passadas: {repeated}.",
+        "en": "No valid replacement was found. Pool: {pool_size}; checked: {checked}; outgoing candidate: {old}; already visible: {existing}; run conflicts: {repeated}."
+    },
+    "split_auto_pending_pool_outdated": {
+        "pt": "Estas sugest\u00f5es foram geradas com uma estrat\u00e9gia de reserva anterior. Execute novamente a Sele\u00e7\u00e3o Autom\u00e1tica para habilitar substitui\u00e7\u00f5es.",
+        "en": "These suggestions were generated with an older reserve strategy. Run Automatic Selection again to enable replacements."
+    },
+    "split_auto_replace_confirmation": {
+        "pt": "Voc\u00ea est\u00e1 prestes a substituir: {pair}. O sistema buscar\u00e1 a pr\u00f3xima sugest\u00e3o v\u00e1lida do ranking {ranking}, respeitando a configura\u00e7\u00e3o de passadas repetidas. Deseja continuar?",
+        "en": "You are about to replace: {pair}. The system will find the next valid suggestion in the {ranking} ranking while respecting the repeated-run setting. Continue?"
+    },
+    "split_auto_replace_confirm": {
+        "pt": "Confirmar substitui\u00e7\u00e3o",
+        "en": "Confirm replacement"
+    },
+    "split_auto_replace_modal_description": {
+        "pt": "Este par ser\u00e1 removido da lista de sugest\u00f5es e substitu\u00eddo pela pr\u00f3xima sugest\u00e3o v\u00e1lida do mesmo ranking.",
+        "en": "This pair will be removed from the suggestion list and replaced by the next valid suggestion from the same ranking."
+    },
+    "split_auto_replace_current_pair": {
+        "pt": "Par atual",
+        "en": "Current pair"
+    },
+    "split_auto_replace_next_pair": {
+        "pt": "Pr\u00f3xima sugest\u00e3o",
+        "en": "Next suggestion"
+    },
+    "split_auto_replace_request_invalid": {
+        "pt": "O pedido de substitui\u00e7\u00e3o est\u00e1 incompleto. Feche o modal e tente novamente.",
+        "en": "The replacement request is incomplete. Close the dialog and try again."
+    },
+    "split_auto_replace_preview_changed": {
+        "pt": "As sugest\u00f5es mudaram desde a pr\u00e9-visualiza\u00e7\u00e3o. Abra novamente a substitui\u00e7\u00e3o para confirmar o candidato atualizado.",
+        "en": "Suggestions changed after the preview. Open replacement again to confirm the updated candidate."
+    },
+    "split_auto_dialog_not_supported": {
+        "pt": "A vers\u00e3o atual do Streamlit n\u00e3o suporta st.dialog. Atualize o Streamlit ou habilite um fallback explicitamente.",
+        "en": "The current Streamlit version does not support st.dialog. Update Streamlit or explicitly enable a fallback."
+    },
+    "split_auto_replacement_pool_count": {
+        "pt": "Reserva ranqueada",
+        "en": "Ranked reserve"
+    },
+    "split_auto_add_pending_to_comparison": {
+        "pt": "\u2705 Adicionar pares selecionados ao Comparativo Final",
+        "en": "\u2705 Add selected pairs to Final Comparison"
+    },
+    "split_auto_clear_pending": {
+        "pt": "\U0001F5D1\uFE0F Limpar sugest\u00f5es",
+        "en": "\U0001F5D1\uFE0F Clear suggestions"
+    },
+    "split_auto_merge_completed": {
+        "pt": "Comparativo atualizado: {added} adicionados, {duplicates} duplicados, {updated} atualizados e {preserved} selecionados preservados.",
+        "en": "Comparison updated: {added} added, {duplicates} duplicates, {updated} updated, and {preserved} selected pairs preserved."
+    },
+    "split_auto_section": {
+        "pt": "Trecho",
+        "en": "Section"
+    },
+    "split_auto_outbound": {
+        "pt": "Ida [+]",
+        "en": "Outbound [+]"
+    },
+    "split_auto_return": {
+        "pt": "Volta [-]",
+        "en": "Return [-]"
+    },
+    "split_auto_average": {
+        "pt": "M\u00e9dia",
+        "en": "Average"
+    },
+    "split_auto_high_run": {
+        "pt": "High Run",
+        "en": "High Run"
+    },
+    "split_auto_low_run": {
+        "pt": "Low Run",
+        "en": "Low Run"
+    },
+    "split_auto_temperature": {
+        "pt": "Temp (\u00b0C)",
+        "en": "Temp (\u00b0C)"
+    },
+    "split_auto_pressure": {
+        "pt": "Press (kPa)",
+        "en": "Press (kPa)"
+    },
     "split_auto_comparison_guidance": {
-        "pt": "Os candidatos foram adicionados ao Comparativo Final como sugest\u00f5es e permanecem n\u00e3o selecionados. V\u00e1 ao Comparativo Final para escolher manualmente quais entram no Resultado Final.",
-        "en": "Candidates were added to Final Comparison as unselected suggestions. Go to Final Comparison to manually choose which candidates enter Final Results."
+        "pt": "Pares adicionados ao Comparativo Final como sugest\u00f5es. A sele\u00e7\u00e3o final continua manual na aba Comparativo Final.",
+        "en": "Pairs were added to Final Comparison as suggestions. Final selection remains manual in the Final Comparison tab."
     },
     "split_auto_time_diagnostic": {
         "pt": "Diagn\u00f3stico normativo dos tempos",
@@ -1810,6 +1918,22 @@ TRANSLATIONS = {
     "split_legend_selected_pair": {
         "pt": "Par selecionado",
         "en": "Selected pair"
+    },
+    "split_legend_manual_pair": {
+        "pt": "Manual",
+        "en": "Manual"
+    },
+    "split_legend_energy_pair": {
+        "pt": "Sugerido por menor energia",
+        "en": "Suggested by lowest energy"
+    },
+    "split_legend_target_pair": {
+        "pt": "Sugerido por target F0/F2",
+        "en": "Suggested by F0/F2 target"
+    },
+    "split_legend_energy_target_pair": {
+        "pt": "Sugerido por energia e target",
+        "en": "Suggested by energy and target"
     },
     "split_legend_uncorrected_pair": {
         "pt": "Sem correção",

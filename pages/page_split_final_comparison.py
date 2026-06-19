@@ -23,7 +23,11 @@ from core.split_comparison import (
 )
 from core.split_display import format_split_pair_label
 from core.split_results import consolidate_split_final_results
-from core.split_state import clear_split_comparison_state, reset_split_final_outputs
+from core.split_state import (
+    clear_split_comparison_state,
+    ensure_split_comparison_pairs,
+    reset_split_final_outputs,
+)
 
 
 ROW_RATIOS = [0.5, 2.2, 0.9, 0.9, 1.0, 1.1, 1.1, 0.8, 0.8, 1.0, 0.5]
@@ -31,6 +35,12 @@ SELECTED_ROW_BG = "#D1FFBD"
 SELECTED_ROW_TEXT = "black"
 DEFAULT_ROW_BG = "#1e1e1e"
 DEFAULT_ROW_TEXT = "white"
+ENERGY_ROW_BG = "#D1FFBD"
+ENERGY_ROW_TEXT = "black"
+TARGET_ROW_BG = "#ADD8E6"
+TARGET_ROW_TEXT = "black"
+ENERGY_TARGET_ROW_BG = "#D8C7FF"
+ENERGY_TARGET_ROW_TEXT = "black"
 REFERENCE_ROW_BG = "rgba(255,152,0,0.10)"
 REFERENCE_ROW_TEXT = "#ffb74d"
 CV_WARNING_TEXT = "#ff6b6b"
@@ -43,6 +53,40 @@ def _selection_source_label(source: str, t) -> str:
     if source == "algorithm":
         return t("split_selection_source_algorithm")
     return t("split_selection_source_unknown")
+
+
+def get_pair_origin_visual_state(pair: dict) -> str:
+    """Return the row's visual origin without changing final selection state."""
+    if not is_split_pair_corrected(pair):
+        return "uncorrected"
+
+    sources = pair.get("algorithm_sources") or []
+    if isinstance(sources, str):
+        sources = [sources]
+    normalized_sources = {
+        str(source).strip().lower()
+        for source in sources
+        if str(source).strip()
+    }
+    algorithm_source = str(pair.get("algorithm_source") or "").strip().lower()
+    if algorithm_source in {"energy", "target"}:
+        normalized_sources.add(algorithm_source)
+    if pair.get("selected_by_energy_algo"):
+        normalized_sources.add("energy")
+    if pair.get("selected_by_target_algo"):
+        normalized_sources.add("target")
+
+    if {"energy", "target"}.issubset(normalized_sources):
+        return "energy_and_target"
+    if "energy" in normalized_sources:
+        return "energy"
+    if "target" in normalized_sources:
+        return "target"
+    if str(pair.get("selection_source") or "").strip().lower() == "manual":
+        return "manual"
+    if pair.get("selected", False):
+        return "selected_final"
+    return "unknown"
 
 
 def _comparison_rows(pairs: list[dict], t) -> list[dict]:
@@ -80,8 +124,9 @@ def _reset_split_final_outputs() -> None:
 
 def _current_pairs() -> list[dict]:
     """Return session comparison pairs as a list and repair old selected flags."""
+    ensure_split_comparison_pairs(st.session_state)
     pairs, changed = force_uncorrected_split_pairs_unselected(
-        st.session_state.get("split_comparison_pairs") or []
+        st.session_state.split_comparison_pairs
     )
     if changed:
         st.session_state.split_comparison_pairs = pairs
@@ -184,22 +229,40 @@ def _render_actions(t) -> None:
         st.rerun()
 
 
-def _row_colors(*, selected: bool = False, reference: bool = False) -> tuple[str, str]:
+def _row_colors(
+    visual_state: str = "unknown",
+    *,
+    selected: bool = False,
+    reference: bool = False,
+) -> tuple[str, str]:
     if reference:
-        return REFERENCE_ROW_BG, REFERENCE_ROW_TEXT
-    if selected:
-        return SELECTED_ROW_BG, SELECTED_ROW_TEXT
-    return DEFAULT_ROW_BG, DEFAULT_ROW_TEXT
+        visual_state = "uncorrected"
+    elif selected:
+        visual_state = "selected_final"
+    return {
+        "manual": (DEFAULT_ROW_BG, DEFAULT_ROW_TEXT),
+        "energy": (ENERGY_ROW_BG, ENERGY_ROW_TEXT),
+        "target": (TARGET_ROW_BG, TARGET_ROW_TEXT),
+        "energy_and_target": (ENERGY_TARGET_ROW_BG, ENERGY_TARGET_ROW_TEXT),
+        "uncorrected": (REFERENCE_ROW_BG, REFERENCE_ROW_TEXT),
+        "selected_final": (SELECTED_ROW_BG, SELECTED_ROW_TEXT),
+        "unknown": (DEFAULT_ROW_BG, DEFAULT_ROW_TEXT),
+    }.get(visual_state, (DEFAULT_ROW_BG, DEFAULT_ROW_TEXT))
 
 
 def _cell_style(
     *,
+    visual_state: str = "unknown",
     selected: bool = False,
     reference: bool = False,
     warning: bool = False,
     pair: bool = False,
 ) -> str:
-    bg_color, text_color = _row_colors(selected=selected, reference=reference)
+    bg_color, text_color = _row_colors(
+        visual_state,
+        selected=selected,
+        reference=reference,
+    )
     font_size = (
         "calc(var(--mda-font-table) * 0.95)"
         if pair
@@ -226,14 +289,12 @@ def _cell_html(
     value,
     *,
     warning: bool = False,
-    reference: bool = False,
-    selected: bool = False,
+    visual_state: str = "unknown",
     pair: bool = False,
 ) -> str:
     cell = _cell_style(
         warning=warning,
-        reference=reference,
-        selected=selected,
+        visual_state=visual_state,
         pair=pair,
     )
     escaped_value = html.escape(str(value)).replace("\n", "<br>")
@@ -268,22 +329,27 @@ def _legend_badge(label: str, bg_color: str, text_color: str) -> str:
 
 
 def _render_legend(t) -> None:
-    label_col, selected_col, reference_col, cv_col = st.columns([0.8, 1.2, 1.4, 1.2])
-    label_col.markdown(f"**{t('split_comparison_legend')}:**")
-    selected_col.markdown(
-        _legend_badge(t("split_legend_selected_pair"), SELECTED_ROW_BG, "black"),
-        unsafe_allow_html=True,
-    )
-    reference_col.markdown(
+    badges = [
+        _legend_badge(t("split_legend_manual_pair"), DEFAULT_ROW_BG, DEFAULT_ROW_TEXT),
+        _legend_badge(t("split_legend_energy_pair"), ENERGY_ROW_BG, ENERGY_ROW_TEXT),
+        _legend_badge(t("split_legend_target_pair"), TARGET_ROW_BG, TARGET_ROW_TEXT),
+        _legend_badge(
+            t("split_legend_energy_target_pair"),
+            ENERGY_TARGET_ROW_BG,
+            ENERGY_TARGET_ROW_TEXT,
+        ),
         _legend_badge(
             t("split_legend_uncorrected_pair"),
             "rgba(255,152,0,0.18)",
             REFERENCE_ROW_TEXT,
         ),
-        unsafe_allow_html=True,
-    )
-    cv_col.markdown(
         _legend_badge(t("split_legend_cv_warning"), CV_WARNING_TEXT, "black"),
+    ]
+    st.markdown(
+        f"**{t('split_comparison_legend')}:** "
+        "<div style='display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;'>"
+        + "".join(badges)
+        + "</div>",
         unsafe_allow_html=True,
     )
 
@@ -314,6 +380,7 @@ def _render_pair_row(pair: dict, normalized: dict, t) -> None:
     )
     if selected != previous:
         _set_split_pair_selected_data_only(pair_id, selected)
+    visual_state = get_pair_origin_visual_state(pair)
 
     values = [
         normalized["_pair_label"].replace(" | ", "\n"),
@@ -344,7 +411,7 @@ def _render_pair_row(pair: dict, normalized: dict, t) -> None:
             _cell_html(
                 value,
                 warning=warning,
-                selected=selected,
+                visual_state=visual_state,
                 pair=index == 0,
             ),
             unsafe_allow_html=True,
@@ -359,7 +426,10 @@ def _render_reference_row(pair: dict, normalized: dict, t) -> None:
     st.session_state.pop(_split_selection_widget_key(pair_id), None)
 
     columns = st.columns(ROW_RATIOS, vertical_alignment="center")
-    columns[0].markdown(_cell_html("⚠️", reference=True), unsafe_allow_html=True)
+    columns[0].markdown(
+        _cell_html("⚠️", visual_state="uncorrected"),
+        unsafe_allow_html=True,
+    )
     values = [
         normalized["_pair_label"].replace(" | ", "\n"),
         _stacked_display_value(normalized["_temp"], 1),
@@ -389,7 +459,7 @@ def _render_reference_row(pair: dict, normalized: dict, t) -> None:
             _cell_html(
                 value,
                 warning=warning,
-                reference=True,
+                visual_state="uncorrected",
                 pair=index == 0,
             ),
             unsafe_allow_html=True,

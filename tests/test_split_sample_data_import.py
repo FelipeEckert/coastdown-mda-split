@@ -198,6 +198,9 @@ class SplitSampleDataImportTest(unittest.TestCase):
             "split_results": [{"f0_prime": 1.0}],
             "split_comparison_pairs": [{"id": "old"}],
             "split_last_calculated_result": {"f0_prime": 1.0},
+            "split_auto_selection_pending": {"candidates": [{"id": "old"}]},
+            "split_auto_replace_request": {"index": 0},
+            "split_auto_replace_dialog_open": True,
             "split_final_results": {"num_results": 1},
             "excel_buffer": b"old",
             "split_input_version": 4,
@@ -210,6 +213,9 @@ class SplitSampleDataImportTest(unittest.TestCase):
         self.assertEqual(test_data["split_results"], [])
         self.assertEqual(test_data["split_comparison_pairs"], [])
         self.assertIsNone(test_data["split_last_calculated_result"])
+        self.assertIsNone(test_data["split_auto_selection_pending"])
+        self.assertIsNone(test_data["split_auto_replace_request"])
+        self.assertFalse(test_data["split_auto_replace_dialog_open"])
         self.assertEqual(test_data["split_final_results"], {})
         self.assertIsNone(test_data["excel_buffer"])
         self.assertEqual(test_data["split_input_version"], 5)
@@ -235,6 +241,7 @@ class SplitSampleDataImportTest(unittest.TestCase):
             ],
             "split_comparison_pairs": [{"id": "old"}],
             "split_last_calculated_result": {"weather_sync": {"high_plus": {"matched": True}}},
+            "split_auto_selection_pending": {"candidates": [{"id": "old"}]},
             "split_final_results": {"num_results": 1},
             "excel_buffer": b"old",
         }
@@ -248,6 +255,7 @@ class SplitSampleDataImportTest(unittest.TestCase):
         self.assertIsNone(test_data["split_results"][0]["temp_plus_used"])
         self.assertEqual(test_data["split_comparison_pairs"], [])
         self.assertIsNone(test_data["split_last_calculated_result"])
+        self.assertIsNone(test_data["split_auto_selection_pending"])
         self.assertEqual(test_data["split_final_results"], {})
         self.assertIsNone(test_data["excel_buffer"])
 
@@ -256,6 +264,7 @@ class SplitSampleDataImportTest(unittest.TestCase):
             "split_results": [{"F0": 140.0}],
             "split_comparison_pairs": [{"id": "old"}],
             "split_last_calculated_result": {"F0": 140.0},
+            "split_auto_selection_pending": {"candidates": [{"id": "old"}]},
             "split_final_results": {"num_results": 1},
             "excel_buffer": b"old",
             "split_ambient_version": 2,
@@ -266,6 +275,7 @@ class SplitSampleDataImportTest(unittest.TestCase):
         self.assertEqual(test_data["split_results"], [])
         self.assertEqual(test_data["split_comparison_pairs"], [])
         self.assertIsNone(test_data["split_last_calculated_result"])
+        self.assertIsNone(test_data["split_auto_selection_pending"])
         self.assertEqual(test_data["split_final_results"], {})
         self.assertIsNone(test_data["excel_buffer"])
         self.assertEqual(test_data["split_ambient_version"], 3)

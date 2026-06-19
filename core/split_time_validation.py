@@ -55,7 +55,8 @@ def opposite_mean_difference_percent(
     return abs(first - second) / abs(denominator) * 100.0
 
 
-def _component_time(candidate: dict, component: str) -> float | None:
+def split_candidate_component_time(candidate: dict, component: str) -> float | None:
+    """Read one candidate component time using the canonical fallback order."""
     source = candidate if isinstance(candidate, dict) else {}
 
     time_components = source.get("time_components")
@@ -83,7 +84,7 @@ def extract_split_candidate_times(candidates: list[dict]) -> dict:
         if not isinstance(candidate, dict):
             continue
         for component in TIME_COMPONENTS:
-            value = _component_time(candidate, component)
+            value = split_candidate_component_time(candidate, component)
             if value is not None:
                 times[component].append(value)
     return times
@@ -131,7 +132,7 @@ def _missing_time_warnings(candidates: list[dict]) -> list[str]:
             continue
         candidate_id = candidate.get("id") or f"candidate {index}"
         for component in TIME_COMPONENTS:
-            if _component_time(candidate, component) is None:
+            if split_candidate_component_time(candidate, component) is None:
                 warnings.append(
                     f"Candidate {candidate_id} is missing {component} delta_t_s."
                 )

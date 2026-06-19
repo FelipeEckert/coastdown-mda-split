@@ -223,9 +223,24 @@
 - [ ] Implement directional preselection for large Split candidate sets.
 - [x] Implement controlled UI/sub-tab integration for exact automatic Split selection without auto-selecting final results.
 - [x] Implement sub-tab Automatic Selection using `run_split_auto_selection_exact()` and `merge_algorithm_candidates_into_comparison_pairs()`.
+- [x] Make Final Comparison row colors use `algorithm_sources`, `algorithm_source` and `selection_source`, with compatibility-flag fallback.
+- [x] Initialize `split_comparison_pairs` only when absent so normal tab navigation preserves the existing list.
+- [x] Expand each automatic suggestion into Ida, Volta and highlighted Media rows, keeping Energia as the final column.
+- [x] Separate suggested candidates into individual titled blocks and display missing table values as `-`.
+- [x] Keep automatic candidates pending until the user explicitly adds the current suggestion set to Final Comparison.
+- [x] Add bounded energy/target replacement pools and pure conflict-aware pending-candidate replacement.
+- [x] Add per-candidate Replace and pending-only Clear actions to the Automatic Selection UI.
+- [x] Ensure replacement conflicts exclude the outgoing candidate and distinguish old/existing/repeated skips.
+- [x] Show each suggested High/Low run with its component Delta t in the candidate tables.
+- [x] Build a bounded balanced replacement reserve by scanning the full ranking for options useful to each visible position.
+- [x] Add `st.dialog` preview, confirmation and cancellation before replacing a pending suggestion.
+- [x] Make replacement preview and application share the pure `find_replacement_candidate()` contract and exact signature.
+- [x] Diagnose failed replacement attempts with pool and skip counters.
+- [x] Prevent replacement dialogs from reopening on unrelated reruns by separating request and open-state lifecycle.
+- [x] Sanitize orphan replacement requests after dismiss, merge, invalidation or missing pending suggestions.
 - [ ] Integrate per-candidate weather synchronization into automatic Split generation without reusing one manual pair context.
-- [ ] Manually validate energy, target, duplicate merge, selected preservation and `max_combinations` behavior in the Automatic Selection sub-tab.
-- [ ] Decide and implement Split-specific visual flags for energy/target suggestions if separate colors are required.
+- [x] Manually validate energy, target, replacement, duplicate merge, selected preservation and `max_combinations` behavior in the Automatic Selection sub-tab.
+- [x] Decide and implement Split-specific visual colors for energy, target and combined suggestions.
 - [ ] Keep `sample_data/Split/` and `sample_data/Standard/` separated as validation datasets for each method.
 
 ## Split/Standard separation audit - 2026-06-10

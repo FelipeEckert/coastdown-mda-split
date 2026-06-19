@@ -5,6 +5,14 @@ from copy import deepcopy
 from datetime import datetime, timezone
 
 
+def ensure_split_comparison_pairs(test_data: dict) -> list[dict]:
+    """Initialize comparison pairs only when the state key is absent."""
+    if "split_comparison_pairs" not in test_data:
+        # Navigation/rendering must never replace an existing comparison list.
+        test_data["split_comparison_pairs"] = []
+    return test_data["split_comparison_pairs"]
+
+
 def invalidate_split_input_state(test_data: dict, reset_meteo_sync: bool = True) -> dict:
     """Clear Split-derived state after coastdown input files or mode change."""
     test_data["split_parsed_runs"] = {}
@@ -12,6 +20,9 @@ def invalidate_split_input_state(test_data: dict, reset_meteo_sync: bool = True)
     test_data["split_comparison_pairs"] = []
     test_data["split_last_calculated_result"] = None
     test_data["split_auto_selection_last_result"] = None
+    test_data["split_auto_selection_pending"] = None
+    test_data["split_auto_replace_request"] = None
+    test_data["split_auto_replace_dialog_open"] = False
     test_data["split_final_results"] = {}
     test_data["excel_buffer"] = None
     test_data["split_input_version"] = int(test_data.get("split_input_version") or 0) + 1
@@ -62,6 +73,9 @@ def record_split_parse_failure(test_data: dict, issues: list[dict]) -> dict:
     test_data["split_comparison_pairs"] = []
     test_data["split_last_calculated_result"] = None
     test_data["split_auto_selection_last_result"] = None
+    test_data["split_auto_selection_pending"] = None
+    test_data["split_auto_replace_request"] = None
+    test_data["split_auto_replace_dialog_open"] = False
     test_data["split_final_results"] = {}
     test_data["excel_buffer"] = None
     test_data["split_parse_dirty"] = True
@@ -155,6 +169,9 @@ def clear_split_final_state(test_data: dict) -> dict:
     test_data["split_comparison_pairs"] = []
     test_data["split_last_calculated_result"] = None
     test_data["split_auto_selection_last_result"] = None
+    test_data["split_auto_selection_pending"] = None
+    test_data["split_auto_replace_request"] = None
+    test_data["split_auto_replace_dialog_open"] = False
     test_data["excel_buffer"] = None
     return test_data
 
@@ -179,6 +196,9 @@ def invalidate_split_ambient_state(test_data: dict) -> dict:
     test_data["split_comparison_pairs"] = []
     test_data["split_last_calculated_result"] = None
     test_data["split_auto_selection_last_result"] = None
+    test_data["split_auto_selection_pending"] = None
+    test_data["split_auto_replace_request"] = None
+    test_data["split_auto_replace_dialog_open"] = False
     test_data["split_final_results"] = {}
     test_data["excel_buffer"] = None
     test_data["split_ambient_version"] = (
