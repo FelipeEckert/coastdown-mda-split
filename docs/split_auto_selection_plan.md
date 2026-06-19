@@ -966,3 +966,118 @@ If exact generation returns no candidates, the orchestrator returns an empty lis
 preserves generation warnings, and does not attempt ranking.
 
 This round still has no UI and no Final Comparison integration.
+
+## Round 7 - Pure Merge With Final Comparison
+
+Implemented pure module:
+
+```python
+core.split_comparison_merge
+```
+
+Public functions:
+
+```python
+comparison_pair_signature(pair)
+merge_algorithm_candidates_into_comparison_pairs(
+    existing_pairs,
+    algorithm_candidates,
+    *,
+    algorithm_source,
+)
+```
+
+The module does not import Streamlit and does not access `st.session_state`.
+It receives the current comparison list and algorithm suggestions by parameter
+and returns:
+
+```python
+updated_pairs, metadata
+```
+
+It does not write back to `split_comparison_pairs`; the future UI layer remains
+responsible for assigning the returned list to session state.
+
+### Duplicate Signature
+
+`comparison_pair_signature()` prefers the automatic candidate identity:
+
+```python
+pair["run_usage"]
+```
+
+through `split_candidate_signature(pair)`. If `run_usage` is absent, it tries the
+embedded complete-pair component records (`high_plus`, `low_plus`, `high_minus`,
+`low_minus`). If those are also absent, it uses flattened comparison fields such
+as `high_plus_run`, `high_plus_file`, `low_plus_run`, `low_plus_file` and their
+minus-direction equivalents. Only when no component identity is available does
+it fall back to `pair_id` or `id`.
+
+This keeps duplicate detection tied to the four calculated Split passes instead
+of the technical comparison id.
+
+### Merge Behavior
+
+New algorithm candidates are appended as copies with:
+
+```python
+selected = False
+selection_source = "algorithm"
+algorithm_source = "energy" | "target"
+algorithm_sources = ["energy"]  # or ["target"]
+selected_by_energy_algo = True/False
+selected_by_target_algo = True/False
+```
+
+When a candidate has the same signature as an existing comparison pair, the
+existing pair is not duplicated. Its main calculation fields, user label,
+warnings, energy, F0/F2 values and `selected` state are preserved. The helper
+only enriches algorithm-origin metadata.
+
+Manual final selection always wins. If an existing duplicate was already marked:
+
+```python
+selected = True
+```
+
+that value remains true.
+
+### Multiple Algorithm Origins
+
+The helper stores accumulated algorithm origins in:
+
+```python
+algorithm_sources = ["energy", "target"]
+```
+
+and keeps the compatibility flags:
+
+```python
+selected_by_energy_algo
+selected_by_target_algo
+```
+
+For duplicate pairs that originally entered manually, `selection_source` is left
+unchanged so the original comparison provenance is not erased; algorithm
+suggestions are traceable through `algorithm_sources` and the boolean flags.
+
+### Metadata
+
+The merge metadata has this shape:
+
+```python
+{
+    "algorithm_source": "energy" | "target",
+    "input_existing_count": ...,
+    "input_candidate_count": ...,
+    "output_count": ...,
+    "added_count": ...,
+    "duplicate_count": ...,
+    "updated_existing_count": ...,
+    "preserved_selected_count": ...,
+    "warnings": [...],
+}
+```
+
+This round still has no UI, no button, no automatic-selection sub-tab and no
+write to `st.session_state`.

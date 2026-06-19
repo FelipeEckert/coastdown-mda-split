@@ -1721,3 +1721,25 @@ em outra camada explicita, adiciona-los ao comparativo. Separar orquestracao pur
 de persistencia evita que algoritmo vire selecao final por efeito colateral.
 
 ---
+
+## 2026-06-19 - Split: Merge Automatico Preserva A Selecao Manual
+
+### Decisao:
+O helper puro de merge entre candidatos automaticos e `split_comparison_pairs`
+deduplica por identidade das quatro passadas, preferindo `run_usage` e usando
+campos reais do par apenas como fallback. Quando a sugestao do algoritmo ja existe
+no comparativo, o par existente continua sendo a fonte principal: `selected`,
+F0/F2, energia, warnings, labels e demais dados calculados nao sao sobrescritos.
+
+A origem algoritimica fica acumulada em `algorithm_sources`, com flags
+`selected_by_energy_algo` e `selected_by_target_algo` para compatibilidade visual
+futura. Em duplicatas manuais, `selection_source` nao e reclassificado para nao
+apagar como o par entrou originalmente no comparativo.
+
+### Licao:
+Mesclar sugestao automatica nao e recalcular nem selecionar resultado final.
+Deduplicacao deve proteger a decisao manual do usuario e enriquecer apenas
+metadados rastreaveis de algoritmo. Quando um par pode ter mais de uma origem
+algoritmica, lista acumulativa e mais auditavel do que substituir uma string.
+
+---

@@ -219,8 +219,10 @@
 - [ ] Implement normative time/direction validation for generated automatic candidates before UI integration.
 - [x] Implement exact complete-candidate generation from grouped high+/low+/high-/low- Split runs.
 - [x] Create a pure automatic-selection orchestrator combining exact generation, ranking, top-k and time diagnostics.
+- [x] Create a pure merge helper for adding automatic candidates to `split_comparison_pairs` without selecting final results.
 - [ ] Implement directional preselection for large Split candidate sets.
 - [ ] Implement controlled UI/sub-tab integration for exact automatic Split selection without auto-selecting final results.
+- [ ] Implement sub-tab Automatic Selection using `run_split_auto_selection_exact()` and `merge_algorithm_candidates_into_comparison_pairs()`.
 - [ ] Decide and implement Split-specific visual flags for energy/target suggestions if separate colors are required.
 - [ ] Keep `sample_data/Split/` and `sample_data/Standard/` separated as validation datasets for each method.
 
