@@ -1743,3 +1743,26 @@ metadados rastreaveis de algoritmo. Quando um par pode ter mais de uma origem
 algoritmica, lista acumulativa e mais auditavel do que substituir uma string.
 
 ---
+
+## 2026-06-19 - Split: UI Automatica Nao Pode Reusar Meteo De Um Par Manual
+
+### Decisao:
+A primeira integracao de UI da selecao automatica usa o modo exato e as condicoes
+ambientais fixas ja persistidas pelo fluxo Split. O contexto inclui temperatura,
+pressao e configuracao processada dos intervalos, e continua delegando correcao
+ao motor puro existente.
+
+O modo de sincronizacao meteorologica nao e aplicado nesta rodada. No fluxo manual,
+o meteo e resolvido depois que quatro passadas especificas foram escolhidas; no
+automatico, cada combinacao possui quatro passadas potencialmente diferentes.
+Reutilizar um unico `weather_sync` para todas as combinacoes produziria candidatos
+numericamente plausiveis com rastreabilidade ambiental errada. A UI bloqueia essa
+execucao e informa a limitacao.
+
+### Licao:
+Integracao de UI nao autoriza simplificar dependencia por candidato. Quando uma
+entrada varia com a combinacao avaliada, ela deve ser resolvida dentro do contexto
+daquela combinacao ou o modo precisa permanecer indisponivel. Um bloqueio explicito
+e tecnicamente melhor do que aplicar meteo incorreto silenciosamente.
+
+---

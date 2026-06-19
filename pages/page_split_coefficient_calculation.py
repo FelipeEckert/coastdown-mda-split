@@ -1700,14 +1700,19 @@ def _render_graphical_analysis(t):
 
 def render(t):
     """Render Split pair analysis with calculation and graph sub-tabs."""
+    from pages import page_split_auto_selection
+
     st.header(t("page_split_pair_analysis"))
-    tab_calc, tab_graph = st.tabs(
+    tab_calc, tab_graph, tab_auto = st.tabs(
         [
             t("page_split_coefficient_calculation"),
             t("split_graphical_analysis"),
+            t("split_auto_tab"),
         ]
     )
     with tab_calc:
         _render_coefficient_calculation(t)
     with tab_graph:
         _render_graphical_analysis(t)
+    with tab_auto:
+        page_split_auto_selection.render(t)

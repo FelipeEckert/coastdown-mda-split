@@ -440,6 +440,7 @@ TEST_STATE_KEYS = [
     "split_parse_validation_issues", "split_processed_at",
     "split_parsed_runs", "split_results",
     "split_comparison_pairs", "split_last_calculated_result",
+    "split_auto_selection_last_result",
     # Resultados
     "split_final_results",
     # Flags de controle
@@ -504,6 +505,7 @@ TEST_DEFAULTS = {
     "split_results": [],
     "split_comparison_pairs": [],
     "split_last_calculated_result": None,
+    "split_auto_selection_last_result": None,
     "split_final_results": {},
     "using_split_method": False,
     "test_method": "traditional",

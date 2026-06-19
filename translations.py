@@ -1003,6 +1003,178 @@ TRANSLATIONS = {
         "pt": "3. Análise de Pares",
         "en": "3. Pair Analysis"
     },
+    "split_auto_tab": {
+        "pt": "Sele\u00e7\u00e3o Autom\u00e1tica",
+        "en": "Automatic Selection"
+    },
+    "split_auto_title": {
+        "pt": "Sele\u00e7\u00e3o Autom\u00e1tica de Pares",
+        "en": "Automatic Pair Selection"
+    },
+    "split_auto_description": {
+        "pt": "Esta ferramenta gera candidatos completos Split, ranqueia por energia ou target e adiciona sugest\u00f5es ao Comparativo Final. A decis\u00e3o final continua sendo manual no Comparativo Final.",
+        "en": "This tool generates complete Split candidates, ranks them by energy or target, and adds suggestions to Final Comparison. Final selection remains manual in Final Comparison."
+    },
+    "split_auto_process_intervals_first": {
+        "pt": "Processe os intervalos Split antes de executar a sele\u00e7\u00e3o autom\u00e1tica.",
+        "en": "Process the Split intervals before running automatic selection."
+    },
+    "split_auto_estimated_combinations": {
+        "pt": "Combina\u00e7\u00f5es estimadas",
+        "en": "Estimated combinations"
+    },
+    "split_auto_grouping_warnings": {
+        "pt": "Avisos do agrupamento",
+        "en": "Grouping warnings"
+    },
+    "split_auto_no_complete_combinations": {
+        "pt": "N\u00e3o h\u00e1 combina\u00e7\u00f5es completas high+/low+/high-/low- dispon\u00edveis.",
+        "en": "No complete high+/low+/high-/low- combinations are available."
+    },
+    "split_auto_settings": {
+        "pt": "Configura\u00e7\u00f5es",
+        "en": "Settings"
+    },
+    "split_auto_algorithm": {
+        "pt": "Algoritmo",
+        "en": "Algorithm"
+    },
+    "split_auto_algorithm_energy": {
+        "pt": "Menor Energia",
+        "en": "Lowest Energy"
+    },
+    "split_auto_algorithm_target": {
+        "pt": "Proximidade ao Target F0/F2",
+        "en": "F0/F2 Target Proximity"
+    },
+    "split_auto_k": {
+        "pt": "Quantidade de pares a adicionar ao Comparativo Final",
+        "en": "Number of pairs to add to Final Comparison"
+    },
+    "split_auto_max_combinations": {
+        "pt": "Limite m\u00e1ximo de combina\u00e7\u00f5es no modo exato",
+        "en": "Maximum combinations in exact mode"
+    },
+    "split_auto_avoid_repeated": {
+        "pt": "Evitar passadas repetidas",
+        "en": "Avoid repeated runs"
+    },
+    "split_auto_avoid_repeated_help": {
+        "pt": "Quando ativado, a mesma passada high/low, dire\u00e7\u00e3o e fonte n\u00e3o ser\u00e1 usada em mais de um candidato sugerido.",
+        "en": "When enabled, the same high/low run, direction, and source will not be used in more than one suggested candidate."
+    },
+    "split_auto_target_f0": {
+        "pt": "F0 alvo",
+        "en": "Target F0"
+    },
+    "split_auto_target_f2": {
+        "pt": "F2 alvo",
+        "en": "Target F2"
+    },
+    "split_auto_target_score": {
+        "pt": "Score target",
+        "en": "Target score"
+    },
+    "split_auto_exact_limit_exceeded": {
+        "pt": "O total estimado excede o limite configurado. A gera\u00e7\u00e3o exata ser\u00e1 bloqueada. Em rodada futura ser\u00e1 implementado o modo otimizado por pr\u00e9-sele\u00e7\u00e3o direcional.",
+        "en": "The estimated total exceeds the configured limit. Exact generation is blocked. A future round will implement optimized directional preselection."
+    },
+    "split_auto_weather_sync_not_supported": {
+        "pt": "A sele\u00e7\u00e3o autom\u00e1tica desta rodada usa apenas condi\u00e7\u00f5es ambientais fixas. A sincroniza\u00e7\u00e3o meteo por candidato ser\u00e1 integrada em uma rodada futura.",
+        "en": "Automatic selection in this round supports fixed ambient conditions only. Per-candidate weather synchronization will be integrated in a future round."
+    },
+    "split_auto_fixed_conditions_invalid": {
+        "pt": "Defina temperatura e press\u00e3o fixas v\u00e1lidas antes de executar.",
+        "en": "Set valid fixed temperature and pressure values before running."
+    },
+    "split_auto_run": {
+        "pt": "Executar Sele\u00e7\u00e3o Autom\u00e1tica",
+        "en": "Run Automatic Selection"
+    },
+    "split_auto_running": {
+        "pt": "Gerando e ranqueando candidatos Split...",
+        "en": "Generating and ranking Split candidates..."
+    },
+    "split_auto_no_candidates_returned": {
+        "pt": "Nenhum candidato foi retornado. Consulte os avisos da execu\u00e7\u00e3o.",
+        "en": "No candidates were returned. Review the execution warnings."
+    },
+    "split_auto_completed": {
+        "pt": "Sele\u00e7\u00e3o autom\u00e1tica conclu\u00edda",
+        "en": "Automatic selection completed"
+    },
+    "split_auto_generated_count": {
+        "pt": "Candidatos gerados",
+        "en": "Generated candidates"
+    },
+    "split_auto_ranked_count": {
+        "pt": "Candidatos ranqueados",
+        "en": "Ranked candidates"
+    },
+    "split_auto_suggested_count": {
+        "pt": "Candidatos sugeridos",
+        "en": "Suggested candidates"
+    },
+    "split_auto_added_count": {
+        "pt": "Adicionados ao Comparativo",
+        "en": "Added to Comparison"
+    },
+    "split_auto_duplicates_count": {
+        "pt": "Duplicados encontrados",
+        "en": "Duplicates found"
+    },
+    "split_auto_repeated_skipped": {
+        "pt": "Repeti\u00e7\u00f5es ignoradas",
+        "en": "Repeated runs skipped"
+    },
+    "split_auto_mode": {
+        "pt": "Modo",
+        "en": "Mode"
+    },
+    "split_auto_suggested_candidates": {
+        "pt": "Candidatos sugeridos",
+        "en": "Suggested candidates"
+    },
+    "split_auto_comparison_guidance": {
+        "pt": "Os candidatos foram adicionados ao Comparativo Final como sugest\u00f5es e permanecem n\u00e3o selecionados. V\u00e1 ao Comparativo Final para escolher manualmente quais entram no Resultado Final.",
+        "en": "Candidates were added to Final Comparison as unselected suggestions. Go to Final Comparison to manually choose which candidates enter Final Results."
+    },
+    "split_auto_time_diagnostic": {
+        "pt": "Diagn\u00f3stico normativo dos tempos",
+        "en": "Normative time diagnostic"
+    },
+    "split_auto_time_overall_status": {
+        "pt": "Status geral",
+        "en": "Overall status"
+    },
+    "split_auto_time_status_passed": {
+        "pt": "Aprovado",
+        "en": "Passed"
+    },
+    "split_auto_time_status_failed": {
+        "pt": "Reprovado",
+        "en": "Failed"
+    },
+    "split_auto_time_status_inconclusive": {
+        "pt": "Inconclusivo",
+        "en": "Inconclusive"
+    },
+    "split_auto_time_check": {
+        "pt": "Verifica\u00e7\u00e3o",
+        "en": "Check"
+    },
+    "split_auto_time_value": {
+        "pt": "Valor [%]",
+        "en": "Value [%]"
+    },
+    "split_auto_high_direction_difference": {
+        "pt": "Diferen\u00e7a high ida/volta",
+        "en": "High plus/minus difference"
+    },
+    "split_auto_low_direction_difference": {
+        "pt": "Diferen\u00e7a low ida/volta",
+        "en": "Low plus/minus difference"
+    },
     "split_graphical_analysis": {
         "pt": "Análise Gráfica",
         "en": "Graphical Analysis"

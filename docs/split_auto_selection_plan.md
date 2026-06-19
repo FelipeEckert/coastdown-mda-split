@@ -1081,3 +1081,127 @@ The merge metadata has this shape:
 
 This round still has no UI, no button, no automatic-selection sub-tab and no
 write to `st.session_state`.
+
+## Round 8 - Controlled Exact-mode UI Integration
+
+Implemented Streamlit module:
+
+```python
+pages.page_split_auto_selection
+```
+
+The page is rendered as the third sub-tab of:
+
+```text
+3. Pair Analysis
+```
+
+after Coefficient Calculation and Graphical Analysis.
+
+### Data And Configuration
+
+The UI reads the active Split state:
+
+```python
+st.session_state["split_parsed_runs"]
+st.session_state["vehicle_info"]
+st.session_state["total_mass"]
+st.session_state["split_comparison_pairs"]
+```
+
+It builds the pure-engine `vehicle_data` parameter from the effective mass and
+current vehicle information. Before execution, it calls:
+
+```python
+split_runs_by_role_and_heading(...)
+estimate_full_candidate_count(...)
+```
+
+and displays high+/low+/high-/low- availability and the exact cartesian-product
+estimate.
+
+### Exact-mode Controls
+
+The sub-tab provides:
+
+- lowest-energy or F0/F2-target ranking
+- number of suggestions `K`
+- repeated-run avoidance
+- `max_combinations` safety limit
+- target F0 and F2 inputs when target mode is active
+
+When the estimate exceeds `max_combinations`, execution is disabled and the UI
+explains that directional preselection and optimized mode remain future work.
+
+### Ambient Context
+
+This first UI integration supports the existing fixed Split ambient values:
+
+```python
+split_fixed_temperature
+split_fixed_pressure
+split_interval_config
+```
+
+These values are passed through `correction_context`; the page does not duplicate
+climatic-correction formulas.
+
+Per-candidate weather synchronization is not enabled in this round. The current
+manual synchronization resolves weather for one explicitly selected four-run
+pair, while automatic generation evaluates many different pairs. If the active
+ambient mode is weather sync, the automatic-selection action is disabled with an
+explicit message instead of applying one pair's weather conditions to every
+candidate.
+
+### Execution And Merge
+
+The button calls:
+
+```python
+run_split_auto_selection_exact(...)
+```
+
+with a Streamlit progress callback. Returned candidates are merged through:
+
+```python
+merge_algorithm_candidates_into_comparison_pairs(...)
+```
+
+The updated list is assigned to:
+
+```python
+st.session_state["split_comparison_pairs"]
+```
+
+and `reset_split_final_outputs()` invalidates only final results and the Excel
+buffer derived from the comparison.
+
+The merge contract guarantees that new suggestions remain:
+
+```python
+selected = False
+selection_source = "algorithm"
+```
+
+Existing manual selections and calculated pair values are preserved when a
+suggestion is a duplicate.
+
+### Execution Result
+
+The sub-tab stores its last display snapshot in:
+
+```python
+st.session_state["split_auto_selection_last_result"]
+```
+
+This is auxiliary UI state, not a final-result source of truth. It includes the
+orchestration metadata, merge metadata, and suggested candidates.
+
+The UI displays generation/ranking/selection/merge counts, repeated-run skips,
+warnings, a simple public-label candidate table, and the normative time
+diagnostic. Time conformity remains diagnostic and does not automatically filter
+or select candidates.
+
+This round does not implement optimized mode, directional preselection,
+per-candidate weather sync, normative blocking, or automatic final-result
+selection.

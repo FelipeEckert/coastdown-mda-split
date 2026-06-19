@@ -11,6 +11,7 @@ def invalidate_split_input_state(test_data: dict, reset_meteo_sync: bool = True)
     test_data["split_results"] = []
     test_data["split_comparison_pairs"] = []
     test_data["split_last_calculated_result"] = None
+    test_data["split_auto_selection_last_result"] = None
     test_data["split_final_results"] = {}
     test_data["excel_buffer"] = None
     test_data["split_input_version"] = int(test_data.get("split_input_version") or 0) + 1
@@ -60,6 +61,7 @@ def record_split_parse_failure(test_data: dict, issues: list[dict]) -> dict:
     test_data["split_results"] = []
     test_data["split_comparison_pairs"] = []
     test_data["split_last_calculated_result"] = None
+    test_data["split_auto_selection_last_result"] = None
     test_data["split_final_results"] = {}
     test_data["excel_buffer"] = None
     test_data["split_parse_dirty"] = True
@@ -152,6 +154,7 @@ def clear_split_final_state(test_data: dict) -> dict:
     test_data["split_final_results"] = {}
     test_data["split_comparison_pairs"] = []
     test_data["split_last_calculated_result"] = None
+    test_data["split_auto_selection_last_result"] = None
     test_data["excel_buffer"] = None
     return test_data
 
@@ -175,6 +178,7 @@ def invalidate_split_ambient_state(test_data: dict) -> dict:
     test_data["split_results"] = []
     test_data["split_comparison_pairs"] = []
     test_data["split_last_calculated_result"] = None
+    test_data["split_auto_selection_last_result"] = None
     test_data["split_final_results"] = {}
     test_data["excel_buffer"] = None
     test_data["split_ambient_version"] = (

@@ -221,8 +221,10 @@
 - [x] Create a pure automatic-selection orchestrator combining exact generation, ranking, top-k and time diagnostics.
 - [x] Create a pure merge helper for adding automatic candidates to `split_comparison_pairs` without selecting final results.
 - [ ] Implement directional preselection for large Split candidate sets.
-- [ ] Implement controlled UI/sub-tab integration for exact automatic Split selection without auto-selecting final results.
-- [ ] Implement sub-tab Automatic Selection using `run_split_auto_selection_exact()` and `merge_algorithm_candidates_into_comparison_pairs()`.
+- [x] Implement controlled UI/sub-tab integration for exact automatic Split selection without auto-selecting final results.
+- [x] Implement sub-tab Automatic Selection using `run_split_auto_selection_exact()` and `merge_algorithm_candidates_into_comparison_pairs()`.
+- [ ] Integrate per-candidate weather synchronization into automatic Split generation without reusing one manual pair context.
+- [ ] Manually validate energy, target, duplicate merge, selected preservation and `max_combinations` behavior in the Automatic Selection sub-tab.
 - [ ] Decide and implement Split-specific visual flags for energy/target suggestions if separate colors are required.
 - [ ] Keep `sample_data/Split/` and `sample_data/Standard/` separated as validation datasets for each method.
 
