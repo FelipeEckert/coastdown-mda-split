@@ -10,7 +10,6 @@ import streamlit as st
 
 from core.split_comparison import (
     clear_split_comparison_pairs,
-    coefficient_variation_percent,
     force_uncorrected_split_pairs_unselected,
     format_split_comparison_display_value,
     is_split_pair_corrected,
@@ -21,8 +20,7 @@ from core.split_comparison import (
     set_split_comparison_selected_ids,
     split_comparison_cv_warning,
 )
-from core.split_deviation_analysis import analyze_split_selected_deviations
-from core.split_display import format_split_pair_label
+from core.split_deviation_analysis import get_cached_split_deviation_analysis
 from core.split_results import consolidate_split_final_results
 from core.split_state import (
     clear_split_comparison_state,
@@ -546,114 +544,7 @@ def _metric_value(value, precision: int, suffix: str = "") -> str:
     return f"{number:.{precision}f}{suffix}"
 
 
-def _cv_value(value, t) -> str:
-    if value is None:
-        return t("split_cv_not_applicable_single_pair")
-    return _metric_value(value, 2, "%")
-
-
-def _conformity_label(status: str, t) -> str:
-    return t(f"split_results_status_{status}")
-
-
-def _render_selected_pair_statistics(selected_pairs: list[dict], t) -> dict:
-    """Render compact statistics using the same Split final-results helper."""
-    summary = consolidate_split_final_results(selected_pairs)
-    st.subheader(
-        t(
-            "split_selected_pair_statistics_title",
-            count=summary.get("num_pairs", 0),
-        )
-    )
-
-    count_col, f0_col, f2_col, energy_col = st.columns(4)
-    count_col.metric(
-        t("split_selected_pairs"),
-        str(summary.get("num_pairs", 0)),
-    )
-    f0_col.metric(
-        t("split_results_final_f0"),
-        _metric_value(summary.get("mean_f0"), 4, " N"),
-        delta=f"{t('split_results_cv_f0')}: {_cv_value(summary.get('cv_f0'), t)}",
-    )
-    f2_col.metric(
-        t("split_results_final_f2"),
-        _metric_value(summary.get("mean_f2"), 6, " N/(km/h)^2"),
-        delta=f"{t('split_results_cv_f2')}: {_cv_value(summary.get('cv_f2'), t)}",
-    )
-    energy_col.metric(
-        t("split_results_mean_energy"),
-        _metric_value(summary.get("mean_energy"), 4, " MJ/km"),
-        delta=(
-            f"{t('split_results_cv_energy')}: "
-            f"{_cv_value(summary.get('cv_energy'), t)}"
-        ),
-    )
-
-    status_col, warning_col = st.columns(2)
-    status_col.metric(
-        t("split_results_conformity"),
-        _conformity_label(summary.get("conformity_status"), t),
-    )
-    warning_col.metric(
-        t("split_card_warnings"),
-        str(len(summary.get("warnings") or [])),
-    )
-    return summary
-
-
-def _traceability_rows(selected_pairs: list[dict], t) -> list[dict]:
-    rows = []
-    for pair in selected_pairs:
-        warnings = list(pair.get("warnings") or [])
-        ambient_by_component = pair.get("ambient_by_component") or {}
-        for ambient in ambient_by_component.values():
-            if isinstance(ambient, dict):
-                warnings.extend(ambient.get("warnings") or [])
-        warnings = list(dict.fromkeys(str(w) for w in warnings if str(w).strip()))
-        rows.append(
-            {
-                t("split_pair"): format_split_pair_label(pair),
-                "High+ / Low+": (
-                    f"Run {pair.get('high_plus_run', 'N/A')} / "
-                    f"Run {pair.get('low_plus_run', 'N/A')}"
-                ),
-                "High- / Low-": (
-                    f"Run {pair.get('high_minus_run', 'N/A')} / "
-                    f"Run {pair.get('low_minus_run', 'N/A')}"
-                ),
-                "Delta t high + / - (s)": (
-                    f"{_metric_value(pair.get('high_plus_delta_t_s'), 3)} / "
-                    f"{_metric_value(pair.get('high_minus_delta_t_s'), 3)}"
-                ),
-                "Delta t low + / - (s)": (
-                    f"{_metric_value(pair.get('low_plus_delta_t_s'), 3)} / "
-                    f"{_metric_value(pair.get('low_minus_delta_t_s'), 3)}"
-                ),
-                t("split_temperature_plus_minus"): (
-                    f"{_metric_value(pair.get('temp_plus_used'), 1)} / "
-                    f"{_metric_value(pair.get('temp_minus_used'), 1)}"
-                ),
-                t("split_pressure_plus_minus"): (
-                    f"{_metric_value(pair.get('press_plus_used'), 2)} / "
-                    f"{_metric_value(pair.get('press_minus_used'), 2)}"
-                ),
-                t("split_card_warnings"): "; ".join(warnings) or "N/A",
-            }
-        )
-    return rows
-
-
-def _render_selected_traceability(selected_pairs: list[dict], t) -> None:
-    with st.expander(t("split_selected_pairs_traceability"), expanded=False):
-        rows = _traceability_rows(selected_pairs, t)
-        if rows:
-            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-        else:
-            st.info(t("split_selected_pairs_traceability_empty"))
-
-
-def _render_final_results_action(summary: dict, t) -> None:
+def _render_final_results_action(t) -> None:
     if st.button(
         t("split_calculate_final_results"),
         type="primary",
@@ -681,22 +572,10 @@ def _diagnostic_status(status: str, t) -> str:
 
 
 def _render_table_tab(pairs: list[dict], t) -> None:
-    """Render the existing Final Comparison behavior inside its tab."""
+    """Render only persisted comparison data and selection controls."""
     if not pairs:
         st.info(t("split_comparison_empty"))
         return
-
-    for pair in pairs:
-        if pair.get("cv_F0_percent") is None:
-            pair["cv_F0_percent"] = coefficient_variation_percent(
-                pair.get("F0_plus"),
-                pair.get("F0_minus"),
-            )
-        if pair.get("cv_F2_percent") is None:
-            pair["cv_F2_percent"] = coefficient_variation_percent(
-                pair.get("F2_plus"),
-                pair.get("F2_minus"),
-            )
 
     normalized_pairs = [
         (pair, normalize_split_pair_for_comparison(pair, index))
@@ -733,16 +612,10 @@ def _render_table_tab(pairs: list[dict], t) -> None:
         )
     )
 
-    st.markdown("---")
-    selected_pairs = get_selected_split_comparison_pairs()
-    if not selected_pairs:
+    if selected_count == 0:
         st.info(t("split_select_pairs_for_final_hint"))
         return
-
-    summary = _render_selected_pair_statistics(selected_pairs, t)
-    st.markdown("---")
-    _render_selected_traceability(selected_pairs, t)
-    _render_final_results_action(summary, t)
+    _render_final_results_action(t)
 
 
 def _render_deviation_analysis(t) -> None:
@@ -755,7 +628,11 @@ def _render_deviation_analysis(t) -> None:
         st.warning(t("split_deviation_select_pairs_hint"))
         return
 
-    analysis = analyze_split_selected_deviations(selected_pairs)
+    analysis, cache, _ = get_cached_split_deviation_analysis(
+        selected_pairs,
+        st.session_state.get("split_deviation_analysis_cache"),
+    )
+    st.session_state.split_deviation_analysis_cache = cache
     coefficients = analysis["coefficient_summary"]
     times = analysis["time_summary"]
     weather = analysis["weather_summary"]
@@ -861,15 +738,27 @@ def _render_deviation_analysis(t) -> None:
         st.dataframe(pd.DataFrame(leave_rows), use_container_width=True, hide_index=True)
 
 
+def _render_selected_section(section: str, pairs: list[dict], t) -> None:
+    """Render exactly one Final Comparison section per Streamlit run."""
+    if section == "deviation":
+        _render_deviation_analysis(t)
+    else:
+        _render_table_tab(pairs, t)
+
+
 def render(t) -> None:
-    """Render Final Comparison as table and deviation-analysis sub-tabs."""
+    """Render Final Comparison with conditional, lazy section execution."""
     st.header(t("page_split_final_comparison"))
     pairs = _current_pairs()
-    tab_table, tab_deviation = st.tabs([
-        t("split_final_comparison_tab_table"),
-        t("split_final_comparison_tab_deviation"),
-    ])
-    with tab_table:
-        _render_table_tab(pairs, t)
-    with tab_deviation:
-        _render_deviation_analysis(t)
+    labels = {
+        t("split_final_comparison_tab_table"): "table",
+        t("split_final_comparison_tab_deviation"): "deviation",
+    }
+    selected_label = st.radio(
+        t("split_final_comparison_section"),
+        options=list(labels),
+        horizontal=True,
+        key="split_final_comparison_section",
+        label_visibility="collapsed",
+    )
+    _render_selected_section(labels[selected_label], pairs, t)

@@ -7,11 +7,15 @@ import math
 import pandas as pd
 import streamlit as st
 
-from core.split_deviation_analysis import analyze_split_selected_deviations
+from core.split_deviation_analysis import get_cached_split_deviation_analysis
 from core.split_display import format_run_option_label, format_split_pair_label
 from core.split_results import consolidate_split_final_results
 from core.split_weather_context import split_environmental_values
-from data.split_exporters import export_split_final_results_to_excel
+from data.split_exporters import (
+    build_split_export_signature,
+    export_split_final_results_to_excel,
+    get_cached_split_export,
+)
 
 
 COMPONENTS = ("high_plus", "low_plus", "high_minus", "low_minus")
@@ -95,8 +99,8 @@ def _pair_rows(pairs, t):
             "Low [-]": _component_label(pair, "low_minus"),
             "F0 (N)": _display(pair.get("F0_mean"), 4),
             "F2 (N/(km/h)²)": _display(pair.get("F2_mean"), 6),
-            "CV F0": _display(pair.get("cv_F0_percent"), 2, "%"),
-            "CV F2": _display(pair.get("cv_F2_percent"), 2, "%"),
+            "CV F0 [%]": _display(pair.get("cv_F0_percent"), 2),
+            "CV F2 [%]": _display(pair.get("cv_F2_percent"), 2),
             "Energia (MJ/km)": _display(pair.get("energy"), 4),
             "Temperatura (°C)": _display(temperature, 1),
             "Pressão (kPa)": _display(pressure, 2),
@@ -130,12 +134,12 @@ def _render_summary(summary, t):
     st.subheader(t("split_results_consolidated"))
     first = st.columns(4)
     first[0].metric(t("split_selected_pairs"), summary["num_pairs"])
-    first[1].metric(t("split_results_final_f0"), _display(summary.get("mean_f0"), 4, " N"))
-    first[2].metric(t("split_results_final_f2"), _display(summary.get("mean_f2"), 6, " N/(km/h)²"))
-    first[3].metric(t("split_results_mean_energy"), _display(summary.get("mean_energy"), 4, " MJ/km"))
+    first[1].metric(t("split_results_final_f0"), _display(summary.get("mean_f0"), 4))
+    first[2].metric(t("split_results_final_f2"), _display(summary.get("mean_f2"), 6))
+    first[3].metric(t("split_results_mean_energy"), _display(summary.get("mean_energy"), 4))
     second = st.columns(3)
-    second[0].metric(t("split_results_cv_f0"), _display(summary.get("cv_f0"), 2, "%"))
-    second[1].metric(t("split_results_cv_f2"), _display(summary.get("cv_f2"), 2, "%"))
+    second[0].metric(t("split_results_cv_f0"), _display(summary.get("cv_f0"), 2))
+    second[1].metric(t("split_results_cv_f2"), _display(summary.get("cv_f2"), 2))
     second[2].metric(t("split_results_conformity"), _status_label(summary["conformity_status"], t))
 
 
@@ -160,11 +164,11 @@ def _render_coefficients(summary, t):
     st.markdown("---")
     st.subheader(t("split_results_validation"))
     rows = [
-        ("F0", _display(summary.get("mean_f0"), 4, " N"), _display(summary.get("cv_f0"), 2, "%"), _cv_status(summary.get("cv_f0"), t)),
-        ("F2", _display(summary.get("mean_f2"), 6, " N/(km/h)²"), _display(summary.get("cv_f2"), 2, "%"), _cv_status(summary.get("cv_f2"), t)),
-        ("Energia", _display(summary.get("mean_energy"), 4, " MJ/km"), _display(summary.get("cv_energy"), 2, "%"), t("split_results_status_not_evaluable")),
+        ("F0 [N]", _display(summary.get("mean_f0"), 4), _display(summary.get("cv_f0"), 2), _cv_status(summary.get("cv_f0"), t)),
+        ("F2 [N/(km/h)²]", _display(summary.get("mean_f2"), 6), _display(summary.get("cv_f2"), 2), _cv_status(summary.get("cv_f2"), t)),
+        ("Energia [MJ/km]", _display(summary.get("mean_energy"), 4), _display(summary.get("cv_energy"), 2), t("split_results_status_not_evaluable")),
     ]
-    st.dataframe(pd.DataFrame(rows, columns=("Coeficiente", "Valor médio", "CV", "Status")), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(rows, columns=("Coeficiente", "Valor médio", "CV [%]", "Status")), use_container_width=True, hide_index=True)
     status = summary["conformity_status"]
     message = _status_label(status, t)
     if status == "conforming": st.success(message)
@@ -186,9 +190,9 @@ def _render_deviation_summary(analysis, t):
     cards[2].metric("Meteorologia", _status_label({"approved": "conforming", "failed": "nonconforming", "insufficient_data": "not_evaluable"}.get(weather["status"], "warning"), t))
     time_rows = []
     for component, group in times.get("groups", {}).items():
-        time_rows.append((component.replace("_", " "), _display(group.get("cv_pct"), 2, "%"), _display(group.get("mean"), 3, " s"), _check_status_label(group.get("passed"), t)))
+        time_rows.append((component.replace("_", " "), _display(group.get("cv_pct"), 2), _display(group.get("mean"), 3), _check_status_label(group.get("passed"), t)))
     if time_rows:
-        st.dataframe(pd.DataFrame(time_rows, columns=("Grupo", "CV deltaT", "Média", "Status")), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(time_rows, columns=("Grupo", "CV deltaT [%]", "Média [s]", "Status")), use_container_width=True, hide_index=True)
     st.caption("Detalhes completos permanecem em Comparativo Final > Análise de desvios.")
 
 
@@ -224,7 +228,11 @@ def render(t):
         st.info("Volte ao Comparativo Final e selecione os pares desejados.")
         return
 
-    analysis = analyze_split_selected_deviations(selected_pairs)
+    analysis, analysis_cache, _ = get_cached_split_deviation_analysis(
+        selected_pairs,
+        st.session_state.get("split_deviation_analysis_cache"),
+    )
+    st.session_state.split_deviation_analysis_cache = analysis_cache
     _render_summary(summary, t)
     _render_vehicle(summary, t)
     _render_coefficients(summary, t)
@@ -238,9 +246,39 @@ def render(t):
     st.markdown("---")
     st.subheader(f"📥 {t('split_results_export')}")
     vehicle_data = {"total_mass": st.session_state.get("total_mass"), "vehicle_info": dict(st.session_state.get("vehicle_info") or {})}
-    excel_bytes = export_split_final_results_to_excel(final_results=summary, selected_pairs=selected_pairs, vehicle_data=vehicle_data, deviation_analysis=analysis)
-    st.download_button(
-        label="📥 " + t("split_results_export_button"), data=excel_bytes,
-        file_name=f"relatorio_resultados_split_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True,
+    export_signature = build_split_export_signature(
+        final_results=summary,
+        selected_pairs=selected_pairs,
+        vehicle_data=vehicle_data,
+        deviation_analysis=analysis,
     )
+    export_cache = st.session_state.get("split_results_excel_cache")
+    if st.button(
+        t("split_results_generate_excel"),
+        type="primary",
+        use_container_width=True,
+    ):
+        excel_bytes, export_cache, _ = get_cached_split_export(
+            export_signature,
+            export_cache,
+            builder=lambda: export_split_final_results_to_excel(
+                final_results=summary,
+                selected_pairs=selected_pairs,
+                vehicle_data=vehicle_data,
+                deviation_analysis=analysis,
+            ),
+        )
+        st.session_state.split_results_excel_cache = export_cache
+    else:
+        excel_bytes = (
+            export_cache.get("payload")
+            if isinstance(export_cache, dict)
+            and export_cache.get("signature") == export_signature
+            else None
+        )
+    if excel_bytes is not None:
+        st.download_button(
+            label="📥 " + t("split_results_export_button"), data=excel_bytes,
+            file_name=f"relatorio_resultados_split_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True,
+        )

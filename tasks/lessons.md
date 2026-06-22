@@ -2005,3 +2005,26 @@ sincronizado, meteo obrigatoria ausente invalida o contexto; no modo fixo, vento
 nao informado faz parte do contrato e nao pode ser convertido em falha.
 
 ---
+
+## 2026-06-22 - Split: Tabs Nao Sao Lazy Por Padrao
+
+### Decisao:
+O Comparativo Final substituiu `st.tabs` por um seletor horizontal com execucao
+condicional. A secao Tabela nao consolida resultados, nao monta rastreabilidade e
+nao executa leave-one-out durante cliques de selecao. A analise de desvios usa
+assinatura apenas dos campos que afetam o diagnostico e cache invalidado junto
+com os resultados finais derivados.
+
+Resultados Split passou a gerar o workbook somente apos a acao Gerar Excel. O
+cache do arquivo considera pares, resumo, veiculo e analise. Cabecalhos de UI e
+Excel carregam as unidades; valores de tabelas principais permanecem numericos
+ou formatados sem repetir a unidade.
+
+### Licao:
+Blocos dentro de `st.tabs` continuam sendo executados em cada rerun. Para uma
+secao com analise combinatoria ou export, a fronteira de desempenho precisa ser
+um `if` real. Da mesma forma, um `download_button` exige seus bytes antes do
+clique; uma etapa explicita de geracao evita construir o arquivo em toda
+renderizacao.
+
+---

@@ -54,8 +54,8 @@ class SplitResultsExportTests(unittest.TestCase):
         wb = self._workbook([pair])
         flat = [value for row in wb["Meteorologia"].iter_rows(values_only=True) for value in row]
 
-        self.assertIn("23.0", flat)
-        self.assertIn("100.5", flat)
+        self.assertIn(23.0, flat)
+        self.assertIn(100.5, flat)
         self.assertIn("-", flat)
 
     def _workbook(self, pairs):
@@ -78,6 +78,16 @@ class SplitResultsExportTests(unittest.TestCase):
         self.assertIn("F0 final (N)", values)
         self.assertIn("F2 final (N/(km/h)²)", values)
         self.assertIn("CV F0 (%)", values)
+
+    def test_pair_table_headers_hold_units_and_cells_remain_numeric(self):
+        wb = self._workbook([_pair("one")])
+        ws = wb["Pares Selecionados"]
+        headers = [cell.value for cell in ws[2]]
+        self.assertIn("F0 [N]", headers)
+        self.assertIn("F2 [N/(km/h)²]", headers)
+        self.assertIn("CV F0 [%]", headers)
+        self.assertIsInstance(ws.cell(3, headers.index("F0 [N]") + 1).value, (int, float))
+        self.assertNotIn("%", ws.cell(3, headers.index("CV F0 [%]") + 1).number_format)
 
     def test_only_explicitly_selected_pairs_are_exported_and_input_is_unchanged(self):
         pairs = [_pair("one"), _pair("hidden", selected=False)]

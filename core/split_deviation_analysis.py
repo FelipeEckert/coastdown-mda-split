@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import math
 import statistics
+from copy import deepcopy
 
 from core.split_results import consolidate_split_final_results
 from core.split_time_validation import (
@@ -20,6 +21,56 @@ DEFAULT_WEATHER_LIMITS = {
     "temperature_max_c": 35.0,
 }
 AMBIENT_COMPONENTS = ("high_plus", "low_plus", "high_minus", "low_minus")
+
+
+def build_selected_pairs_signature(selected_pairs: list[dict]) -> tuple:
+    """Return a stable signature containing only deviation-analysis inputs."""
+    signature = []
+    for index, pair in enumerate(selected_pairs or [], start=1):
+        if not isinstance(pair, dict) or pair.get("selected") is not True:
+            continue
+        environmental = split_environmental_values(pair)
+        component_times = []
+        for component in AMBIENT_COMPONENTS:
+            record = pair.get(component) if isinstance(pair.get(component), dict) else {}
+            component_times.append(
+                _finite_float(
+                    pair.get(f"{component}_delta_t_s", record.get("delta_t_s"))
+                )
+            )
+        signature.append(
+            (
+                str(pair.get("id") or pair.get("pair_id") or index),
+                True,
+                _first_number(pair, "F0_mean", "F0", "mean_f0_corrected"),
+                _first_number(pair, "F2_mean", "F2", "mean_f2_corrected"),
+                _first_number(pair, "energy", "mean_energy_corrected"),
+                tuple(component_times),
+                environmental.get("mode"),
+                environmental.get("temperature_c"),
+                environmental.get("pressure_kpa"),
+                environmental.get("wind_speed_mps"),
+                tuple(str(item) for item in pair.get("warnings") or []),
+            )
+        )
+    return tuple(signature)
+
+
+def get_cached_split_deviation_analysis(
+    selected_pairs: list[dict],
+    cache: dict | None,
+    *,
+    analyzer=None,
+) -> tuple[dict, dict, bool]:
+    """Return analysis plus refreshed cache and whether it was reused."""
+    signature = build_selected_pairs_signature(selected_pairs)
+    current = cache if isinstance(cache, dict) else {}
+    if current.get("signature") == signature and isinstance(current.get("analysis"), dict):
+        return deepcopy(current["analysis"]), current, True
+    analyze = analyzer or analyze_split_selected_deviations
+    analysis = analyze(selected_pairs)
+    refreshed = {"signature": signature, "analysis": deepcopy(analysis)}
+    return analysis, refreshed, False
 
 
 def _finite_float(value):

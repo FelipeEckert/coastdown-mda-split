@@ -180,6 +180,8 @@ def reset_split_final_outputs(test_data: dict) -> dict:
     """Clear Split final/export outputs after comparison selection changes."""
     test_data["split_final_results"] = {}
     test_data["excel_buffer"] = None
+    test_data.pop("split_deviation_analysis_cache", None)
+    test_data.pop("split_results_excel_cache", None)
     return test_data
 
 

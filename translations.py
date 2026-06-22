@@ -1494,16 +1494,16 @@ TRANSLATIONS = {
         "en": "Mean energy [MJ/km]"
     },
     "split_results_cv_f0": {
-        "pt": "CV F0",
-        "en": "F0 CV"
+        "pt": "CV F0 [%]",
+        "en": "F0 CV [%]"
     },
     "split_results_cv_f2": {
-        "pt": "CV F2",
-        "en": "F2 CV"
+        "pt": "CV F2 [%]",
+        "en": "F2 CV [%]"
     },
     "split_results_cv_energy": {
-        "pt": "CV energia",
-        "en": "Energy CV"
+        "pt": "CV energia [%]",
+        "en": "Energy CV [%]"
     },
     "split_results_not_applicable": {
         "pt": "N/A",
@@ -1604,6 +1604,10 @@ TRANSLATIONS = {
     "split_results_export_button": {
         "pt": "Exportar resultados Split",
         "en": "Export Split results"
+    },
+    "split_results_generate_excel": {
+        "pt": "Gerar Excel",
+        "en": "Generate Excel"
     },
     "split_results_export_pending": {
         "pt": "Exportação Split pendente de adaptação ao novo consolidado. Nenhum exportador Standard está conectado a esta página.",
@@ -2481,6 +2485,7 @@ TRANSLATIONS = {
     },
     "split_final_comparison_tab_table": {"pt": "Tabela", "en": "Table"},
     "split_final_comparison_tab_deviation": {"pt": "Análise de desvios", "en": "Deviation analysis"},
+    "split_final_comparison_section": {"pt": "Seção do Comparativo Final", "en": "Final Comparison section"},
     "split_deviation_select_pairs_hint": {"pt": "Selecione pares na aba Tabela para visualizar a análise de desvios.", "en": "Select pairs in the Table tab to view the deviation analysis."},
     "split_deviation_selected_count": {"pt": "Pares selecionados", "en": "Selected pairs"},
     "split_deviation_coefficients_status": {"pt": "Status coeficientes", "en": "Coefficient status"},

@@ -12,7 +12,10 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-from core.split_deviation_analysis import analyze_split_selected_deviations
+from core.split_deviation_analysis import (
+    analyze_split_selected_deviations,
+    build_selected_pairs_signature,
+)
 from core.split_display import format_run_option_label, format_split_pair_label
 from core.split_results import consolidate_split_final_results
 from core.split_weather_context import split_environmental_values
@@ -30,6 +33,46 @@ HEADER_FILL = PatternFill("solid", fgColor="4472C4")
 WARNING_FILL = PatternFill("solid", fgColor="FFF3CD")
 TITLE_FILL = PatternFill("solid", fgColor="D9EAF7")
 THIN_BORDER = Border(*(Side(style="thin", color="B7B7B7") for _ in range(4)))
+
+
+def _freeze_signature_value(value):
+    if isinstance(value, dict):
+        return tuple(
+            (str(key), _freeze_signature_value(item))
+            for key, item in sorted(value.items(), key=lambda entry: str(entry[0]))
+        )
+    if isinstance(value, (list, tuple, set)):
+        return tuple(_freeze_signature_value(item) for item in value)
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    return value
+
+
+def build_split_export_signature(
+    *, final_results: dict, selected_pairs: list[dict],
+    vehicle_data: dict, deviation_analysis: dict,
+) -> tuple:
+    """Return a stable signature for the complete Split workbook inputs."""
+    return (
+        build_selected_pairs_signature(selected_pairs),
+        _freeze_signature_value(final_results or {}),
+        _freeze_signature_value(vehicle_data or {}),
+        _freeze_signature_value(deviation_analysis or {}),
+    )
+
+
+def get_cached_split_export(
+    signature: tuple, cache: dict | None, *, builder,
+) -> tuple[bytes, dict, bool]:
+    """Build workbook bytes only when the supplied export signature changed."""
+    current = cache if isinstance(cache, dict) else {}
+    if current.get("signature") == signature and isinstance(current.get("payload"), bytes):
+        return current["payload"], current, True
+    payload = builder()
+    refreshed = {"signature": signature, "payload": payload}
+    return payload, refreshed, False
 
 
 def _number(value):
@@ -121,7 +164,9 @@ def _append_table(ws, start_row, title, headers, rows):
         cell.border = THIN_BORDER
     for row_index, row in enumerate(rows, header_row + 1):
         for column, item in enumerate(row, 1):
-            cell = ws.cell(row_index, column, _value(item))
+            numeric = _number(item)
+            cell_value = numeric if numeric is not None else _value(item)
+            cell = ws.cell(row_index, column, cell_value)
             cell.border = THIN_BORDER
             cell.alignment = Alignment(vertical="top", wrap_text=True)
     return header_row + len(rows) + 2
@@ -155,7 +200,7 @@ def _write_summary(wb, final_results, warnings, generated_at):
         label = ws.cell(row, 1).value
         if label == "F0 final (N)": ws.cell(row, 2).number_format = "0.0000"
         elif label == "F2 final (N/(km/h)²)": ws.cell(row, 2).number_format = "0.000000"
-        elif label in ("CV F0 (%)", "CV F2 (%)"): ws.cell(row, 2).number_format = '0.00"%"'
+        elif label in ("CV F0 (%)", "CV F2 (%)"): ws.cell(row, 2).number_format = "0.00"
         elif label == "Energia média (MJ/km)": ws.cell(row, 2).number_format = "0.0000"
     _finish_sheet(ws)
 
@@ -175,14 +220,14 @@ def _write_vehicle(wb, vehicle_data):
 
 def _write_pairs(wb, pairs):
     ws = wb.create_sheet("Pares Selecionados")
-    headers = ("Par", "Origem", "High [+]", "Low [+]", "High [-]", "Low [-]", "DeltaT high+", "DeltaT low+", "DeltaT high-", "DeltaT low-", "F0", "F2", "CV F0", "CV F2", "Energia", "Temperatura", "Pressão", "Vento", "Alertas meteorológicos")
+    headers = ("Par", "Origem", "High [+]", "Low [+]", "High [-]", "Low [-]", "DeltaT high+ [s]", "DeltaT low+ [s]", "DeltaT high- [s]", "DeltaT low- [s]", "F0 [N]", "F2 [N/(km/h)²]", "CV F0 [%]", "CV F2 [%]", "Energia [MJ/km]", "Temperatura [°C]", "Pressão [kPa]", "Vento [m/s]", "Alertas meteorológicos")
     rows = []
     for pair in pairs:
         temperature, pressure, wind, alerts = _weather_for_pair(pair)
         rows.append((format_split_pair_label(pair), pair.get("selection_source"), *(_component_label(pair, component) for component in COMPONENTS), *(pair.get(f"{component}_delta_t_s") if pair.get(f"{component}_delta_t_s") is not None else _component(pair, component).get("delta_t_s") for component in COMPONENTS), pair.get("F0_mean", pair.get("F0")), pair.get("F2_mean", pair.get("F2")), pair.get("cv_F0_percent"), pair.get("cv_F2_percent"), pair.get("energy"), temperature, pressure, wind, alerts))
     _append_table(ws, 1, "PARES USADOS NO RESULTADO FINAL", headers, rows)
     for row in range(3, ws.max_row + 1):
-        for column, number_format in ((11, "0.0000"), (12, "0.000000"), (13, '0.00"%"'), (14, '0.00"%"'), (15, "0.0000")):
+        for column, number_format in ((11, "0.0000"), (12, "0.000000"), (13, "0.00"), (14, "0.00"), (15, "0.0000")):
             ws.cell(row, column).number_format = number_format
     _finish_sheet(ws)
 

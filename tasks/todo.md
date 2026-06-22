@@ -286,6 +286,17 @@
 - [x] Confirm climatic correction consumes pressure in kPa without conversion.
 - [ ] Complete real-app manual validation for edited fixed inputs, cards, comparison, deviations, results/export and synchronized-mode regression.
 
+## Performance and visual-unit standardization
+- [x] Replace eager Final Comparison tabs with conditional section rendering.
+- [x] Keep the Table section limited to persisted pair display and selection updates.
+- [x] Cache deviation analysis by a stable signature of selected analysis inputs.
+- [x] Invalidate deviation and Excel caches when final selection changes.
+- [x] Generate Split Excel only after an explicit Generate Excel action and reuse it by signature.
+- [x] Remove repeated units from Split Results metric and table values.
+- [x] Keep workbook units in headers and quantitative cells numeric.
+- [x] Add behavioral tests for lazy rendering, cache reuse/invalidation, on-demand export and unit formatting.
+- [ ] Complete real-browser performance comparison and visual/export validation.
+
 ## Round 10A - Final Comparison deviation analysis
 - [x] Preserve the existing Final Comparison behavior in the `Tabela` sub-tab.
 - [x] Analyze only pairs explicitly stored with `selected=True`.
