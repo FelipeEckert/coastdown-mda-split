@@ -44,6 +44,20 @@ def _pair(pair_id, *, selected=True, temperature=25.0, wind=1.0):
 
 
 class SplitResultsExportTests(unittest.TestCase):
+    def test_fixed_environmental_conditions_export_values_and_dash_wind(self):
+        pair = _pair("fixed")
+        pair["ambient_by_component"] = {}
+        pair["environmental_conditions"] = {
+            "mode": "fixed", "temperature_c": 23.0,
+            "pressure_kpa": 100.5, "wind_speed_mps": None,
+        }
+        wb = self._workbook([pair])
+        flat = [value for row in wb["Meteorologia"].iter_rows(values_only=True) for value in row]
+
+        self.assertIn("23.0", flat)
+        self.assertIn("100.5", flat)
+        self.assertIn("-", flat)
+
     def _workbook(self, pairs):
         payload = export_split_final_results_to_excel(
             final_results={},

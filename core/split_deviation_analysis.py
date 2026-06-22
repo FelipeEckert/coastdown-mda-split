@@ -11,6 +11,7 @@ from core.split_time_validation import (
     extract_split_candidate_times,
     validate_split_selected_times,
 )
+from core.split_weather_context import split_environmental_values
 
 
 DEFAULT_WEATHER_LIMITS = {
@@ -120,66 +121,14 @@ def _pair_deviations(
     return rows
 
 
-def _nested_dicts(pair: dict):
-    for key in (
-        "weather",
-        "meteo",
-        "weather_sync",
-        "correction_context",
-        "environmental_conditions",
-    ):
-        value = pair.get(key)
-        if isinstance(value, dict):
-            yield value
-
-
-def _ambient_values(pair: dict, aliases: tuple[str, ...]) -> list[float]:
-    values = []
-    sources = [pair, *_nested_dicts(pair)]
-    ambient = pair.get("ambient_by_component")
-    if isinstance(ambient, dict):
-        sources.extend(item for item in ambient.values() if isinstance(item, dict))
-    for source in sources:
-        value = _first_number(source, *aliases)
-        if value is not None:
-            values.append(value)
-    return values
-
-
 def _weather_rows(pairs: list[dict], limits: dict) -> tuple[list[dict], str, list[str]]:
     rows = []
     warnings = []
     for index, pair in enumerate(pairs, start=1):
-        temperatures = _ambient_values(pair, ("temperature_c", "temperature", "temp", "ambient_temperature", "temp_c"))
-        pressures = _ambient_values(pair, ("pressure_kpa", "pressure", "barometric_pressure", "baro_kpa"))
-        winds = _ambient_values(pair, ("wind_speed_ms", "wind_speed", "wind", "wind_ms"))
-        temperatures.extend(
-            value
-            for value in (
-                _finite_float(pair.get("temp_plus_used")),
-                _finite_float(pair.get("temp_minus_used")),
-            )
-            if value is not None
-        )
-        pressures.extend(
-            value
-            for value in (
-                _finite_float(pair.get("press_plus_used")),
-                _finite_float(pair.get("press_minus_used")),
-            )
-            if value is not None
-        )
-        winds.extend(
-            value
-            for value in (
-                _finite_float(pair.get("wind_plus_ms")),
-                _finite_float(pair.get("wind_minus_ms")),
-            )
-            if value is not None
-        )
-        temperature = max(temperatures) if temperatures else None
-        pressure = statistics.mean(pressures) if pressures else None
-        wind = max(winds) if winds else None
+        environmental = split_environmental_values(pair)
+        temperature = environmental["temperature_c"]
+        pressure = environmental["pressure_kpa"]
+        wind = environmental["wind_speed_mps"]
         alerts = []
         if wind is not None and wind > limits["wind_speed_max_mps"]:
             alerts.append(f"⚠️ Potencialmente invalidante: vento acima de {limits['wind_speed_max_mps']:g} m/s")

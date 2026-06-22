@@ -89,6 +89,23 @@ def _fake_builder(
 
 
 class SplitAutoSelectionTest(unittest.TestCase):
+    def test_weather_filter_does_not_remove_fixed_candidates(self):
+        def builder(**kwargs):
+            candidate = _fake_builder(**kwargs)
+            candidate["weather_summary"] = {
+                "mode": "fixed", "status": "fixed", "warnings": []
+            }
+            return candidate
+
+        candidates, metadata = run_split_auto_selection_exact(
+            _parsed(), vehicle_data={"effective_mass": 1.0}, algorithm="energy", k=20,
+            avoid_repeated_runs=False, candidate_builder=builder,
+            exclude_invalid_weather=True,
+        )
+
+        self.assertEqual(len(candidates), 16)
+        self.assertEqual(metadata["weather_filtered_count"], 0)
+
     def test_invalid_weather_filter_is_optional(self):
         def builder(**kwargs):
             candidate = _fake_builder(**kwargs)

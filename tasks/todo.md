@@ -276,6 +276,16 @@
 - [x] Add pure-module, synchronization, validation, candidate, ranking, filtering and merge tests.
 - [ ] Complete the required real-app manual validation with high/low/weather files, both filter states, merge, deviation analysis and Split Results.
 
+## Round 12B - Fixed environmental parameters and weather consistency
+- [x] Add per-test fixed temperature and pressure inputs to Automatic Selection.
+- [x] Build a canonical fixed correction context with `user_fixed_inputs` traceability.
+- [x] Preserve fixed `environmental_conditions` and `weather_summary` without false missing-weather status.
+- [x] Keep hot fixed candidates with a temperature warning and no missing-wind rejection.
+- [x] Standardize new wind fields on `wind_speed_mps` while retaining legacy read aliases.
+- [x] Centralize environmental reads used by deviation analysis, Split Results and Split Excel export.
+- [x] Confirm climatic correction consumes pressure in kPa without conversion.
+- [ ] Complete real-app manual validation for edited fixed inputs, cards, comparison, deviations, results/export and synchronized-mode regression.
+
 ## Round 10A - Final Comparison deviation analysis
 - [x] Preserve the existing Final Comparison behavior in the `Tabela` sub-tab.
 - [x] Analyze only pairs explicitly stored with `selected=True`.

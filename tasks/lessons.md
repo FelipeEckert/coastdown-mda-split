@@ -1983,3 +1983,25 @@ rastreabilidade deterministica e impede que um pre-ranking sem correcao elimine
 candidatos cuja posicao muda com o clima.
 
 ---
+
+## 2026-06-22 - Split: Ambiente Fixo Nao E Meteo Ausente
+
+### Decisao:
+O modo fixo da selecao automatica usa entradas editaveis por teste e cria um
+contexto proprio com `mode="fixed"`, fonte `user_fixed_inputs`, temperatura em
+graus Celsius e pressao em kPa. O candidato preserva esse contexto em
+`environmental_conditions` e usa `weather_summary.status="fixed"`, sem fabricar
+sincronizacoes por run.
+
+As leituras ambientais de diagnostico, resultados e export foram centralizadas.
+`wind_speed_mps` e o nome canonico; `wind_speed_ms` permanece apenas como alias
+de compatibilidade para pares anteriores. Temperatura fixa acima de 35 graus
+Celsius gera alerta, enquanto vento ausente no modo fixo permanece apenas como
+dado indisponivel.
+
+### Licao:
+Ausencia de uma medicao nao tem o mesmo significado em todos os modos. No modo
+sincronizado, meteo obrigatoria ausente invalida o contexto; no modo fixo, vento
+nao informado faz parte do contrato e nao pode ser convertido em falha.
+
+---

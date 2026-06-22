@@ -200,6 +200,17 @@ def build_algorithm_split_pair_candidate(
         ambient_conditions = _ambient_conditions(candidate_context)
     else:
         ambient_conditions = _ambient_conditions(correction_context)
+        if source_context.get("ambient_mode") == "fixed":
+            ambient_conditions = dict(ambient_conditions)
+            ambient_conditions["ambient_source"] = source_context.get(
+                "source", "user_fixed_inputs"
+            )
+            ambient_conditions["warnings"] = list(
+                dict.fromkeys(
+                    list(ambient_conditions.get("warnings") or [])
+                    + list(source_context.get("warnings") or [])
+                )
+            )
 
     result = calculate_complete_split_pair(
         high_plus=high_plus_run,
@@ -240,5 +251,28 @@ def build_algorithm_split_pair_candidate(
                 list(pair.get("warnings") or [])
                 + list(weather_context["weather_summary"].get("warnings") or [])
             )
+        )
+    elif source_context.get("ambient_mode") == "fixed":
+        pair["environmental_conditions"] = deepcopy(
+            source_context.get("environmental_conditions")
+            or {
+                "mode": "fixed",
+                "temperature_c": source_context.get("temperature_c"),
+                "pressure_kpa": source_context.get("pressure_kpa"),
+                "wind_speed_mps": None,
+                "source": source_context.get("source", "user_fixed_inputs"),
+            }
+        )
+        pair["weather_summary"] = deepcopy(
+            source_context.get("weather_summary")
+            or {
+                "mode": "fixed",
+                "temperature_c_mean": source_context.get("temperature_c"),
+                "pressure_kpa_mean": source_context.get("pressure_kpa"),
+                "wind_speed_mps_mean": None,
+                "wind_speed_mps_max": None,
+                "status": "fixed",
+                "warnings": list(source_context.get("warnings") or []),
+            }
         )
     return pair

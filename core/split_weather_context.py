@@ -37,6 +37,111 @@ def _validated_limits(weather_limits: dict | None) -> dict:
     return limits
 
 
+def build_fixed_split_correction_context(
+    temperature_c,
+    pressure_kpa,
+    *,
+    split_interval_config: dict | None = None,
+    weather_limits: dict | None = None,
+) -> dict:
+    """Build the canonical traceable context for user-edited fixed inputs."""
+    temperature = _finite(temperature_c)
+    pressure = _finite(pressure_kpa)
+    if temperature is None or temperature <= -273.15:
+        raise ValueError("temperature_c must be finite and above absolute zero.")
+    if pressure is None or pressure <= 0:
+        raise ValueError("pressure_kpa must be a positive finite number.")
+    limits = _validated_limits(weather_limits)
+    warnings = []
+    if temperature > limits["temperature_max_c"]:
+        warnings.append(
+            f"Temperatura fixa acima de {limits['temperature_max_c']:g} °C."
+        )
+    environmental_conditions = {
+        "mode": "fixed",
+        "temperature_c": temperature,
+        "pressure_kpa": pressure,
+        "wind_speed_mps": None,
+        "source": "user_fixed_inputs",
+    }
+    weather_summary = {
+        "mode": "fixed",
+        "temperature_c_mean": temperature,
+        "pressure_kpa_mean": pressure,
+        "wind_speed_mps_mean": None,
+        "wind_speed_mps_max": None,
+        "status": "fixed",
+        "warnings": warnings,
+    }
+    return {
+        "mode": "fixed",
+        "ambient_mode": "fixed",
+        "temperature_c": temperature,
+        "pressure_kpa": pressure,
+        "wind_speed_mps": None,
+        "source": "user_fixed_inputs",
+        "split_interval_config": deepcopy(split_interval_config or {}),
+        "environmental_conditions": environmental_conditions,
+        "weather_summary": weather_summary,
+        "warnings": warnings,
+    }
+
+
+def split_environmental_values(pair: dict) -> dict:
+    """Read canonical Split ambient values, with legacy aliases as fallbacks."""
+    source = pair if isinstance(pair, dict) else {}
+    temperatures = []
+    pressures = []
+    winds = []
+
+    def append_value(target: list, mapping: dict, canonical: str, *aliases: str):
+        for key in (canonical, *aliases):
+            value = _finite(mapping.get(key))
+            if value is not None:
+                target.append(value)
+                return
+
+    ambient = source.get("ambient_by_component") or {}
+    for item in ambient.values() if isinstance(ambient, dict) else ():
+        if not isinstance(item, dict):
+            continue
+        append_value(temperatures, item, "temperature_c", "temperature", "temp_c")
+        append_value(pressures, item, "pressure_kpa", "pressure", "baro_kpa")
+        append_value(winds, item, "wind_speed_mps", "wind_speed_ms", "wind_speed", "wind_ms")
+
+    environmental = source.get("environmental_conditions") or {}
+    summary = source.get("weather_summary") or {}
+    if not temperatures:
+        append_value(temperatures, environmental, "temperature_c", "temperature", "temp_c")
+        append_value(temperatures, summary, "temperature_c_mean")
+    if not pressures:
+        append_value(pressures, environmental, "pressure_kpa", "pressure", "baro_kpa")
+        append_value(pressures, summary, "pressure_kpa_mean")
+    if not winds:
+        append_value(winds, environmental, "wind_speed_mps", "wind_speed_ms", "wind_speed", "wind_ms")
+        append_value(winds, summary, "wind_speed_mps_max", "wind_speed_mps_mean")
+
+    for key in ("temp_plus_used", "temp_minus_used", "temp_c"):
+        value = _finite(source.get(key))
+        if value is not None:
+            temperatures.append(value)
+    for key in ("press_plus_used", "press_minus_used", "baro_kpa"):
+        value = _finite(source.get(key))
+        if value is not None:
+            pressures.append(value)
+    for key in ("wind_plus_mps", "wind_minus_mps", "wind_plus_ms", "wind_minus_ms", "wind_ms"):
+        value = _finite(source.get(key))
+        if value is not None:
+            winds.append(value)
+
+    return {
+        "mode": environmental.get("mode") or summary.get("mode") or source.get("ambient_mode"),
+        "temperature_c": max(temperatures) if temperatures else None,
+        "pressure_kpa": sum(pressures) / len(pressures) if pressures else None,
+        "wind_speed_mps": max(winds) if winds else None,
+    }
+
+
 def _run_weather_sync(run: dict, weather_data, max_time_diff_s: float, limits: dict) -> dict:
     sync = sync_weather_to_run(
         run,

@@ -232,6 +232,7 @@ class SplitComparisonTest(unittest.TestCase):
                     "time_delta_seconds",
                     "temperature_c",
                     "pressure_kpa",
+                    "wind_speed_mps",
                     "wind_speed_ms",
                     "wind_direction_deg",
                     "source_file",

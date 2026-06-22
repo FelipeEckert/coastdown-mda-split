@@ -10,6 +10,7 @@ import streamlit as st
 from core.split_deviation_analysis import analyze_split_selected_deviations
 from core.split_display import format_run_option_label, format_split_pair_label
 from core.split_results import consolidate_split_final_results
+from core.split_weather_context import split_environmental_values
 from data.split_exporters import export_split_final_results_to_excel
 
 
@@ -69,23 +70,10 @@ def _component_label(pair, component):
 
 
 def _weather_row(pair):
-    ambient = pair.get("ambient_by_component") or {}
-    temperatures, pressures, winds = [], [], []
-    for item in ambient.values():
-        if not isinstance(item, dict):
-            continue
-        for values, key in ((temperatures, "temperature_c"), (pressures, "pressure_kpa"), (winds, "wind_speed_ms")):
-            number = _number(item.get(key))
-            if number is not None:
-                values.append(number)
-    for values, keys in ((temperatures, ("temp_plus_used", "temp_minus_used", "temp_c")), (pressures, ("press_plus_used", "press_minus_used", "baro_kpa")), (winds, ("wind_plus_ms", "wind_minus_ms", "wind_ms"))):
-        for key in keys:
-            number = _number(pair.get(key))
-            if number is not None:
-                values.append(number)
-    temperature = max(temperatures) if temperatures else None
-    pressure = sum(pressures) / len(pressures) if pressures else None
-    wind = max(winds) if winds else None
+    environmental = split_environmental_values(pair)
+    temperature = environmental["temperature_c"]
+    pressure = environmental["pressure_kpa"]
+    wind = environmental["wind_speed_mps"]
     alerts = []
     if wind is not None and wind > 3.0:
         alerts.append("vento > 3 m/s")

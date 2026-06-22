@@ -135,6 +135,24 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
             _candidate_table(candidate, "energy", self.t).to_html(),
         )
 
+    def test_fixed_candidate_table_displays_missing_wind_as_dash(self):
+        candidate = {
+            "high_plus_run": 1, "low_plus_run": 2,
+            "high_minus_run": 3, "low_minus_run": 4,
+            "temp_plus_used": 20.0, "temp_minus_used": 20.0,
+            "press_plus_used": 101.325, "press_minus_used": 101.325,
+            "weather_summary": {
+                "mode": "fixed", "status": "fixed",
+                "temperature_c_mean": 20.0,
+                "pressure_kpa_mean": 101.325,
+                "wind_speed_mps_max": None,
+                "warnings": [],
+            },
+        }
+
+        table = _candidate_table(candidate, "energy", self.t).data
+        self.assertTrue(all(value == "-" for value in table[self.t("split_auto_wind")]))
+
     def test_replace_dialog_state_requires_live_actionable_request(self):
         pending = {
             "candidates": [{"id": "candidate"}],

@@ -30,6 +30,21 @@ def _pair(pair_id, f0, f2, offset=0.0, temperature=25.0, wind=1.0, pressure=101.
 
 
 class SplitDeviationAnalysisTest(unittest.TestCase):
+    def test_fixed_environmental_conditions_are_read_without_wind_failure(self):
+        pair = _pair("fixed", 100.0, 0.004)
+        pair["ambient_by_component"] = {}
+        pair["environmental_conditions"] = {
+            "mode": "fixed", "temperature_c": 24.0,
+            "pressure_kpa": 100.0, "wind_speed_mps": None,
+        }
+        result = analyze_split_selected_deviations([pair])
+        weather = result["weather_summary"]["pairs"][0]
+
+        self.assertEqual(weather["temperature_c"], 24.0)
+        self.assertEqual(weather["pressure_kpa"], 100.0)
+        self.assertIsNone(weather["wind_speed_mps"])
+        self.assertEqual(weather["status"], "approved")
+
     def test_empty_selection_is_insufficient(self):
         result = analyze_split_selected_deviations([])
         self.assertEqual(result["pair_count"], 0)

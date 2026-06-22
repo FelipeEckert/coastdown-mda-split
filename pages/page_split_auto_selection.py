@@ -30,7 +30,10 @@ from core.split_state import (
     split_parse_is_current,
 )
 from core.split_time_validation import split_candidate_component_time
-from core.split_weather_context import synchronize_weather_for_split_runs
+from core.split_weather_context import (
+    build_fixed_split_correction_context,
+    synchronize_weather_for_split_runs,
+)
 
 
 ALGORITHM_VALUES = {
@@ -70,7 +73,12 @@ def _vehicle_data() -> dict | None:
     }
 
 
-def _correction_context(t, ambient_mode: str) -> dict | None:
+def _correction_context(
+    t,
+    ambient_mode: str,
+    fixed_temperature_c=None,
+    fixed_pressure_kpa=None,
+) -> dict | None:
     if ambient_mode == "weather_sync":
         if not st.session_state.get("weather_data"):
             st.warning(t("split_auto_weather_required"))
@@ -80,23 +88,15 @@ def _correction_context(t, ambient_mode: str) -> dict | None:
             "split_interval_config": st.session_state.get("split_interval_config") or {},
         }
 
-    temperature = _finite_float(
-        st.session_state.get("split_fixed_temperature", 20.0)
-    )
-    pressure = _finite_float(
-        st.session_state.get("split_fixed_pressure", 101.325)
-    )
-    if temperature is None or pressure is None or pressure <= 0:
+    try:
+        return build_fixed_split_correction_context(
+            fixed_temperature_c,
+            fixed_pressure_kpa,
+            split_interval_config=st.session_state.get("split_interval_config") or {},
+        )
+    except ValueError:
         st.warning(t("split_auto_fixed_conditions_invalid"))
         return None
-    return {
-        "ambient_mode": "fixed",
-        "temperature_c": temperature,
-        "pressure_kpa": pressure,
-        "split_interval_config": (
-            st.session_state.get("split_interval_config") or {}
-        ),
-    }
 
 
 def _render_weather_candidate_summary(candidate: dict, t) -> None:
@@ -104,10 +104,23 @@ def _render_weather_candidate_summary(candidate: dict, t) -> None:
     if not summary:
         return
     columns = st.columns(4)
-    columns[0].metric(t("split_auto_weather_temp_mean"), _format_number(summary.get("temperature_c_mean"), 1))
-    columns[1].metric(t("split_auto_weather_pressure_mean"), _format_number(summary.get("pressure_kpa_mean"), 2))
-    columns[2].metric(t("split_auto_weather_wind_max"), _format_number(summary.get("wind_speed_mps_max"), 2))
-    columns[3].metric(t("split_auto_weather_status"), str(summary.get("status", "N/A")))
+    is_fixed = summary.get("mode") == "fixed"
+    if is_fixed:
+        metrics = (
+            ("split_auto_environment", t("split_ambient_mode_fixed_short")),
+            ("split_auto_weather_temp_mean", _format_candidate_display_value(summary.get("temperature_c_mean"), 1)),
+            ("split_auto_weather_pressure_mean", _format_candidate_display_value(summary.get("pressure_kpa_mean"), 2)),
+            ("split_auto_fixed_wind", "-"),
+        )
+    else:
+        metrics = (
+            ("split_auto_weather_temp_mean", _format_candidate_display_value(summary.get("temperature_c_mean"), 1)),
+            ("split_auto_weather_pressure_mean", _format_candidate_display_value(summary.get("pressure_kpa_mean"), 2)),
+            ("split_auto_weather_wind_max", _format_candidate_display_value(summary.get("wind_speed_mps_max"), 2)),
+            ("split_auto_weather_status", str(summary.get("status") or "-")),
+        )
+    for column, (label_key, value) in zip(columns, metrics):
+        column.metric(t(label_key), value)
     if summary.get("warnings"):
         with st.expander(t("split_auto_weather_details"), expanded=False):
             st.warning("\n".join(str(item) for item in summary["warnings"]))
@@ -771,6 +784,28 @@ def render(t) -> None:
     exclude_invalid_weather = False
     parsed_runs_for_selection = parsed_runs
     weather_metadata = None
+    fixed_temperature_c = None
+    fixed_pressure_kpa = None
+    if ambient_mode == "fixed":
+        test_id = str(st.session_state.get("active_test_id") or "test")
+        fixed_columns = st.columns(2)
+        # Initial values only; both fixed parameters remain user-editable.
+        fixed_temperature_c = float(fixed_columns[0].number_input(
+            t("split_auto_fixed_temperature_c"),
+            value=20.0,
+            step=0.5,
+            key=f"split_auto_fixed_temperature_c_{test_id}",
+        ))
+        fixed_pressure_kpa = float(fixed_columns[1].number_input(
+            t("split_auto_fixed_pressure_kpa"),
+            min_value=0.001,
+            value=101.325,
+            step=0.1,
+            format="%.3f",
+            key=f"split_auto_fixed_pressure_kpa_{test_id}",
+        ))
+        if fixed_temperature_c > 35.0:
+            st.warning(t("split_auto_fixed_temperature_warning"))
     if ambient_mode == "weather_sync":
         weather_columns = st.columns(2)
         max_time_diff_s = float(weather_columns[0].number_input(
@@ -823,7 +858,12 @@ def render(t) -> None:
     if exceeds_limit:
         st.warning(t("split_auto_exact_limit_exceeded"))
 
-    correction_context = _correction_context(t, ambient_mode)
+    correction_context = _correction_context(
+        t,
+        ambient_mode,
+        fixed_temperature_c,
+        fixed_pressure_kpa,
+    )
     can_execute = (
         estimated_total > 0
         and not exceeds_limit

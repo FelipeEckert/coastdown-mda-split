@@ -6,10 +6,42 @@ from datetime import datetime
 import inspect
 import unittest
 
-from core.split_weather_context import synchronize_weather_for_split_runs
+from core.split_weather_context import (
+    build_fixed_split_correction_context,
+    split_environmental_values,
+    synchronize_weather_for_split_runs,
+)
 
 
 class SplitWeatherContextTest(unittest.TestCase):
+    def test_fixed_context_uses_canonical_kpa_fields_without_missing_weather(self):
+        context = build_fixed_split_correction_context(22.5, 99.8)
+
+        self.assertEqual(context["mode"], "fixed")
+        self.assertEqual(context["temperature_c"], 22.5)
+        self.assertEqual(context["pressure_kpa"], 99.8)
+        self.assertIsNone(context["wind_speed_mps"])
+        self.assertEqual(context["environmental_conditions"]["source"], "user_fixed_inputs")
+        self.assertEqual(context["weather_summary"]["status"], "fixed")
+
+    def test_hot_fixed_context_warns_but_remains_fixed(self):
+        context = build_fixed_split_correction_context(36.0, 101.325)
+
+        self.assertEqual(context["weather_summary"]["status"], "fixed")
+        self.assertTrue(context["warnings"])
+        self.assertNotIn("missing", str(context).lower())
+
+    def test_environmental_reader_prefers_canonical_fixed_structure(self):
+        values = split_environmental_values({"environmental_conditions": {
+            "mode": "fixed", "temperature_c": 24.0,
+            "pressure_kpa": 100.2, "wind_speed_mps": None,
+        }})
+
+        self.assertEqual(values["mode"], "fixed")
+        self.assertEqual(values["temperature_c"], 24.0)
+        self.assertEqual(values["pressure_kpa"], 100.2)
+        self.assertIsNone(values["wind_speed_mps"])
+
     def _parsed(self):
         return {
             "high": [{"run_id": 1, "heading": "+", "start_timestamp": datetime(2024, 1, 1, 10, 0)}],

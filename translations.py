@@ -1084,6 +1084,11 @@ TRANSLATIONS = {
         "en": "Automatic selection in this round supports fixed ambient conditions only. Per-candidate weather synchronization will be integrated in a future round."
     },
     "split_auto_environment_section": {"pt": "Condições ambientais", "en": "Environmental conditions"},
+    "split_auto_environment": {"pt": "Ambiente", "en": "Environment"},
+    "split_auto_fixed_temperature_c": {"pt": "Temperatura padrão (°C)", "en": "Default temperature (°C)"},
+    "split_auto_fixed_pressure_kpa": {"pt": "Pressão padrão (kPa)", "en": "Default pressure (kPa)"},
+    "split_auto_fixed_wind": {"pt": "Vento", "en": "Wind"},
+    "split_auto_fixed_temperature_warning": {"pt": "A temperatura fixa está acima de 35 °C. Os candidatos serão mantidos com alerta.", "en": "Fixed temperature is above 35 °C. Candidates will remain available with a warning."},
     "split_auto_weather_required": {"pt": "Carregue um arquivo meteorológico válido antes de executar a sincronização.", "en": "Load a valid weather file before running synchronized weather mode."},
     "split_auto_weather_sync_limit": {"pt": "Limite de sincronização (s)", "en": "Synchronization limit (s)"},
     "split_auto_exclude_invalid_weather": {"pt": "Excluir candidatos com condições meteorológicas invalidantes", "en": "Exclude candidates with invalidating weather conditions"},

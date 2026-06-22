@@ -98,6 +98,7 @@ def fixed_ambient_conditions(temperature_c: float, pressure_kpa: float) -> dict:
             "temperature_c": temperature,
             "pressure_kpa": pressure,
             "wind_speed_ms": None,
+            "wind_speed_mps": None,
             "wind_direction_deg": None,
             "source_file": None,
             "warnings": [],
@@ -126,16 +127,20 @@ def normalize_ambient_by_component(weather_sync: dict | None) -> dict:
     for component in PAIR_COMPONENTS:
         sync = (weather_sync or {}).get(component) or {}
         weather_record = sync.get("weather_record") or {}
+        wind_speed = sync.get("wind_speed_mps")
+        if wind_speed is None:
+            wind_speed = sync.get("wind_speed")
         ambient[component] = {
             "matched": bool(sync.get("matched")),
             "run_datetime": sync.get("run_datetime"),
             "weather_datetime": sync.get("weather_datetime"),
             "sync_method": sync.get("sync_method", "not_found"),
             "time_delta_seconds": sync.get("time_delta_seconds"),
-            "temperature_c": sync.get("temperature"),
-            "pressure_kpa": sync.get("pressure"),
-            "wind_speed_ms": sync.get("wind_speed"),
-            "wind_direction_deg": sync.get("wind_direction"),
+            "temperature_c": sync.get("temperature_c", sync.get("temperature")),
+            "pressure_kpa": sync.get("pressure_kpa", sync.get("pressure")),
+            "wind_speed_mps": wind_speed,
+            "wind_speed_ms": wind_speed,
+            "wind_direction_deg": sync.get("wind_direction_deg", sync.get("wind_direction")),
             "source_file": (
                 sync.get("source_file")
                 or weather_record.get("source_file")
@@ -152,7 +157,9 @@ def _ambient_aliases(ambient_by_component: dict) -> dict:
         ambient = ambient_by_component.get(component) or {}
         aliases[f"temp_{component}"] = ambient.get("temperature_c")
         aliases[f"press_{component}"] = ambient.get("pressure_kpa")
-        aliases[f"wind_{component}"] = ambient.get("wind_speed_ms")
+        aliases[f"wind_{component}"] = ambient.get(
+            "wind_speed_mps", ambient.get("wind_speed_ms")
+        )
     return aliases
 
 

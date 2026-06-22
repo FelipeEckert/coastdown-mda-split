@@ -15,6 +15,7 @@ from openpyxl.utils import get_column_letter
 from core.split_deviation_analysis import analyze_split_selected_deviations
 from core.split_display import format_run_option_label, format_split_pair_label
 from core.split_results import consolidate_split_final_results
+from core.split_weather_context import split_environmental_values
 
 
 COMPONENTS = ("high_plus", "low_plus", "high_minus", "low_minus")
@@ -95,27 +96,11 @@ def _component_label(pair, component):
     return f"Run {run}" + (f" | dt = {delta_t:.3f} s" if delta_t is not None else "")
 
 
-def _ambient_values(pair, key, fallback_keys=()):
-    values = []
-    for ambient in (pair.get("ambient_by_component") or {}).values():
-        if isinstance(ambient, dict):
-            number = _number(ambient.get(key))
-            if number is not None:
-                values.append(number)
-    for fallback in fallback_keys:
-        number = _number(pair.get(fallback))
-        if number is not None:
-            values.append(number)
-    return values
-
-
 def _weather_for_pair(pair):
-    temperatures = _ambient_values(pair, "temperature_c", ("temp_plus_used", "temp_minus_used", "temp_c"))
-    pressures = _ambient_values(pair, "pressure_kpa", ("press_plus_used", "press_minus_used", "baro_kpa"))
-    winds = _ambient_values(pair, "wind_speed_ms", ("wind_plus_ms", "wind_minus_ms", "wind_ms"))
-    temperature = max(temperatures) if temperatures else None
-    pressure = sum(pressures) / len(pressures) if pressures else None
-    wind = max(winds) if winds else None
+    environmental = split_environmental_values(pair)
+    temperature = environmental["temperature_c"]
+    pressure = environmental["pressure_kpa"]
+    wind = environmental["wind_speed_mps"]
     alerts = []
     if wind is not None and wind > 3.0:
         alerts.append("Vento acima de 3 m/s")

@@ -18,9 +18,34 @@ from core.split_pair_candidate import (
     build_split_run_usage,
     split_candidate_signature,
 )
+from core.split_weather_context import build_fixed_split_correction_context
 
 
 class SplitPairCandidateTest(unittest.TestCase):
+    def test_fixed_candidate_preserves_canonical_environmental_traceability(self):
+        candidate = build_algorithm_split_pair_candidate(
+            **self._runs(), vehicle_data={"effective_mass": 1545.0},
+            correction_context=build_fixed_split_correction_context(23.0, 100.5),
+        )
+
+        self.assertEqual(candidate["environmental_conditions"]["mode"], "fixed")
+        self.assertEqual(candidate["environmental_conditions"]["temperature_c"], 23.0)
+        self.assertEqual(candidate["environmental_conditions"]["pressure_kpa"], 100.5)
+        self.assertIsNone(candidate["environmental_conditions"]["wind_speed_mps"])
+        self.assertEqual(candidate["weather_summary"]["status"], "fixed")
+        self.assertNotIn("missing", str(candidate["weather_summary"]).lower())
+        self.assertTrue(candidate["correction_available"])
+
+    def test_hot_fixed_candidate_is_kept_with_warning(self):
+        candidate = build_algorithm_split_pair_candidate(
+            **self._runs(), vehicle_data={"effective_mass": 1545.0},
+            correction_context=build_fixed_split_correction_context(36.0, 101.325),
+        )
+
+        self.assertTrue(candidate["correction_available"])
+        self.assertEqual(candidate["weather_summary"]["status"], "fixed")
+        self.assertTrue(any("35" in warning for warning in candidate["warnings"]))
+
     def _record(self, filename, run_id, heading, delta_t_s, source_role):
         return {
             "filename": filename,
