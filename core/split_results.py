@@ -95,7 +95,7 @@ def selected_split_final_pairs(pairs: list[dict] | None) -> list[dict]:
     """Return only pairs selected in the Split Final Comparison."""
     selected = []
     for index, pair in enumerate(pairs or [], start=1):
-        if not isinstance(pair, dict) or not pair.get("selected", True):
+        if not isinstance(pair, dict) or pair.get("selected") is not True:
             continue
         selected.append(normalize_split_final_pair(pair, index))
     return selected

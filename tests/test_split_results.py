@@ -7,6 +7,12 @@ from core.split_results import consolidate_split_final_results
 
 
 class SplitResultsTest(unittest.TestCase):
+    def test_requires_explicit_selected_true(self):
+        summary = consolidate_split_final_results(
+            [{"id": "implicit", "F0_mean": 100.0, "F2_mean": 0.004}]
+        )
+        self.assertEqual(summary["num_pairs"], 0)
+
     def _pair(self, pair_id, f0, f2, energy=None, selected=True):
         return {
             "id": pair_id,

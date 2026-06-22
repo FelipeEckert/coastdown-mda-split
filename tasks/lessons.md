@@ -1920,6 +1920,28 @@ a transicao explicita.
 
 ---
 
+## 2026-06-22 - Split: Resultado Final E Uma Projecao Da Selecao Explicita
+
+### Decisao:
+A pagina Resultados Split e o exportador Excel consomem apenas pares de
+`split_comparison_pairs` cujo campo `selected` seja explicitamente `True`. A
+consolidacao e o diagnostico permanecem nos helpers puros existentes; a pagina
+somente apresenta seus resultados e nao grava selecao nem recalcula formulas.
+
+O relatorio Excel foi isolado em `data/split_exporters.py`, sem importar
+Streamlit. Ele reconsolida defensivamente os pares recebidos, preserva as quatro
+passadas e a rastreabilidade ambiental, representa ausencias com `-` e trata
+pressao apenas como dado de rastreabilidade. Alertas ambientais continuam
+limitados a vento acima de 3 m/s e temperatura acima de 35 graus Celsius.
+
+### Licao:
+Um estado ausente de selecao nao equivale a selecao positiva. Em relatorios
+finais, o filtro deve exigir `selected is True` em todas as fronteiras, inclusive
+no core e no exportador. Separar a geracao do workbook da pagina permite testar
+conteudo, imutabilidade e dependencia arquitetural sem iniciar o Streamlit.
+
+---
+
 ## 2026-06-19 - Split: Analise De Desvios E Diagnostica
 
 ### Decisao:

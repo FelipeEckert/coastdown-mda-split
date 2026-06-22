@@ -187,10 +187,19 @@
 - [ ] Validate the provenance and normative applicability of the inherited city/highway constants and 55/45 weighting.
 
 ## Excel export status
-- [ ] Adapt Split Excel export to consume only selected `split_comparison_pairs` and corrected final F0/F2.
-- [ ] Restore the Split Results download after the exporter covers the new summary and all four component records.
-- [ ] Add the four component-level ambient records and weather sync audit to Excel.
+- [x] Adapt Split Excel export to consume only pairs with explicit `selected=True` from `split_comparison_pairs` and corrected final F0/F2.
+- [x] Restore the Split Results download after the exporter covers the new summary and all four component records.
+- [x] Add the four component-level ambient records and weather sync audit to Excel.
 - [ ] Review final workbook layout, labels and units before release.
+
+## Round 11A - Split Results and final Excel report
+- [x] Refactor Split Results as a read-only executive summary based on Final Comparison selections.
+- [x] Reuse `consolidate_split_final_results()` and `analyze_split_selected_deviations()` without UI formula duplication.
+- [x] Show vehicle data, final F0/F2, CVs, energy, validation, selected-pair table, weather and traceability.
+- [x] Create pure `data/split_exporters.py` without Streamlit imports.
+- [x] Export Resumo Final, Dados do Veículo, Pares Selecionados, Análise de Desvios, Tempos deltaT, Meteorologia and Rastreabilidade sheets.
+- [x] Add export tests for valid XLSX, sheets, selected-only filtering, missing values, weather alerts, immutability and Streamlit independence.
+- [ ] Complete real-browser validation of selection refresh, page layout, download and Excel/UI value comparison.
 
 ## Known gaps and next steps
 - [ ] Parser needs more real combined/full coastdown examples to validate heuristics beyond synthetic full-coastdown tests.
