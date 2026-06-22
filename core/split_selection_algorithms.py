@@ -31,7 +31,7 @@ def _finite_float(value) -> float | None:
 def _candidate_energy(candidate: dict) -> float | None:
     """Read the canonical Split energy, with legacy fallbacks."""
     source = candidate if isinstance(candidate, dict) else {}
-    for key in ("energy", "mean_energy", "mean_energy_corrected"):
+    for key in ("energy_corrected", "mean_energy_corrected", "energy", "mean_energy"):
         value = _finite_float(source.get(key))
         if value is not None:
             return value
@@ -43,11 +43,11 @@ def _candidate_corrected_f0_f2(candidate: dict) -> tuple[float | None, float | N
     source = candidate if isinstance(candidate, dict) else {}
     f0 = None
     f2 = None
-    for key in ("F0_mean", "F0", "mean_f0", "mean_f0_corrected"):
+    for key in ("F0_corrected", "F0_mean_corrected", "mean_f0_corrected", "F0_mean", "F0", "mean_f0"):
         f0 = _finite_float(source.get(key))
         if f0 is not None:
             break
-    for key in ("F2_mean", "F2", "mean_f2", "mean_f2_corrected"):
+    for key in ("F2_corrected", "F2_mean_corrected", "mean_f2_corrected", "F2_mean", "F2", "mean_f2"):
         f2 = _finite_float(source.get(key))
         if f2 is not None:
             break

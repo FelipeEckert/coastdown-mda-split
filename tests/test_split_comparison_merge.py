@@ -138,6 +138,17 @@ class SplitComparisonMergeTest(unittest.TestCase):
         self.assertEqual(updated[0]["F2_mean"], 0.123)
         self.assertEqual(updated[0]["energy"], 4.56)
 
+    def test_duplicate_enriches_missing_weather_traceability(self):
+        weather_summary = {"status": "warning", "warnings": ["meteo"]}
+        updated, _ = merge_algorithm_candidates_into_comparison_pairs(
+            [_manual_pair("1")],
+            [_candidate("1", weather_summary=weather_summary, weather_components={"high_plus": {}})],
+            algorithm_source="energy",
+        )
+
+        self.assertEqual(updated[0]["weather_summary"], weather_summary)
+        self.assertIn("candidate-warning-1", updated[0]["warnings"])
+
     def test_duplicate_updates_algorithm_origin(self):
         updated, metadata = merge_algorithm_candidates_into_comparison_pairs(
             [_manual_pair("1")],

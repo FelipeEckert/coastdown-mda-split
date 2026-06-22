@@ -1961,3 +1961,25 @@ nao recriar formulas paralelas. Dados insuficientes precisam permanecer
 inconclusivos; ausencia de amostra nao equivale a aprovacao nem reprovacao.
 
 ---
+
+## 2026-06-22 - Split: Meteo Automatica Deve Ser Resolvida Por Run
+
+### Decisao:
+A selecao automatica sincroniza cada run high/low uma unica vez e trabalha sobre
+uma copia enriquecida de `split_parsed_runs`. Cada combinacao monta seu
+`weather_sync` com as quatro passadas e delega a correcao ao motor Split
+existente, que calcula temperatura e pressao medias separadamente para os
+sentidos positivo e negativo.
+
+Vento acima de 3 m/s, temperatura acima de 35 graus Celsius e meteorologia
+obrigatoria ausente produzem status invalidante parametrizavel. Pressao continua
+sem limite de reprovacao. O filtro ocorre depois da geracao/correcao de todos os
+candidatos e antes do ranking; desligar o filtro preserva candidatos e warnings.
+
+### Licao:
+Sincronizar dentro do produto cartesiano repetiria trabalho e permitiria que a
+mesma run recebesse contextos divergentes. Enriquecer as runs primeiro torna a
+rastreabilidade deterministica e impede que um pre-ranking sem correcao elimine
+candidatos cuja posicao muda com o clima.
+
+---

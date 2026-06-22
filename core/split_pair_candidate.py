@@ -17,6 +17,7 @@ from core.split_corrections import (
     weather_sync_ambient_conditions,
 )
 from core.split_display import format_split_pair_label
+from core.split_weather_context import build_split_candidate_weather_context
 
 
 MISSING_IDENTITY_VALUE = "<missing>"
@@ -183,7 +184,22 @@ def build_algorithm_split_pair_candidate(
     """
     effective_mass = _effective_mass_from_vehicle_data(vehicle_data)
     config = _split_interval_config(correction_context)
-    ambient_conditions = _ambient_conditions(correction_context)
+    source_context = correction_context if isinstance(correction_context, dict) else {}
+    weather_context = None
+    if source_context.get("ambient_mode") == "weather_sync":
+        weather_context = build_split_candidate_weather_context(
+            {
+                "high_plus": high_plus_run,
+                "low_plus": low_plus_run,
+                "high_minus": high_minus_run,
+                "low_minus": low_minus_run,
+            }
+        )
+        candidate_context = dict(source_context)
+        candidate_context["weather_sync"] = weather_context["weather_sync"]
+        ambient_conditions = _ambient_conditions(candidate_context)
+    else:
+        ambient_conditions = _ambient_conditions(correction_context)
 
     result = calculate_complete_split_pair(
         high_plus=high_plus_run,
@@ -215,4 +231,14 @@ def build_algorithm_split_pair_candidate(
     pair["run_usage"] = run_usage
     pair["candidate_signature"] = split_candidate_signature(pair)
     pair["pair_label"] = format_split_pair_label(pair)
+    if weather_context:
+        pair["weather_components"] = weather_context["weather_components"]
+        pair["weather_summary"] = weather_context["weather_summary"]
+        pair["environmental_conditions"] = deepcopy(ambient_conditions)
+        pair["warnings"] = list(
+            dict.fromkeys(
+                list(pair.get("warnings") or [])
+                + list(weather_context["weather_summary"].get("warnings") or [])
+            )
+        )
     return pair

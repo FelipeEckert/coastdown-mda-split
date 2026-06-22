@@ -89,6 +89,29 @@ def _fake_builder(
 
 
 class SplitAutoSelectionTest(unittest.TestCase):
+    def test_invalid_weather_filter_is_optional(self):
+        def builder(**kwargs):
+            candidate = _fake_builder(**kwargs)
+            candidate["weather_summary"] = {
+                "status": "invalid" if kwargs["high_plus_run"]["run_id"] == 1 else "ok",
+                "warnings": ["weather warning"],
+            }
+            return candidate
+
+        filtered, filtered_metadata = run_split_auto_selection_exact(
+            _parsed(), vehicle_data={"effective_mass": 1.0}, algorithm="energy", k=20,
+            avoid_repeated_runs=False, candidate_builder=builder,
+            exclude_invalid_weather=True,
+        )
+        unfiltered, _ = run_split_auto_selection_exact(
+            _parsed(), vehicle_data={"effective_mass": 1.0}, algorithm="energy", k=20,
+            avoid_repeated_runs=False, candidate_builder=builder,
+            exclude_invalid_weather=False,
+        )
+        self.assertEqual(filtered_metadata["weather_filtered_count"], 8)
+        self.assertEqual(len(filtered), 8)
+        self.assertEqual(len(unfiltered), 16)
+
     def test_find_replacement_previews_without_mutating_inputs(self):
         current = [_candidate("old", 1, 9), _candidate("remaining", 2)]
         replacement = _candidate("replacement", 1, 3)

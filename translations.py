@@ -1083,6 +1083,23 @@ TRANSLATIONS = {
         "pt": "A sele\u00e7\u00e3o autom\u00e1tica desta rodada usa apenas condi\u00e7\u00f5es ambientais fixas. A sincroniza\u00e7\u00e3o meteo por candidato ser\u00e1 integrada em uma rodada futura.",
         "en": "Automatic selection in this round supports fixed ambient conditions only. Per-candidate weather synchronization will be integrated in a future round."
     },
+    "split_auto_environment_section": {"pt": "Condições ambientais", "en": "Environmental conditions"},
+    "split_auto_weather_required": {"pt": "Carregue um arquivo meteorológico válido antes de executar a sincronização.", "en": "Load a valid weather file before running synchronized weather mode."},
+    "split_auto_weather_sync_limit": {"pt": "Limite de sincronização (s)", "en": "Synchronization limit (s)"},
+    "split_auto_exclude_invalid_weather": {"pt": "Excluir candidatos com condições meteorológicas invalidantes", "en": "Exclude candidates with invalidating weather conditions"},
+    "split_auto_weather_high_synced": {"pt": "Runs high sincronizadas", "en": "Synchronized high runs"},
+    "split_auto_weather_low_synced": {"pt": "Runs low sincronizadas", "en": "Synchronized low runs"},
+    "split_auto_weather_missing": {"pt": "Runs sem meteo", "en": "Runs without weather"},
+    "split_auto_weather_wind_invalid": {"pt": "Vento > 3 m/s", "en": "Wind > 3 m/s"},
+    "split_auto_weather_temp_invalid": {"pt": "Temp > 35 °C", "en": "Temp > 35 °C"},
+    "split_auto_weather_max_delta": {"pt": "Maior diferença (s)", "en": "Largest delta (s)"},
+    "split_auto_weather_temp_mean": {"pt": "Temp média (°C)", "en": "Mean temp (°C)"},
+    "split_auto_weather_pressure_mean": {"pt": "Pressão média (kPa)", "en": "Mean pressure (kPa)"},
+    "split_auto_weather_wind_max": {"pt": "Vento máx. (m/s)", "en": "Max wind (m/s)"},
+    "split_auto_weather_status": {"pt": "Status meteo", "en": "Weather status"},
+    "split_auto_weather_details": {"pt": "Detalhes meteorológicos", "en": "Weather details"},
+    "split_auto_wind": {"pt": "Vento (m/s)", "en": "Wind (m/s)"},
+    "split_auto_weather_alerts": {"pt": "Alertas", "en": "Warnings"},
     "split_auto_fixed_conditions_invalid": {
         "pt": "Defina temperatura e press\u00e3o fixas v\u00e1lidas antes de executar.",
         "en": "Set valid fixed temperature and pressure values before running."

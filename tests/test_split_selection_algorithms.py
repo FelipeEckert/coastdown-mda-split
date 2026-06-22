@@ -53,6 +53,12 @@ class SplitSelectionAlgorithmsTest(unittest.TestCase):
 
         self.assertEqual([candidate["id"] for candidate in ranked], ["a", "b", "c"])
 
+    def test_energy_ranking_prefers_explicit_corrected_value(self):
+        corrected = _candidate("corrected", energy=9.0)
+        corrected["energy_corrected"] = 1.0
+        other = _candidate("other", energy=2.0)
+        self.assertEqual(rank_candidates_by_energy([other, corrected])[0]["id"], "corrected")
+
     def test_energy_ranking_ignores_missing_none_and_nan(self):
         ranked = rank_candidates_by_energy(
             [
@@ -97,6 +103,12 @@ class SplitSelectionAlgorithmsTest(unittest.TestCase):
         self.assertEqual(ranked[0]["id"], "near")
         expected_score = math.hypot(0.01, 0.025)
         self.assertAlmostEqual(ranked[0]["target_score"], expected_score)
+
+    def test_target_ranking_prefers_explicit_corrected_coefficients(self):
+        candidate = _candidate("candidate", f0=500.0, f2=0.02)
+        candidate.update({"F0_corrected": 100.0, "F2_corrected": 0.004})
+        ranked = rank_candidates_by_target([candidate], 100.0, 0.004)
+        self.assertEqual(ranked[0]["target_score"], 0.0)
 
     def test_target_ranking_adds_error_percentages(self):
         ranked = rank_candidates_by_target(

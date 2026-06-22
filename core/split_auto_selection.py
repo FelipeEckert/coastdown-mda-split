@@ -270,6 +270,7 @@ def run_split_auto_selection_exact(
     replacement_pool_size: int | None = None,
     progress_callback=None,
     candidate_builder=None,
+    exclude_invalid_weather: bool = False,
 ) -> tuple[list[dict], dict]:
     """Run exact automatic Split candidate generation, ranking and diagnostics."""
     algorithm_name = _algorithm_name(algorithm)
@@ -285,11 +286,25 @@ def run_split_auto_selection_exact(
         progress_callback=progress_callback,
     )
 
+    weather_filtered_count = 0
+    if exclude_invalid_weather:
+        valid_candidates = []
+        for candidate in candidates:
+            status = ((candidate.get("weather_summary") or {}).get("status"))
+            if status in {"missing", "invalid"}:
+                weather_filtered_count += 1
+            else:
+                valid_candidates.append(candidate)
+        candidates = valid_candidates
+
     metadata = {
         "mode": "exact",
         "algorithm": algorithm_name,
         "requested_k": requested,
         "generated_count": len(candidates),
+        "generated_before_weather_filter_count": len(candidates) + weather_filtered_count,
+        "weather_filtered_count": weather_filtered_count,
+        "exclude_invalid_weather": bool(exclude_invalid_weather),
         "ranked_count": 0,
         "selected_count": 0,
         "avoid_repeated_runs": bool(avoid_repeated_runs),
@@ -298,6 +313,10 @@ def run_split_auto_selection_exact(
         "time_validation": None,
         "warnings": _warnings(generation_metadata),
     }
+    if weather_filtered_count:
+        metadata["warnings"].append(
+            f"{weather_filtered_count} candidates were excluded by weather validation."
+        )
     if pool_limit is not None:
         metadata["replacement_pool"] = []
 
@@ -305,6 +324,7 @@ def run_split_auto_selection_exact(
         metadata["warnings"] = _warnings(
             generation_metadata,
             {"warnings": ["No candidates were generated for automatic selection."]},
+            {"warnings": metadata.get("warnings") or []},
         )
         return [], metadata
 
@@ -349,5 +369,6 @@ def run_split_auto_selection_exact(
         generation_metadata,
         selection_metadata,
         time_validation,
+        {"warnings": metadata.get("warnings") or []},
     )
     return marked_candidates, metadata

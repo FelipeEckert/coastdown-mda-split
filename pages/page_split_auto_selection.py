@@ -30,6 +30,7 @@ from core.split_state import (
     split_parse_is_current,
 )
 from core.split_time_validation import split_candidate_component_time
+from core.split_weather_context import synchronize_weather_for_split_runs
 
 
 ALGORITHM_VALUES = {
@@ -69,11 +70,15 @@ def _vehicle_data() -> dict | None:
     }
 
 
-def _correction_context(t) -> dict | None:
-    ambient_mode = st.session_state.get("split_ambient_mode", "fixed")
-    if ambient_mode != "fixed":
-        st.warning(t("split_auto_weather_sync_not_supported"))
-        return None
+def _correction_context(t, ambient_mode: str) -> dict | None:
+    if ambient_mode == "weather_sync":
+        if not st.session_state.get("weather_data"):
+            st.warning(t("split_auto_weather_required"))
+            return None
+        return {
+            "ambient_mode": "weather_sync",
+            "split_interval_config": st.session_state.get("split_interval_config") or {},
+        }
 
     temperature = _finite_float(
         st.session_state.get("split_fixed_temperature", 20.0)
@@ -85,12 +90,27 @@ def _correction_context(t) -> dict | None:
         st.warning(t("split_auto_fixed_conditions_invalid"))
         return None
     return {
+        "ambient_mode": "fixed",
         "temperature_c": temperature,
         "pressure_kpa": pressure,
         "split_interval_config": (
             st.session_state.get("split_interval_config") or {}
         ),
     }
+
+
+def _render_weather_candidate_summary(candidate: dict, t) -> None:
+    summary = candidate.get("weather_summary") or {}
+    if not summary:
+        return
+    columns = st.columns(4)
+    columns[0].metric(t("split_auto_weather_temp_mean"), _format_number(summary.get("temperature_c_mean"), 1))
+    columns[1].metric(t("split_auto_weather_pressure_mean"), _format_number(summary.get("pressure_kpa_mean"), 2))
+    columns[2].metric(t("split_auto_weather_wind_max"), _format_number(summary.get("wind_speed_mps_max"), 2))
+    columns[3].metric(t("split_auto_weather_status"), str(summary.get("status", "N/A")))
+    if summary.get("warnings"):
+        with st.expander(t("split_auto_weather_details"), expanded=False):
+            st.warning("\n".join(str(item) for item in summary["warnings"]))
 
 
 def _format_number(value, decimals: int = 2) -> str:
@@ -138,6 +158,20 @@ def _candidate_run_time_label(candidate: dict, component: str) -> str:
     return f"Run {run_label} | dt = {delta_t_label} s"
 
 
+def _candidate_direction_weather(candidate: dict, suffix: str) -> tuple[float | None, str]:
+    components = candidate.get("weather_components") or {}
+    selected = [components.get(f"high_{suffix}") or {}, components.get(f"low_{suffix}") or {}]
+    winds = [_finite_float(item.get("wind_speed_mps", item.get("wind_speed"))) for item in selected]
+    valid_winds = [value for value in winds if value is not None]
+    warnings = []
+    for item in selected:
+        warnings.extend(item.get("invalid_reasons") or [])
+    return (
+        sum(valid_winds) / len(valid_winds) if valid_winds else None,
+        " | ".join(dict.fromkeys(warnings)) or "-",
+    )
+
+
 def _candidate_rows(candidates: list[dict], algorithm: str, t) -> list[dict]:
     rows = []
     for candidate in candidates or []:
@@ -149,6 +183,9 @@ def _candidate_rows(candidates: list[dict], algorithm: str, t) -> list[dict]:
         )
         for section_label, suffix in directional_rows:
             is_average = suffix == "mean"
+            wind, weather_alerts = (
+                (None, "-") if is_average else _candidate_direction_weather(candidate, suffix)
+            )
             rows.append(
                 {
                     t("split_pair"): pair_label,
@@ -187,6 +224,11 @@ def _candidate_rows(candidates: list[dict], algorithm: str, t) -> list[dict]:
                             candidate.get(f"press_{suffix}_used")
                         )
                     ),
+                    t("split_auto_wind"): wind,
+                    t("split_auto_weather_alerts"): (
+                        " | ".join((candidate.get("weather_summary") or {}).get("warnings") or [])
+                        if is_average else weather_alerts
+                    ),
                     t("split_auto_target_score"): (
                         _finite_float(candidate.get("target_score"))
                         if is_average and algorithm == "target" else None
@@ -215,6 +257,7 @@ def _candidate_table(candidate: dict, algorithm: str, t):
         "CV F2 [%]": 2,
         t("split_auto_temperature"): 1,
         t("split_auto_pressure"): 2,
+        t("split_auto_wind"): 2,
         t("split_auto_target_score"): 6,
         t("split_energy_with_unit"): 4,
     }
@@ -608,6 +651,7 @@ def _render_execution_result(pending: dict, t) -> None:
                 ):
                     _preview_pending_suggestion(index)
                     st.rerun()
+                _render_weather_candidate_summary(candidate, t)
                 st.dataframe(
                     _candidate_table(candidate, algorithm, t),
                     width="stretch",
@@ -712,6 +756,50 @@ def render(t) -> None:
     )
     settings_columns[2].caption(t("split_auto_avoid_repeated_help"))
 
+    st.markdown(f"#### {t('split_auto_environment_section')}")
+    ambient_options = {
+        t("split_ambient_mode_fixed"): "fixed",
+        t("split_ambient_mode_weather_sync"): "weather_sync",
+    }
+    ambient_label = st.radio(
+        t("split_ambient_mode_label"),
+        options=list(ambient_options),
+        horizontal=True,
+        key="split_auto_ambient_mode_selector",
+    )
+    ambient_mode = ambient_options[ambient_label]
+    exclude_invalid_weather = False
+    parsed_runs_for_selection = parsed_runs
+    weather_metadata = None
+    if ambient_mode == "weather_sync":
+        weather_columns = st.columns(2)
+        max_time_diff_s = float(weather_columns[0].number_input(
+            t("split_auto_weather_sync_limit"), min_value=0.0, value=300.0, step=30.0,
+            key="split_auto_weather_sync_limit_s",
+        ))
+        exclude_invalid_weather = weather_columns[1].checkbox(
+            t("split_auto_exclude_invalid_weather"), value=True,
+            key="split_auto_exclude_invalid_weather",
+        )
+        weather_data = st.session_state.get("weather_data")
+        if weather_data:
+            parsed_runs_for_selection, weather_metadata = synchronize_weather_for_split_runs(
+                parsed_runs, weather_data, max_time_diff_s=max_time_diff_s,
+            )
+            metrics = st.columns(6)
+            values = (
+                ("split_auto_weather_high_synced", weather_metadata["high_synchronized"]),
+                ("split_auto_weather_low_synced", weather_metadata["low_synchronized"]),
+                ("split_auto_weather_missing", weather_metadata["missing_count"]),
+                ("split_auto_weather_wind_invalid", weather_metadata["wind_above_limit_count"]),
+                ("split_auto_weather_temp_invalid", weather_metadata["temperature_above_limit_count"]),
+                ("split_auto_weather_max_delta", _format_number(weather_metadata["max_time_diff_s_found"], 1)),
+            )
+            for column, (label_key, value) in zip(metrics, values):
+                column.metric(t(label_key), str(value))
+        else:
+            st.warning(t("split_auto_weather_required"))
+
     target_f0 = None
     target_f2 = None
     if algorithm == "target":
@@ -735,7 +823,7 @@ def render(t) -> None:
     if exceeds_limit:
         st.warning(t("split_auto_exact_limit_exceeded"))
 
-    correction_context = _correction_context(t)
+    correction_context = _correction_context(t, ambient_mode)
     can_execute = (
         estimated_total > 0
         and not exceeds_limit
@@ -757,7 +845,7 @@ def render(t) -> None:
         try:
             with st.spinner(t("split_auto_running")):
                 candidates, metadata = run_split_auto_selection_exact(
-                    parsed_runs,
+                    parsed_runs_for_selection,
                     vehicle_data=vehicle_data,
                     correction_context=correction_context,
                     algorithm=algorithm,
@@ -768,6 +856,7 @@ def render(t) -> None:
                     max_combinations=max_combinations,
                     replacement_pool_size=max(100, k * 10, k + 50),
                     progress_callback=progress_callback,
+                    exclude_invalid_weather=exclude_invalid_weather,
                 )
         except ValueError as exc:
             progress.empty()
@@ -787,6 +876,8 @@ def render(t) -> None:
                 "replacement_feedback": None,
                 "merge_metadata": None,
                 "pool_strategy": "balanced_v2",
+                "ambient_mode": ambient_mode,
+                "weather_metadata": weather_metadata,
             }
             _store_pending_selection(pending)
             _clear_replace_request()

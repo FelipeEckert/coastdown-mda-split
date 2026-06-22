@@ -247,7 +247,7 @@
 - [x] Diagnose failed replacement attempts with pool and skip counters.
 - [x] Prevent replacement dialogs from reopening on unrelated reruns by separating request and open-state lifecycle.
 - [x] Sanitize orphan replacement requests after dismiss, merge, invalidation or missing pending suggestions.
-- [ ] Integrate per-candidate weather synchronization into automatic Split generation without reusing one manual pair context.
+- [x] Integrate per-run weather synchronization into automatic Split generation and derive each candidate context from its four enriched runs.
 - [x] Manually validate energy, target, replacement, duplicate merge, selected preservation and `max_combinations` behavior in the Automatic Selection sub-tab.
 - [x] Decide and implement Split-specific visual colors for energy, target and combined suggestions.
 - [ ] Keep `sample_data/Split/` and `sample_data/Standard/` separated as validation datasets for each method.
@@ -265,6 +265,16 @@
 - [ ] Keep `core/corrections.py`, `data/exporters.py`, `utils/pair_time_analysis.py` and pages 3-6 isolated as Standard legacy.
 - [ ] Review the inherited 3% rotational-inertia default in Vehicle Data against the final Split normative workflow.
 - [ ] Update stale `app.py` comments that still describe pages 2-6 and inherited compatibility as the current architecture.
+
+## Round 12A - Weather synchronization in Automatic Selection
+- [x] Synchronize weather once per high/low run without mutating `split_parsed_runs`.
+- [x] Validate wind above 3 m/s, temperature above 35 °C and missing required weather; keep pressure traceability-only.
+- [x] Preserve four weather components, aggregate summary, correction context and warnings in candidates and comparison merge.
+- [x] Rank by explicitly preferred corrected energy/F0/F2 fields while preserving fixed-mode fallbacks.
+- [x] Add optional invalid-weather filtering, enabled by default in synchronized UI mode.
+- [x] Show synchronization counters and compact candidate weather summaries/details.
+- [x] Add pure-module, synchronization, validation, candidate, ranking, filtering and merge tests.
+- [ ] Complete the required real-app manual validation with high/low/weather files, both filter states, merge, deviation analysis and Split Results.
 
 ## Round 10A - Final Comparison deviation analysis
 - [x] Preserve the existing Final Comparison behavior in the `Tabela` sub-tab.

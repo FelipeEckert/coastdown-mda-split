@@ -178,6 +178,24 @@ def merge_algorithm_candidates_into_comparison_pairs(
             if existing_pair.get("selected", False):
                 metadata["preserved_selected_count"] += 1
             updated_pair, changed = _apply_algorithm_origin(existing_pair, source)
+            for key in (
+                "weather_components",
+                "weather_summary",
+                "weather_sync",
+                "ambient_by_component",
+                "environmental_conditions",
+            ):
+                if key not in updated_pair and key in candidate:
+                    updated_pair[key] = deepcopy(candidate[key])
+                    changed = True
+            candidate_warnings = list(candidate.get("warnings") or [])
+            if candidate_warnings:
+                merged_warnings = list(
+                    dict.fromkeys(list(updated_pair.get("warnings") or []) + candidate_warnings)
+                )
+                if merged_warnings != list(updated_pair.get("warnings") or []):
+                    updated_pair["warnings"] = merged_warnings
+                    changed = True
             updated_pair["selected"] = bool(existing_pair.get("selected", False))
             if changed:
                 metadata["updated_existing_count"] += 1

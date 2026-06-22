@@ -142,6 +142,34 @@ class SplitPairCandidateTest(unittest.TestCase):
         self.assertAlmostEqual(candidate["F2_mean"], manual_pair["F2_mean"])
         self.assertAlmostEqual(candidate["energy"], manual_pair["energy"])
 
+    def test_weather_candidate_preserves_four_components_and_summary(self):
+        runs = self._runs()
+        for index, run in enumerate(runs.values()):
+            run["weather_sync"] = {
+                "matched": True,
+                "temperature": 20.0 + index,
+                "pressure": 100.0 + index,
+                "wind_speed": 1.0 + index / 10,
+                "wind_direction": 180.0,
+                "sync_method": "datetime",
+                "time_delta_seconds": index,
+                "warnings": [],
+                "status": "ok",
+            }
+        candidate = build_algorithm_split_pair_candidate(
+            **runs,
+            vehicle_data={"effective_mass": 1545.0},
+            correction_context={"ambient_mode": "weather_sync"},
+        )
+
+        self.assertEqual(set(candidate["weather_components"]), {
+            "high_plus", "low_plus", "high_minus", "low_minus"
+        })
+        self.assertAlmostEqual(candidate["weather_summary"]["temperature_c_mean"], 21.5)
+        self.assertAlmostEqual(candidate["weather_summary"]["wind_speed_mps_max"], 1.3)
+        self.assertEqual(candidate["weather_summary"]["status"], "ok")
+        self.assertTrue(candidate["correction_available"])
+
     def test_module_does_not_depend_on_streamlit(self):
         import core.split_pair_candidate as module
 
