@@ -140,10 +140,27 @@ class SplitResultsExportTests(unittest.TestCase):
     def test_summary_contains_vehicle_results_and_weather_blocks(self):
         wb = self._workbook([_pair("one"), _pair("two")])
         values = _flat(wb["Resumo Final"])
-        for expected in ("DADOS DO VEÍCULO", "Carro", "Effective Mass", "F0 final [N]", "RESUMO METEOROLÓGICO"):
+        for expected in ("DADOS DO VEÍCULO", "Carro", "Massa efetiva Me [kg]", "F0 final [N]", "RESUMO METEOROLÓGICO"):
             self.assertIn(expected, values)
         f0_row = next(row for row in wb["Resumo Final"].iter_rows(values_only=True) if row[0] == "F0 final [N]")
         self.assertIsInstance(f0_row[1], (int, float))
+
+    def test_vehicle_mass_headers_are_explicit_and_values_are_numeric(self):
+        payload = export_split_final_results_to_excel(
+            final_results={}, selected_pairs=[_pair("one")],
+            vehicle_data={"running_order_mass_kg": 1500.0},
+        )
+        ws = load_workbook(io.BytesIO(payload), data_only=True)["Resumo Final"]
+        rows = {row[0]: row[1] for row in ws.iter_rows(values_only=True) if row[0]}
+
+        self.assertEqual(rows["Massa em ordem de marcha [kg]"], 1500.0)
+        self.assertEqual(rows["Massa de ensaio M [kg]"], 1636.0)
+        self.assertAlmostEqual(rows["Massa equivalente de rotação me [kg]"], 49.08)
+        self.assertAlmostEqual(rows["Massa efetiva Me [kg]"], 1685.08)
+        self.assertTrue(all(" kg" not in str(rows[label]) for label in (
+            "Massa em ordem de marcha [kg]", "Massa de ensaio M [kg]",
+            "Massa equivalente de rotação me [kg]", "Massa efetiva Me [kg]",
+        )))
 
     def test_manual_and_algorithmic_pairs_use_public_labels_and_origins(self):
         manual = _pair("split_pair_manual")

@@ -24,6 +24,9 @@
 - [ ] Validate parser with more real combined/full coastdown files
 
 ## Phase 3 - Split calculations
+- [x] Centralize the normative Split mass chain: M = running-order mass + 136 kg, me = informed value or 3% of M, and Me = M + me.
+- [x] Make manual and automatic Split calculations consume the same normalized effective mass.
+- [x] Add compatibility normalization for legacy `total_mass` / `effective_mass` sessions without adding 136 kg twice.
 - [x] Implement Delta V positive interval convention
 - [x] Implement f'0 and f'2 calculation helper
 - [x] Add validation rules
@@ -67,12 +70,14 @@
 - [ ] Review remaining hardcoded English strings in Split workflow/results for i18n
 
 ## Phase 5 - Export and reporting
+- [x] Show and export explicit running-order, test, rotational-equivalent and effective masses with numeric Excel values.
 - [x] Adapt basic Excel export for Split
 - [x] Include parser traceability
 - [x] Include calculation inputs and outputs
 - [x] Include validation warnings
 - [ ] Add weather/meteo inputs and sync audit to Split Excel when calculation integration is finalized
 - [ ] Decide final normative report layout and units wording
+- [ ] Manually validate the complete mass workflow in the running Streamlit app, including manual calculation, automatic selection, Results and downloaded Excel.
 
 ## Migration implementation status
 - [x] Quarantine visible Standard workflow from main navigation

@@ -167,6 +167,27 @@ class SplitPairCandidateTest(unittest.TestCase):
         self.assertAlmostEqual(candidate["F2_mean"], manual_pair["F2_mean"])
         self.assertAlmostEqual(candidate["energy"], manual_pair["energy"])
 
+    def test_canonical_vehicle_mass_matches_manual_effective_mass(self):
+        runs = self._runs()
+        canonical_vehicle_data = {
+            "running_order_mass_kg": 1500.0,
+            "rotational_equivalent_mass_kg": 49.08,
+        }
+        canonical = build_algorithm_split_pair_candidate(
+            **runs,
+            vehicle_data=canonical_vehicle_data,
+            correction_context=self._context(),
+        )
+        direct = build_algorithm_split_pair_candidate(
+            **runs,
+            vehicle_data={"effective_mass": 1685.08},
+            correction_context=self._context(),
+        )
+
+        self.assertEqual(canonical["effective_mass"], 1685.08)
+        self.assertAlmostEqual(canonical["f0_prime_mean"], direct["f0_prime_mean"])
+        self.assertAlmostEqual(canonical["f2_prime_mean"], direct["f2_prime_mean"])
+
     def test_weather_candidate_preserves_four_components_and_summary(self):
         runs = self._runs()
         for index, run in enumerate(runs.values()):

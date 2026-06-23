@@ -2071,3 +2071,27 @@ significado de uma linha deve localiza-la pelo rotulo, nao por uma coordenada qu
 muda quando secoes sao reorganizadas.
 
 ---
+
+## 2026-06-23 - Split: Massa Efetiva Precisa De Uma Fronteira Canonica
+
+### Decisao:
+A cadeia normativa de massa foi centralizada em helper puro: a massa de ensaio M
+e a massa em ordem de marcha acrescida de 136 kg; me usa o valor informado ou 3%
+de M; Me e sempre M + me. Calculo manual, selecao automatica, Resultados e Excel
+consomem a mesma normalizacao canonica. Alterar Me na pagina de veiculo invalida
+resultados, sugestoes, comparativo e export derivados para impedir que pares
+calculados com a massa anterior continuem visiveis.
+
+Estados antigos com `effective_mass` preservam esse valor como Me. Quando o
+estado herdado possui `total_mass`, `inertia_mass` e `effective_mass`, o
+normalizador interpreta `total_mass` como M e nao soma 136 kg novamente. Um
+`total_mass` isolado permanece como Me legado por compatibilidade, acompanhado
+de warning de decomposicao indisponivel.
+
+### Licao:
+Um nome generico como `total_mass` nao pode atravessar fronteiras de calculo
+normativo. Compatibilidade deve ser resolvida uma vez, com campos explicitos e
+warning, enquanto formulas recebem somente `effective_mass_kg`. Isso evita tanto
+usar M no lugar de Me quanto aplicar o acrescimo de 136 kg duas vezes.
+
+---

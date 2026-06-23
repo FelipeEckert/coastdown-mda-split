@@ -34,6 +34,7 @@ from core.split_weather_context import (
     build_fixed_split_correction_context,
     synchronize_weather_for_split_runs,
 )
+from core.split_vehicle_mass import normalize_split_vehicle_mass_data
 
 
 ALGORITHM_VALUES = {
@@ -60,15 +61,18 @@ def _finite_float(value) -> float | None:
 
 def _vehicle_data() -> dict | None:
     vehicle_info = dict(st.session_state.get("vehicle_info") or {})
-    effective_mass = _finite_float(
-        vehicle_info.get("effective_mass") or st.session_state.get("total_mass")
-    )
+    mass_data = normalize_split_vehicle_mass_data({
+        "vehicle_info": vehicle_info,
+        "total_mass": st.session_state.get("total_mass"),
+    })
+    effective_mass = _finite_float(mass_data["effective_mass_kg"])
     if effective_mass is None or effective_mass <= 0:
         return None
+    vehicle_info.update(mass_data)
     vehicle_info["effective_mass"] = effective_mass
     return {
+        **mass_data,
         "effective_mass": effective_mass,
-        "total_mass": st.session_state.get("total_mass"),
         "vehicle_info": vehicle_info,
     }
 

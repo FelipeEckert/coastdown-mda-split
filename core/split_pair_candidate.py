@@ -18,6 +18,7 @@ from core.split_corrections import (
 )
 from core.split_display import format_split_pair_label
 from core.split_weather_context import build_split_candidate_weather_context
+from core.split_vehicle_mass import normalize_split_vehicle_mass_data
 
 
 MISSING_IDENTITY_VALUE = "<missing>"
@@ -96,23 +97,10 @@ def split_candidate_signature(candidate: dict) -> tuple:
 
 
 def _effective_mass_from_vehicle_data(vehicle_data: dict) -> float:
-    source = vehicle_data if isinstance(vehicle_data, dict) else {}
-    nested_vehicle_info = source.get("vehicle_info")
-    candidates = (
-        source.get("effective_mass"),
-        source.get("total_mass"),
-        source.get("Me"),
-        (nested_vehicle_info or {}).get("effective_mass")
-        if isinstance(nested_vehicle_info, dict)
-        else None,
-    )
-    for value in candidates:
-        try:
-            mass = float(value)
-        except (TypeError, ValueError):
-            continue
-        if mass > 0:
-            return mass
+    mass_data = normalize_split_vehicle_mass_data(vehicle_data)
+    mass = mass_data["effective_mass_kg"]
+    if mass is not None:
+        return mass
     raise ValueError("Effective mass must be provided in vehicle_data.")
 
 

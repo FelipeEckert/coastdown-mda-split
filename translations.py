@@ -706,6 +706,38 @@ TRANSLATIONS = {
         "pt": "Arquivo coastdown combinado atual",
         "en": "Current combined coastdown file"
     },
+    "split_vehicle_mass_title": {
+        "pt": "Massas do método Split",
+        "en": "Split method masses"
+    },
+    "split_running_order_mass": {
+        "pt": "Massa em ordem de marcha [kg]",
+        "en": "Running-order mass [kg]"
+    },
+    "split_rotational_mass_available": {
+        "pt": "Massa equivalente de rotação me disponível?",
+        "en": "Is rotational equivalent mass me available?"
+    },
+    "split_rotational_equivalent_mass": {
+        "pt": "Massa equivalente de rotação me [kg]",
+        "en": "Rotational equivalent mass me [kg]"
+    },
+    "split_rotational_mass_estimate_note": {
+        "pt": "A massa equivalente de inércia será estimada como 3% da massa de ensaio M.",
+        "en": "Equivalent inertial mass will be estimated as 3% of test mass M."
+    },
+    "split_vehicle_mass_summary": {
+        "pt": "Resumo das massas",
+        "en": "Mass summary"
+    },
+    "split_test_mass": {
+        "pt": "Massa de ensaio M [kg]",
+        "en": "Test mass M [kg]"
+    },
+    "split_effective_mass": {
+        "pt": "Massa efetiva Me [kg]",
+        "en": "Effective mass Me [kg]"
+    },
     "split_current_high_file": {
         "pt": "Arquivo high-speed atual",
         "en": "Current high-speed file"

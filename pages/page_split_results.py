@@ -11,6 +11,7 @@ from core.split_deviation_analysis import get_cached_split_deviation_analysis
 from core.split_display import format_run_option_label, format_split_pair_label
 from core.split_results import consolidate_split_final_results
 from core.split_weather_context import split_environmental_values
+from core.split_vehicle_mass import normalize_split_vehicle_mass_data
 from data.split_exporters import (
     build_split_export_signature,
     export_split_final_results_to_excel,
@@ -147,13 +148,18 @@ def _render_vehicle(summary, t):
     st.markdown("---")
     st.subheader(f"🚗 {t('vehicle_information')}")
     vehicle = dict(st.session_state.get("vehicle_info") or {})
-    vehicle["total_mass"] = st.session_state.get("total_mass")
+    mass_data = normalize_split_vehicle_mass_data({
+        "vehicle_info": vehicle,
+        "total_mass": st.session_state.get("total_mass"),
+    })
     references = summary["selected_pairs"][0] if summary["selected_pairs"] else {}
     rows = [
         (t("vehicle_model"), vehicle.get("model")),
         (t("test_date"), vehicle.get("test_date")),
-        (t("total_mass"), _display(vehicle.get("total_mass"), 1, " kg")),
-        (t("effective_mass"), _display(vehicle.get("effective_mass"), 1, " kg")),
+        (t("split_running_order_mass"), _display(mass_data.get("running_order_mass_kg"), 2, " kg")),
+        (t("split_test_mass"), _display(mass_data.get("test_mass_kg"), 2, " kg")),
+        (t("split_rotational_equivalent_mass"), _display(mass_data.get("rotational_equivalent_mass_kg"), 2, " kg")),
+        (t("split_effective_mass"), _display(mass_data.get("effective_mass_kg"), 2, " kg")),
         ("Velocidade alta de referência", _display(references.get("v2_reference_kmh"), 1, " km/h")),
         ("Velocidade baixa de referência", _display(references.get("v1_reference_kmh"), 1, " km/h")),
     ]
@@ -245,7 +251,15 @@ def render(t):
 
     st.markdown("---")
     st.subheader(f"📥 {t('split_results_export')}")
-    vehicle_data = {"total_mass": st.session_state.get("total_mass"), "vehicle_info": dict(st.session_state.get("vehicle_info") or {})}
+    vehicle_info = dict(st.session_state.get("vehicle_info") or {})
+    vehicle_data = {
+        **normalize_split_vehicle_mass_data({
+            "vehicle_info": vehicle_info,
+            "total_mass": st.session_state.get("total_mass"),
+        }),
+        "model": vehicle_info.get("model"),
+        "test_date": vehicle_info.get("test_date"),
+    }
     export_signature = build_split_export_signature(
         final_results=summary,
         selected_pairs=selected_pairs,

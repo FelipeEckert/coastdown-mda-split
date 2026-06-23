@@ -35,6 +35,7 @@ from core.split_state import (
     invalidate_split_ambient_state,
     split_parse_is_current,
 )
+from core.split_vehicle_mass import normalize_split_vehicle_mass_data
 from data.split_parser import default_split_interval_config
 from utils.split_graphs import (
     SPLIT_GRAPH_MINUS_COLOR,
@@ -71,13 +72,11 @@ def _record_direction(record: dict):
 
 
 def _effective_mass():
-    vehicle_info = st.session_state.get("vehicle_info") or {}
-    value = vehicle_info.get("effective_mass") or st.session_state.get("total_mass")
-    try:
-        mass = float(value)
-    except (TypeError, ValueError):
-        return None
-    return mass if mass > 0 else None
+    mass_data = normalize_split_vehicle_mass_data({
+        "vehicle_info": st.session_state.get("vehicle_info") or {},
+        "total_mass": st.session_state.get("total_mass"),
+    })
+    return mass_data["effective_mass_kg"]
 
 
 def _record_summary(component: str, record: dict, t) -> dict:

@@ -19,6 +19,7 @@ from core.split_deviation_analysis import (
 from core.split_display import get_split_pair_public_label
 from core.split_results import consolidate_split_final_results
 from core.split_weather_context import split_environmental_values
+from core.split_vehicle_mass import normalize_split_vehicle_mass_data
 
 
 COMPONENTS = ("high_plus", "low_plus", "high_minus", "low_minus")
@@ -228,11 +229,16 @@ def _vehicle_rows(vehicle_data):
     nested = source.pop("vehicle_info", None)
     if isinstance(nested, dict):
         source = {**nested, **source}
-    return [
-        (str(key).replace("_", " ").title(), value)
-        for key, value in source.items()
-        if value is not None
+    mass_data = normalize_split_vehicle_mass_data(vehicle_data)
+    rows = [
+        ("Modelo do veículo", source.get("model")),
+        ("Data do ensaio", source.get("test_date")),
+        ("Massa em ordem de marcha [kg]", mass_data["running_order_mass_kg"]),
+        ("Massa de ensaio M [kg]", mass_data["test_mass_kg"]),
+        ("Massa equivalente de rotação me [kg]", mass_data["rotational_equivalent_mass_kg"]),
+        ("Massa efetiva Me [kg]", mass_data["effective_mass_kg"]),
     ]
+    return [(label, value) for label, value in rows if value is not None]
 
 
 def _weather_summary(pairs):
