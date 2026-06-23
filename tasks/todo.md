@@ -317,3 +317,12 @@
 - [x] Add configurable diagnostic alerts for wind above 3 m/s and temperature above 35 °C; pressure remains display-only.
 - [x] Add PT/EN labels and unit coverage for the pure analysis module.
 - [ ] Complete the required real-browser manual regression for both sub-tabs, selection persistence, weather alerts and Split Results navigation.
+
+## Normative Split time-label audit - 2026-06-23
+- [x] Confirm independent sample C.V. checks for high+, high-, low+ and low- with the 2.5% limit.
+- [x] Confirm separate opposite-direction mean checks for high and low with the 10% limit.
+- [x] Confirm one-sample C.V. remains inconclusive and does not fail automatically.
+- [x] Centralize public Δt labels and include configured high/low reference speeds.
+- [x] Apply the public labels in Final Comparison, Split Results and the final Excel workbook.
+- [x] Add pure-helper, normative-limit, UI-projection and Excel regression tests.
+- [ ] Manually validate the four C.V. rows, two opposite-direction rows and generated Excel in a real Streamlit session with multiple selected pairs.

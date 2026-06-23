@@ -8,7 +8,11 @@ from data.split_exporters import (
     build_split_export_signature,
     get_cached_split_export,
 )
-from pages.page_split_results import _display, _pair_rows
+from pages.page_split_results import (
+    _display,
+    _pair_rows,
+    _render_deviation_summary,
+)
 from translations import get_translator
 
 
@@ -21,6 +25,35 @@ class _State(dict):
 
 
 class SplitResultsFormattingTest(unittest.TestCase):
+    def test_results_time_summary_uses_public_configured_speed_labels(self):
+        analysis = {
+            "coefficient_summary": {"status": "approved"},
+            "time_summary": {
+                "status": "approved",
+                "groups": {
+                    "high_plus": {
+                        "cv_pct": 1.2, "mean": 20.0, "passed": True,
+                    },
+                    "low_minus": {
+                        "cv_pct": 1.4, "mean": 10.0, "passed": True,
+                    },
+                },
+            },
+            "weather_summary": {"status": "approved"},
+        }
+        fake_st = Mock()
+        fake_st.columns.return_value = [Mock(), Mock(), Mock()]
+        pairs = [{"v2_reference_kmh": 83.0, "v1_reference_kmh": 41.0}]
+
+        with patch("pages.page_split_results.st", fake_st):
+            _render_deviation_summary(analysis, pairs, get_translator("pt"))
+
+        frame = fake_st.dataframe.call_args.args[0]
+        self.assertEqual(frame.iloc[0]["Grupo"], "C.V. Δt — Vel. ref. alta 83 km/h [+]")
+        self.assertEqual(frame.iloc[1]["Grupo"], "C.V. Δt — Vel. ref. baixa 41 km/h [-]")
+        self.assertNotIn("high_plus", frame.to_string())
+        self.assertNotIn("low_minus", frame.to_string())
+
     def test_unit_bearing_headers_have_unitless_values(self):
         pair = {
             "id": "one", "selected": True, "selection_source": "manual",

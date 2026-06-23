@@ -2095,3 +2095,25 @@ warning, enquanto formulas recebem somente `effective_mass_kg`. Isso evita tanto
 usar M no lugar de Me quanto aplicar o acrescimo de 136 kg duas vezes.
 
 ---
+
+## 2026-06-23 - Split: Validacao De Tempos Exige Seis Verificacoes Visiveis
+
+### Decisao:
+A logica normativa existente foi preservada: o C.V. amostral e calculado
+separadamente para high+, high-, low+ e low-, com limite de 2,5%, enquanto a
+diferenca relativa entre medias de sentidos opostos e calculada separadamente
+para alta e baixa, com limite de 10%. Uma unica amostra mantem o C.V.
+inconclusivo e nao causa reprovacao automatica.
+
+Os identificadores tecnicos continuam no core, mas sua apresentacao foi
+centralizada em helpers puros. UI e Excel exibem Δt, grupo de velocidade,
+sentido e as velocidades de referencia realmente salvas no par; quando elas nao
+existem, o label omite o numero em vez de assumir 80/40 km/h.
+
+### Licao:
+Uma verificacao numericamente correta ainda pode ficar normativamente ambigua se
+o relatorio esconder qual velocidade, sentido e grandeza foram avaliados.
+Identidade tecnica e label publico devem permanecer separados, e valores
+configuraveis nunca devem ser reintroduzidos como hardcode na apresentacao.
+
+---

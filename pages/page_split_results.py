@@ -8,7 +8,12 @@ import pandas as pd
 import streamlit as st
 
 from core.split_deviation_analysis import get_cached_split_deviation_analysis
-from core.split_display import format_run_option_label, format_split_pair_label
+from core.split_display import (
+    format_run_option_label,
+    format_split_pair_label,
+    format_split_time_group_label,
+    get_split_reference_speeds,
+)
 from core.split_results import consolidate_split_final_results
 from core.split_weather_context import split_environmental_values
 from core.split_vehicle_mass import normalize_split_vehicle_mass_data
@@ -184,7 +189,7 @@ def _render_coefficients(summary, t):
         st.warning(str(warning))
 
 
-def _render_deviation_summary(analysis, t):
+def _render_deviation_summary(analysis, selected_pairs, t):
     st.markdown("---")
     st.subheader("Análise de desvios")
     coefficients = analysis["coefficient_summary"]
@@ -194,11 +199,16 @@ def _render_deviation_summary(analysis, t):
     cards[0].metric("Coeficientes", _status_label({"approved": "conforming", "failed": "nonconforming", "insufficient_data": "not_evaluable", "warning": "warning"}.get(coefficients["status"], "warning"), t))
     cards[1].metric("Tempos deltaT", _status_label({"approved": "conforming", "failed": "nonconforming", "insufficient_data": "not_evaluable"}.get(times["status"], "warning"), t))
     cards[2].metric("Meteorologia", _status_label({"approved": "conforming", "failed": "nonconforming", "insufficient_data": "not_evaluable"}.get(weather["status"], "warning"), t))
+    high_reference, low_reference = get_split_reference_speeds(selected_pairs)
     time_rows = []
     for component, group in times.get("groups", {}).items():
-        time_rows.append((component.replace("_", " "), _display(group.get("cv_pct"), 2), _display(group.get("mean"), 3), _check_status_label(group.get("passed"), t)))
+        time_rows.append((format_split_time_group_label(
+            component,
+            high_reference_speed_kmh=high_reference,
+            low_reference_speed_kmh=low_reference,
+        ), _display(group.get("cv_pct"), 2), _display(group.get("mean"), 3), _check_status_label(group.get("passed"), t)))
     if time_rows:
-        st.dataframe(pd.DataFrame(time_rows, columns=("Grupo", "CV deltaT [%]", "Média [s]", "Status")), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame(time_rows, columns=("Grupo", "C.V. Δt [%]", "Média Δt [s]", "Status")), use_container_width=True, hide_index=True)
     st.caption("Detalhes completos permanecem em Comparativo Final > Análise de desvios.")
 
 
@@ -246,7 +256,7 @@ def render(t):
     st.markdown("---")
     st.subheader(f"📋 {t('split_selected_pairs')}")
     st.dataframe(pd.DataFrame(_pair_rows(selected_pairs, t)), use_container_width=True, hide_index=True)
-    _render_deviation_summary(analysis, t)
+    _render_deviation_summary(analysis, selected_pairs, t)
     _render_traceability(selected_pairs, t)
 
     st.markdown("---")

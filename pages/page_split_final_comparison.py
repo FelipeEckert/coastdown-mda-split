@@ -21,6 +21,11 @@ from core.split_comparison import (
     split_comparison_cv_warning,
 )
 from core.split_deviation_analysis import get_cached_split_deviation_analysis
+from core.split_display import (
+    format_split_opposite_time_label,
+    format_split_time_group_label,
+    get_split_reference_speeds,
+)
 from core.split_results import consolidate_split_final_results
 from core.split_state import (
     clear_split_comparison_state,
@@ -667,16 +672,20 @@ def _render_deviation_analysis(t) -> None:
     st.dataframe(pd.DataFrame(coefficient_rows), use_container_width=True, hide_index=True)
 
     st.subheader(t("split_deviation_times_title"))
-    group_labels = {"high_plus": "high [+]", "high_minus": "high [-]", "low_plus": "low [+]", "low_minus": "low [-]"}
+    high_reference, low_reference = get_split_reference_speeds(selected_pairs)
     time_rows = []
     for component, group in times["groups"].items():
         status = "insufficient_data" if group["passed"] is None else ("approved" if group["passed"] else "failed")
         time_rows.append({
-            t("split_deviation_group"): group_labels[component],
+            t("split_deviation_group"): format_split_time_group_label(
+                component,
+                high_reference_speed_kmh=high_reference,
+                low_reference_speed_kmh=low_reference,
+            ),
             "n": group["count"],
             t("split_deviation_mean_time"): group["mean"],
             t("split_deviation_sample_stdev"): group["stdev"],
-            "CV deltaT [%]": group["cv_pct"],
+            "C.V. Δt [%]": group["cv_pct"],
             t("split_deviation_limit"): times["cv_limit_pct"],
             t("split_deviation_status"): _diagnostic_status(status, t),
         })
@@ -685,7 +694,11 @@ def _render_deviation_analysis(t) -> None:
     for interval, result in times["opposite_direction"].items():
         status = "insufficient_data" if result["passed"] is None else ("approved" if result["passed"] else "failed")
         opposite_rows.append({
-            t("split_deviation_speed"): interval,
+            t("split_deviation_speed"): format_split_opposite_time_label(
+                interval,
+                high_reference_speed_kmh=high_reference,
+                low_reference_speed_kmh=low_reference,
+            ),
             t("split_deviation_mean_plus"): result["mean_plus"],
             t("split_deviation_mean_minus"): result["mean_minus"],
             t("split_deviation_difference_pct"): result["diff_pct"],

@@ -97,8 +97,16 @@ class SplitTimeValidationTest(unittest.TestCase):
         )
 
         self.assertTrue(result["passed"])
-        self.assertTrue(result["groups"]["high_plus"]["passed"])
-        self.assertTrue(result["opposite_direction"]["high"]["passed"])
+        self.assertEqual(result["cv_limit_pct"], 2.5)
+        self.assertEqual(result["opposite_mean_limit_pct"], 10.0)
+        self.assertTrue(all(
+            result["groups"][component]["passed"]
+            for component in ("high_plus", "high_minus", "low_plus", "low_minus")
+        ))
+        self.assertTrue(all(
+            result["opposite_direction"][interval]["passed"]
+            for interval in ("high", "low")
+        ))
 
     def test_validation_fails_when_cv_exceeds_limit(self):
         result = validate_split_selected_times(
@@ -122,6 +130,17 @@ class SplitTimeValidationTest(unittest.TestCase):
         self.assertFalse(result["passed"])
         self.assertFalse(result["opposite_direction"]["high"]["passed"])
 
+    def test_validation_fails_when_low_opposite_difference_exceeds_limit(self):
+        result = validate_split_selected_times(
+            [
+                _candidate("a", 20.0, 20.1, 10.0, 12.0),
+                _candidate("b", 20.1, 20.2, 10.1, 12.1),
+            ]
+        )
+
+        self.assertFalse(result["passed"])
+        self.assertFalse(result["opposite_direction"]["low"]["passed"])
+
     def test_validation_returns_none_when_sample_is_insufficient(self):
         result = validate_split_selected_times(
             [_candidate("a", 20.0, 20.5, 10.0, 10.5)]
@@ -129,6 +148,8 @@ class SplitTimeValidationTest(unittest.TestCase):
 
         self.assertIsNone(result["passed"])
         self.assertIsNone(result["groups"]["high_plus"]["cv_pct"])
+        self.assertIsNone(result["groups"]["high_plus"]["passed"])
+        self.assertNotEqual(result["passed"], False)
         self.assertTrue(result["warnings"])
 
     def test_validation_warns_when_times_are_missing(self):

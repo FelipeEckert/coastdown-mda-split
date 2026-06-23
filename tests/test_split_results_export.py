@@ -34,6 +34,8 @@ def _pair(pair_id, *, selected=True, temperature=25.0, wind=1.0):
         **{f"{component}_delta_t_s": 10.0 + index for index, component in enumerate(COMPONENTS, 1)},
         "F0_mean": 100.0 if pair_id == "one" else 110.0,
         "F2_mean": 0.004 if pair_id == "one" else 0.0042,
+        "v2_reference_kmh": 82.5,
+        "v1_reference_kmh": 41.0,
         "energy": 1.25,
         "ambient_by_component": {
             component: {
@@ -225,8 +227,20 @@ class SplitResultsExportTests(unittest.TestCase):
             "warnings": [],
         }
         values = _flat(self._workbook(pairs, analysis=analysis)["Análise de Desvios e Tempos"])
-        for expected in ("RESUMO CV F0/F2", "DESVIOS POR PAR", "TEMPOS DELTAT", "DIFERENÇA ENTRE SENTIDOS"):
+        for expected in ("RESUMO CV F0/F2", "DESVIOS POR PAR", "TEMPOS Δt", "DIFERENÇA ENTRE MÉDIAS Δt DE SENTIDOS OPOSTOS"):
             self.assertIn(expected, values)
+        for expected in (
+            "C.V. Δt — Vel. ref. alta 82.5 km/h [+]",
+            "C.V. Δt — Vel. ref. alta 82.5 km/h [-]",
+            "C.V. Δt — Vel. ref. baixa 41 km/h [+]",
+            "C.V. Δt — Vel. ref. baixa 41 km/h [-]",
+            "Dif. médias Δt — Vel. ref. alta 82.5 km/h: [+] vs [-]",
+            "Dif. médias Δt — Vel. ref. baixa 41 km/h: [+] vs [-]",
+        ):
+            self.assertIn(expected, values)
+        self.assertFalse(any(
+            value in COMPONENTS for value in values if isinstance(value, str)
+        ))
         self.assertNotIn("LEAVE-ONE-OUT", values)
         self.assertFalse(any("split_pair_" in str(value) for value in values))
 

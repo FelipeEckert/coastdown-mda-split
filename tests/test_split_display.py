@@ -6,7 +6,10 @@ from unittest.mock import patch
 
 from core.split_display import (
     format_run_option_label,
+    format_split_opposite_time_label,
     format_split_pair_label,
+    format_split_time_group_label,
+    get_split_reference_speeds,
 )
 from pages.page_split_coefficient_calculation import (
     _build_uncorrected_results_html,
@@ -20,6 +23,51 @@ from translations import get_translator
 
 
 class SplitDisplayTest(unittest.TestCase):
+    def test_formats_normative_time_labels_with_configured_speeds(self):
+        self.assertEqual(
+            format_split_time_group_label(
+                "high_plus", high_reference_speed_kmh=82.5
+            ),
+            "C.V. Δt — Vel. ref. alta 82.5 km/h [+]",
+        )
+        self.assertEqual(
+            format_split_time_group_label(
+                "low_minus", low_reference_speed_kmh=42
+            ),
+            "C.V. Δt — Vel. ref. baixa 42 km/h [-]",
+        )
+        self.assertEqual(
+            format_split_opposite_time_label(
+                "high", high_reference_speed_kmh=82.5
+            ),
+            "Dif. médias Δt — Vel. ref. alta 82.5 km/h: [+] vs [-]",
+        )
+
+    def test_time_labels_have_safe_fallback_without_hardcoded_speeds(self):
+        self.assertEqual(
+            format_split_time_group_label("low_plus"),
+            "C.V. Δt — Vel. ref. baixa [+]",
+        )
+        self.assertNotIn("80 km/h", format_split_opposite_time_label("high"))
+        self.assertNotIn("40 km/h", format_split_opposite_time_label("low"))
+
+    def test_reference_speeds_use_pair_values_and_config_fallback(self):
+        self.assertEqual(
+            get_split_reference_speeds(
+                [{"v2_reference_kmh": 83, "v1_reference_kmh": 41}]
+            ),
+            (83.0, 41.0),
+        )
+        self.assertEqual(
+            get_split_reference_speeds({
+                "split_interval_config": {
+                    "high": {"reference": 81},
+                    "low": {"reference": 39},
+                }
+            }),
+            (81.0, 39.0),
+        )
+
     def test_formats_complete_pair_from_nested_components(self):
         pair = {
             "id": "split_pair_e4683df9",

@@ -16,19 +16,18 @@ from core.split_deviation_analysis import (
     analyze_split_selected_deviations,
     build_selected_pairs_signature,
 )
-from core.split_display import get_split_pair_public_label
+from core.split_display import (
+    format_split_opposite_time_label,
+    format_split_time_group_label,
+    get_split_pair_public_label,
+    get_split_reference_speeds,
+)
 from core.split_results import consolidate_split_final_results
 from core.split_weather_context import split_environmental_values
 from core.split_vehicle_mass import normalize_split_vehicle_mass_data
 
 
 COMPONENTS = ("high_plus", "low_plus", "high_minus", "low_minus")
-COMPONENT_LABELS = {
-    "high_plus": "High [+]",
-    "low_plus": "Low [+]",
-    "high_minus": "High [-]",
-    "low_minus": "Low [-]",
-}
 MISSING = "-"
 HEADER_FILL = PatternFill("solid", fgColor="4472C4")
 TITLE_FILL = PatternFill("solid", fgColor="D9EAF7")
@@ -340,9 +339,10 @@ def _write_deviations(wb, analysis, pairs):
     row = _append_table(ws, row, "DESVIOS POR PAR", ("Par", "F0 [N]", "Desvio F0 [%]", "F2 [N/(km/h)²]", "Desvio F2 [%]", "Energia [MJ/km]", "Alerta"), deviation_rows)
     times = analysis.get("time_summary") or {}
     groups = times.get("groups") or {}
-    row = _append_table(ws, row, "TEMPOS DELTAT", ("Grupo", "n", "Média deltaT [s]", "Desvio padrão [s]", "CV deltaT [%]", "Limite [%]", "Status"), [(COMPONENT_LABELS.get(key, key), value.get("count"), value.get("mean"), value.get("stdev"), value.get("cv_pct"), times.get("cv_limit_pct"), _status(value.get("passed"))) for key, value in groups.items()])
+    high_reference, low_reference = get_split_reference_speeds(pairs)
+    row = _append_table(ws, row, "TEMPOS Δt", ("Verificação", "n", "Média Δt [s]", "Desvio padrão amostral [s]", "C.V. Δt [%]", "Limite [%]", "Status"), [(format_split_time_group_label(key, high_reference_speed_kmh=high_reference, low_reference_speed_kmh=low_reference), value.get("count"), value.get("mean"), value.get("stdev"), value.get("cv_pct"), times.get("cv_limit_pct"), _status(value.get("passed"))) for key, value in groups.items()])
     opposite = times.get("opposite_direction") or {}
-    _append_table(ws, row, "DIFERENÇA ENTRE SENTIDOS", ("Velocidade", "Média [+] [s]", "Média [-] [s]", "Diferença [%]", "Limite [%]", "Status"), [(key.title(), value.get("mean_plus"), value.get("mean_minus"), value.get("diff_pct"), times.get("opposite_mean_limit_pct"), _status(value.get("passed"))) for key, value in opposite.items()])
+    _append_table(ws, row, "DIFERENÇA ENTRE MÉDIAS Δt DE SENTIDOS OPOSTOS", ("Velocidade de referência", "Média Δt [+] [s]", "Média Δt [-] [s]", "Diferença entre médias [%]", "Limite [%]", "Status"), [(format_split_opposite_time_label(key, high_reference_speed_kmh=high_reference, low_reference_speed_kmh=low_reference), value.get("mean_plus"), value.get("mean_minus"), value.get("diff_pct"), times.get("opposite_mean_limit_pct"), _status(value.get("passed"))) for key, value in opposite.items()])
     _finish_sheet(ws)
 
 
