@@ -6,6 +6,7 @@ from __future__ import annotations
 from copy import deepcopy
 
 from core.split_candidate_generation import generate_full_split_candidates_exact
+from core.split_candidate_set_validation import validate_split_candidate_set
 from core.split_pair_candidate import split_candidate_signature
 from core.split_selection_algorithms import (
     VALID_ALGORITHMS,

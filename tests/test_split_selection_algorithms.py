@@ -10,6 +10,7 @@ from core.split_selection_algorithms import (
     rank_candidates_by_energy,
     rank_candidates_by_target,
     select_top_k_candidates,
+    select_top_k_candidates_with_constraints,
 )
 
 
@@ -41,7 +42,109 @@ def _candidate(
     }
 
 
+def _constrained_candidate(
+    candidate_id,
+    *,
+    high_plus=20.0,
+    high_minus=20.2,
+    low_plus=10.0,
+    low_minus=10.2,
+    run_usage=None,
+):
+    candidate = _candidate(
+        candidate_id,
+        energy=float(ord(candidate_id[0])),
+        run_usage=run_usage,
+    )
+    candidate.update(
+        {
+            "high_plus_delta_t_s": high_plus,
+            "high_minus_delta_t_s": high_minus,
+            "low_plus_delta_t_s": low_plus,
+            "low_minus_delta_t_s": low_minus,
+        }
+    )
+    return candidate
+
+
 class SplitSelectionAlgorithmsTest(unittest.TestCase):
+    def test_constrained_selector_can_skip_top_k_for_approved_set(self):
+        ranked = [
+            _constrained_candidate("a"),
+            _constrained_candidate("b", high_minus=25.0),
+            _constrained_candidate(
+                "c", high_plus=20.1, high_minus=20.3,
+                low_plus=10.05, low_minus=10.25,
+            ),
+        ]
+
+        selected, metadata = select_top_k_candidates_with_constraints(ranked, 2)
+
+        self.assertEqual([item["id"] for item in selected], ["a", "c"])
+        self.assertTrue(metadata["constraints_satisfied"])
+        self.assertEqual(metadata["evaluated_sets_count"], 2)
+
+    def test_constrained_selector_respects_repeated_runs(self):
+        shared = (_usage("high", "+", 1, "h.csv", "high", "hash"),)
+        ranked = [
+            _constrained_candidate("a", run_usage=shared),
+            _constrained_candidate("b", run_usage=shared),
+            _constrained_candidate("c"),
+        ]
+
+        selected, _ = select_top_k_candidates_with_constraints(ranked, 2)
+
+        self.assertEqual([item["id"] for item in selected], ["a", "c"])
+
+    def test_constrained_selector_returns_unapplied_fallback(self):
+        shared_b = _usage("high", "+", 1, "h.csv", "high", "hash-b")
+        shared_c = _usage("high", "+", 2, "h.csv", "high", "hash-c")
+        ranked = [
+            _constrained_candidate(
+                "a", high_minus=25.0, run_usage=(shared_b, shared_c)
+            ),
+            _constrained_candidate("b", high_minus=25.1, run_usage=(shared_b,)),
+            _constrained_candidate("c", high_minus=25.2, run_usage=(shared_c,)),
+        ]
+
+        selected, metadata = select_top_k_candidates_with_constraints(ranked, 2)
+
+        self.assertEqual(selected, [])
+        self.assertFalse(metadata["constraints_satisfied"])
+        self.assertFalse(metadata["fallback_used"])
+        self.assertEqual(
+            [item["id"] for item in metadata["fallback_candidates"]],
+            ["b", "c"],
+        )
+        self.assertIsNotNone(metadata["best_failed_validation"])
+
+    def test_constrained_selector_respects_max_set_evaluations(self):
+        ranked = [
+            _constrained_candidate("a", high_minus=25.0),
+            _constrained_candidate("b", high_minus=25.1),
+            _constrained_candidate("c"),
+        ]
+
+        selected, metadata = select_top_k_candidates_with_constraints(
+            ranked,
+            2,
+            max_set_evaluations=1,
+        )
+
+        self.assertEqual(selected, [])
+        self.assertEqual(metadata["evaluated_sets_count"], 1)
+        self.assertTrue(any("max_set_evaluations" in warning for warning in metadata["warnings"]))
+
+    def test_constrained_selector_accepts_inconclusive_single_pair(self):
+        selected, metadata = select_top_k_candidates_with_constraints(
+            [_constrained_candidate("a")],
+            1,
+        )
+
+        self.assertEqual([item["id"] for item in selected], ["a"])
+        self.assertIsNone(metadata["constraints_satisfied"])
+        self.assertFalse(metadata["fallback_used"])
+
     def test_energy_ranking_orders_candidates(self):
         ranked = rank_candidates_by_energy(
             [

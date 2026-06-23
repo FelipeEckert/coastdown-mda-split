@@ -2117,3 +2117,26 @@ Identidade tecnica e label publico devem permanecer separados, e valores
 configuraveis nunca devem ser reintroduzidos como hardcode na apresentacao.
 
 ---
+
+## 2026-06-23 - Split: Selecao Normativa E Uma Propriedade Do Conjunto
+
+### Decisao:
+O novo validador puro avalia cada conjunto completo com os mesmos coeficientes
+corrigidos consumidos pelos Resultados Split e reutiliza a validacao existente
+dos quatro grupos deltaT e das duas diferencas entre sentidos. Verificacoes
+avaliaveis acima do limite reprovam; amostras insuficientes permanecem
+inconclusivas e nao sao convertidas em falha.
+
+O seletor percorre combinacoes na ordem do ranking, faz poda antecipada por
+`run_usage` e limita a quantidade de conjuntos efetivamente validados. Quando
+nenhum conjunto atende as restricoes ativas, o melhor conjunto falho encontrado
+e devolvido apenas em `fallback_candidates`, com `fallback_used=False`; o core
+nao o promove silenciosamente para a selecao.
+
+### Licao:
+Qualidade individual e ordem de ranking nao demonstram conformidade coletiva.
+Restricoes baseadas em dispersao e diferenca de medias precisam ser calculadas
+sobre o conjunto final, e um fallback diagnostico deve permanecer separado da
+decisao de aplica-lo.
+
+---

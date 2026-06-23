@@ -9,6 +9,7 @@ from core.split_auto_selection import (
     find_replacement_candidate,
     replace_pending_candidate,
     run_split_auto_selection_exact,
+    validate_split_candidate_set,
 )
 from core.split_pair_candidate import split_candidate_signature
 
@@ -55,6 +56,34 @@ def _candidate(identifier, *run_ids):
     }
 
 
+def _norm_candidate(
+    identifier,
+    *,
+    f0=100.0,
+    f2=0.004,
+    high_plus=20.0,
+    high_minus=20.2,
+    low_plus=10.0,
+    low_minus=10.2,
+):
+    run_base = ord(identifier[0]) * 10
+    return {
+        "id": identifier,
+        "F0_mean": f0,
+        "F2_mean": f2,
+        "high_plus_delta_t_s": high_plus,
+        "high_minus_delta_t_s": high_minus,
+        "low_plus_delta_t_s": low_plus,
+        "low_minus_delta_t_s": low_minus,
+        "run_usage": tuple(
+            _usage(kind, direction, run_base + offset)
+            for offset, (kind, direction) in enumerate(
+                (("high", "+"), ("low", "+"), ("high", "-"), ("low", "-"))
+            )
+        ),
+    }
+
+
 def _fake_builder(
     *,
     high_plus_run,
@@ -89,6 +118,85 @@ def _fake_builder(
 
 
 class SplitAutoSelectionTest(unittest.TestCase):
+    def test_candidate_set_validation_approves_all_checks_within_limits(self):
+        result = validate_split_candidate_set(
+            [
+                _norm_candidate("a"),
+                _norm_candidate(
+                    "b", f0=101.0, f2=0.00402,
+                    high_plus=20.1, high_minus=20.3,
+                    low_plus=10.05, low_minus=10.25,
+                ),
+            ]
+        )
+
+        self.assertTrue(result["passed"])
+        self.assertEqual(result["coefficient_status"], "approved")
+        self.assertEqual(result["time_status"], "approved")
+        self.assertEqual(result["failed_checks"], [])
+
+    def test_candidate_set_validation_fails_f0_cv(self):
+        result = validate_split_candidate_set(
+            [_norm_candidate("a", f0=100.0), _norm_candidate("b", f0=120.0)]
+        )
+
+        self.assertFalse(result["passed"])
+        self.assertIn("coefficient.cv_f0", result["failed_checks"])
+
+    def test_candidate_set_validation_fails_f2_cv(self):
+        result = validate_split_candidate_set(
+            [_norm_candidate("a", f2=0.004), _norm_candidate("b", f2=0.006)]
+        )
+
+        self.assertFalse(result["passed"])
+        self.assertIn("coefficient.cv_f2", result["failed_checks"])
+
+    def test_candidate_set_validation_fails_time_group_cv(self):
+        result = validate_split_candidate_set(
+            [
+                _norm_candidate("a", high_plus=20.0, high_minus=21.0),
+                _norm_candidate("b", high_plus=22.0, high_minus=21.1),
+            ]
+        )
+
+        self.assertFalse(result["passed"])
+        self.assertIn("time.group.high_plus", result["failed_checks"])
+
+    def test_candidate_set_validation_fails_high_opposite_means(self):
+        result = validate_split_candidate_set(
+            [
+                _norm_candidate("a", high_plus=20.0, high_minus=25.0),
+                _norm_candidate("b", high_plus=20.1, high_minus=25.1),
+            ]
+        )
+
+        self.assertFalse(result["passed"])
+        self.assertIn("time.opposite.high", result["failed_checks"])
+
+    def test_candidate_set_validation_fails_low_opposite_means(self):
+        result = validate_split_candidate_set(
+            [
+                _norm_candidate("a", low_plus=10.0, low_minus=12.0),
+                _norm_candidate("b", low_plus=10.05, low_minus=12.05),
+            ]
+        )
+
+        self.assertFalse(result["passed"])
+        self.assertIn("time.opposite.low", result["failed_checks"])
+
+    def test_candidate_set_validation_keeps_one_pair_inconclusive(self):
+        candidate = _norm_candidate("a")
+        original = deepcopy(candidate)
+
+        result = validate_split_candidate_set([candidate])
+
+        self.assertIsNone(result["passed"])
+        self.assertEqual(result["coefficient_status"], "insufficient_data")
+        self.assertEqual(result["time_status"], "insufficient_data")
+        self.assertIsNone(result["cv_f0_pct"])
+        self.assertIsNone(result["cv_f2_pct"])
+        self.assertEqual(candidate, original)
+
     def test_weather_filter_does_not_remove_fixed_candidates(self):
         def builder(**kwargs):
             candidate = _fake_builder(**kwargs)
@@ -521,12 +629,16 @@ class SplitAutoSelectionTest(unittest.TestCase):
 
     def test_module_does_not_import_streamlit(self):
         import core.split_auto_selection as module
+        import core.split_candidate_set_validation as validation_module
 
-        source = inspect.getsource(module)
-
-        self.assertNotIn("import streamlit", source.lower())
-        self.assertNotIn("from streamlit", source.lower())
+        for source in (
+            inspect.getsource(module),
+            inspect.getsource(validation_module),
+        ):
+            self.assertNotIn("import streamlit", source.lower())
+            self.assertNotIn("from streamlit", source.lower())
         self.assertFalse(hasattr(module, "st"))
+        self.assertFalse(hasattr(validation_module, "st"))
 
 
 if __name__ == "__main__":

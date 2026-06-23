@@ -326,3 +326,11 @@
 - [x] Apply the public labels in Final Comparison, Split Results and the final Excel workbook.
 - [x] Add pure-helper, normative-limit, UI-projection and Excel regression tests.
 - [ ] Manually validate the four C.V. rows, two opposite-direction rows and generated Excel in a real Streamlit session with multiple selected pairs.
+
+## Round 13A.1 - Normative candidate-set validation
+- [x] Add a pure candidate-set validator for corrected F0/F2 sample CV, four Delta t group CVs and two opposite-direction mean differences.
+- [x] Keep one-pair and missing-sample checks inconclusive without automatic rejection.
+- [x] Add ranked constrained top-k search with early `run_usage` pruning and a configurable evaluation limit.
+- [x] Return the best ranked failed set only as an explicit, unapplied fallback in metadata.
+- [x] Add focused tests for every normative failure, non-top-k valid selection, repeated runs, fallback and evaluation limit.
+- [ ] Integrate the constrained selector into the automatic-selection orchestrator and UI in a later round.
