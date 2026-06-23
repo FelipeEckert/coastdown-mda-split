@@ -7,6 +7,7 @@ import math
 import statistics
 from copy import deepcopy
 
+from core.split_display import get_split_pair_public_label
 from core.split_results import consolidate_split_final_results
 from core.split_time_validation import (
     extract_split_candidate_times,
@@ -115,7 +116,7 @@ def _coefficient_status(summary: dict, limit: float) -> str:
 
 
 def _pair_label(pair: dict, index: int) -> str:
-    return str(pair.get("pair_label") or pair.get("label") or pair.get("id") or f"Par {index}")
+    return get_split_pair_public_label(pair)
 
 
 def _pair_deviations(

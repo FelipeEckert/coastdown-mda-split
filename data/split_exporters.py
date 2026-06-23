@@ -16,7 +16,7 @@ from core.split_deviation_analysis import (
     analyze_split_selected_deviations,
     build_selected_pairs_signature,
 )
-from core.split_display import format_run_option_label, format_split_pair_label
+from core.split_display import get_split_pair_public_label
 from core.split_results import consolidate_split_final_results
 from core.split_weather_context import split_environmental_values
 
@@ -30,9 +30,13 @@ COMPONENT_LABELS = {
 }
 MISSING = "-"
 HEADER_FILL = PatternFill("solid", fgColor="4472C4")
-WARNING_FILL = PatternFill("solid", fgColor="FFF3CD")
 TITLE_FILL = PatternFill("solid", fgColor="D9EAF7")
 THIN_BORDER = Border(*(Side(style="thin", color="B7B7B7") for _ in range(4)))
+STATUS_FILLS = {
+    "approved": PatternFill("solid", fgColor="0EE427"),
+    "warning": PatternFill("solid", fgColor="E6F200"),
+    "failed": PatternFill("solid", fgColor="FF5757"),
+}
 
 
 def _freeze_signature_value(value):
@@ -130,13 +134,34 @@ def _component(pair, component):
 
 def _component_label(pair, component):
     record = _component(pair, component)
-    if record:
-        return format_run_option_label(record).replace("dt=", "dt = ")
-    run = pair.get(f"{component}_run")
-    delta_t = _number(pair.get(f"{component}_delta_t_s"))
+    run = record.get("run_id", pair.get(f"{component}_run"))
+    delta_t = _number(record.get("delta_t_s", pair.get(f"{component}_delta_t_s")))
     if run in (None, ""):
         return MISSING
     return f"Run {run}" + (f" | dt = {delta_t:.3f} s" if delta_t is not None else "")
+
+
+def _origin_label(pair):
+    sources = pair.get("algorithm_sources") or []
+    if isinstance(sources, str):
+        sources = [sources]
+    normalized = {str(value).strip().lower() for value in sources}
+    algorithm_source = str(pair.get("algorithm_source") or "").strip().lower()
+    if algorithm_source:
+        normalized.add(algorithm_source)
+    if pair.get("selected_by_energy_algo"):
+        normalized.add("energy")
+    if pair.get("selected_by_target_algo"):
+        normalized.add("target")
+    if {"energy", "target"}.issubset(normalized):
+        return "Energia + Target"
+    if "energy" in normalized:
+        return "Energia"
+    if "target" in normalized:
+        return "Target"
+    if str(pair.get("selection_source") or "").strip().lower() == "manual":
+        return "Manual"
+    return "Desconhecido"
 
 
 def _weather_for_pair(pair):
@@ -173,48 +198,110 @@ def _append_table(ws, start_row, title, headers, rows):
 
 
 def _finish_sheet(ws):
-    ws.freeze_panes = "A3"
+    ws.freeze_panes = None
     for column in range(1, ws.max_column + 1):
         width = max(len(str(ws.cell(row, column).value or "")) for row in range(1, ws.max_row + 1)) + 2
         ws.column_dimensions[get_column_letter(column)].width = min(max(width, 12), 42)
-    ws.auto_filter.ref = ws.dimensions
+    ws.auto_filter.ref = None
 
 
-def _write_summary(wb, final_results, warnings, generated_at):
-    ws = wb.active
-    ws.title = "Resumo Final"
-    rows = [
-        ("Data de geração", generated_at.strftime("%d/%m/%Y %H:%M:%S")),
-        ("Método", "Split"),
-        ("Quantidade de pares selecionados", final_results.get("num_pairs")),
-        ("F0 final (N)", final_results.get("mean_f0")),
-        ("F2 final (N/(km/h)²)", final_results.get("mean_f2")),
-        ("CV F0 (%)", final_results.get("cv_f0")),
-        ("CV F2 (%)", final_results.get("cv_f2")),
-        ("Energia média (MJ/km)", final_results.get("mean_energy")),
-        ("Status final", _status(final_results.get("conformity_status"))),
-        ("Warnings principais", warnings),
-    ]
-    _append_table(ws, 1, "RESULTADOS FINAIS — MÉTODO SPLIT", ("Campo", "Valor"), rows)
-    for row in range(4, ws.max_row + 1):
-        label = ws.cell(row, 1).value
-        if label == "F0 final (N)": ws.cell(row, 2).number_format = "0.0000"
-        elif label == "F2 final (N/(km/h)²)": ws.cell(row, 2).number_format = "0.000000"
-        elif label in ("CV F0 (%)", "CV F2 (%)"): ws.cell(row, 2).number_format = "0.00"
-        elif label == "Energia média (MJ/km)": ws.cell(row, 2).number_format = "0.0000"
-    _finish_sheet(ws)
+def _status_fill_key(value):
+    normalized = str(value or "").strip().casefold()
+    if normalized in {"approved", "aprovado", "ok", "valid", "válido", "valido"}:
+        return "approved"
+    if normalized in {"failed", "reprovado", "fora do limite", "invalid", "inválido", "invalido"}:
+        return "failed"
+    if normalized in {"warning", "atenção", "atencao", "inconclusivo"}:
+        return "warning"
+    return None
 
 
-def _write_vehicle(wb, vehicle_data):
-    ws = wb.create_sheet("Dados do Veículo")
-    rows = []
+def _merge_summary_title(ws, row):
+    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+    ws.cell(row, 1).alignment = Alignment(
+        horizontal="center", vertical="center", wrap_text=True,
+    )
+
+
+def _vehicle_rows(vehicle_data):
     source = deepcopy(vehicle_data or {})
     nested = source.pop("vehicle_info", None)
     if isinstance(nested, dict):
         source = {**nested, **source}
-    for key, value in source.items():
-        rows.append((key.replace("_", " ").title(), value))
-    _append_table(ws, 1, "DADOS DO VEÍCULO", ("Campo", "Valor"), rows or [(MISSING, MISSING)])
+    return [
+        (str(key).replace("_", " ").title(), value)
+        for key, value in source.items()
+        if value is not None
+    ]
+
+
+def _weather_summary(pairs):
+    values = [split_environmental_values(pair) for pair in pairs]
+    temperatures = [item["temperature_c"] for item in values if item["temperature_c"] is not None]
+    pressures = [item["pressure_kpa"] for item in values if item["pressure_kpa"] is not None]
+    winds = [item["wind_speed_mps"] for item in values if item["wind_speed_mps"] is not None]
+    modes = {str(item.get("mode") or "").lower() for item in values}
+    environment = (
+        "Parâmetros fixos" if modes and modes <= {"fixed"}
+        else "Meteorologia sincronizada" if values and modes - {"fixed", ""}
+        else MISSING
+    )
+    alerts = list(dict.fromkeys(
+        alert for pair in pairs for alert in _weather_for_pair(pair)[3]
+    ))
+    return (
+        environment,
+        sum(temperatures) / len(temperatures) if temperatures else None,
+        sum(pressures) / len(pressures) if pressures else None,
+        max(winds) if winds else None,
+        alerts,
+    )
+
+
+def _write_summary(wb, final_results, generated_at, vehicle_data, pairs):
+    ws = wb.active
+    ws.title = "Resumo Final"
+    title_rows = [1]
+    row = _append_table(ws, 1, "RESULTADOS SPLIT", ("Campo", "Valor"), [
+        ("Método", "Split"),
+        ("Data de geração", generated_at.strftime("%d/%m/%Y %H:%M:%S")),
+        ("Quantidade de pares selecionados", final_results.get("num_pairs")),
+        ("Status final", _status(final_results.get("conformity_status"))),
+    ])
+    title_rows.append(row)
+    row = _append_table(ws, row, "RESULTADO FINAL", ("Campo", "Valor"), [
+        ("F0 final [N]", final_results.get("mean_f0")),
+        ("F2 final [N/(km/h)²]", final_results.get("mean_f2")),
+        ("CV F0 [%]", final_results.get("cv_f0")),
+        ("CV F2 [%]", final_results.get("cv_f2")),
+        ("Energia média [MJ/km]", final_results.get("mean_energy")),
+    ])
+    title_rows.append(row)
+    row = _append_table(ws, row, "DADOS DO VEÍCULO", ("Campo", "Valor"), _vehicle_rows(vehicle_data) or [(MISSING, MISSING)])
+    title_rows.append(row)
+    environment, temperature, pressure, wind, alerts = _weather_summary(pairs)
+    _append_table(ws, row, "RESUMO METEOROLÓGICO", ("Campo", "Valor"), [
+        ("Ambiente", environment),
+        ("Temperatura média [°C]", temperature),
+        ("Pressão média [kPa]", pressure),
+        ("Vento máximo [m/s]", wind),
+        ("Alertas meteorológicos", alerts),
+    ])
+    formats = {
+        "F0 final [N]": "0.0000", "F2 final [N/(km/h)²]": "0.000000",
+        "CV F0 [%]": "0.00", "CV F2 [%]": "0.00", "Energia média [MJ/km]": "0.0000",
+    }
+    for row_index in range(1, ws.max_row + 1):
+        if ws.cell(row_index, 1).value in formats:
+            ws.cell(row_index, 2).number_format = formats[ws.cell(row_index, 1).value]
+        if ws.cell(row_index, 1).value == "Status final":
+            status_cell = ws.cell(row_index, 2)
+            fill_key = _status_fill_key(status_cell.value)
+            if fill_key:
+                status_cell.fill = STATUS_FILLS[fill_key]
+                status_cell.font = Font(bold=True, color="000000")
+    for title_row in title_rows:
+        _merge_summary_title(ws, title_row)
     _finish_sheet(ws)
 
 
@@ -224,7 +311,7 @@ def _write_pairs(wb, pairs):
     rows = []
     for pair in pairs:
         temperature, pressure, wind, alerts = _weather_for_pair(pair)
-        rows.append((format_split_pair_label(pair), pair.get("selection_source"), *(_component_label(pair, component) for component in COMPONENTS), *(pair.get(f"{component}_delta_t_s") if pair.get(f"{component}_delta_t_s") is not None else _component(pair, component).get("delta_t_s") for component in COMPONENTS), pair.get("F0_mean", pair.get("F0")), pair.get("F2_mean", pair.get("F2")), pair.get("cv_F0_percent"), pair.get("cv_F2_percent"), pair.get("energy"), temperature, pressure, wind, alerts))
+        rows.append((get_split_pair_public_label(pair), _origin_label(pair), *(_component_label(pair, component) for component in COMPONENTS), *(pair.get(f"{component}_delta_t_s") if pair.get(f"{component}_delta_t_s") is not None else _component(pair, component).get("delta_t_s") for component in COMPONENTS), pair.get("F0_mean", pair.get("F0")), pair.get("F2_mean", pair.get("F2")), pair.get("cv_F0_percent"), pair.get("cv_F2_percent"), pair.get("energy"), temperature, pressure, wind, alerts))
     _append_table(ws, 1, "PARES USADOS NO RESULTADO FINAL", headers, rows)
     for row in range(3, ws.max_row + 1):
         for column, number_format in ((11, "0.0000"), (12, "0.000000"), (13, "0.00"), (14, "0.00"), (15, "0.0000")):
@@ -232,52 +319,24 @@ def _write_pairs(wb, pairs):
     _finish_sheet(ws)
 
 
-def _write_deviations(wb, analysis):
-    ws = wb.create_sheet("Análise de Desvios")
+def _write_deviations(wb, analysis, pairs):
+    ws = wb.create_sheet("Análise de Desvios e Tempos")
     coefficients = analysis.get("coefficient_summary") or {}
-    row = _append_table(ws, 1, "RESUMO CV F0/F2", ("Coeficiente", "Média", "Desvio padrão", "CV (%)", "Limite (%)", "Status"), [
-        ("F0", coefficients.get("mean_f0"), coefficients.get("stdev_f0"), coefficients.get("cv_f0_pct"), coefficients.get("limit_pct"), _status(coefficients.get("status"))),
-        ("F2", coefficients.get("mean_f2"), coefficients.get("stdev_f2"), coefficients.get("cv_f2_pct"), coefficients.get("limit_pct"), _status(coefficients.get("status"))),
+    row = _append_table(ws, 1, "RESUMO CV F0/F2", ("Coeficiente", "Média", "CV [%]", "Limite [%]", "Status"), [
+        ("F0", coefficients.get("mean_f0"), coefficients.get("cv_f0_pct"), coefficients.get("limit_pct"), _status(coefficients.get("status"))),
+        ("F2", coefficients.get("mean_f2"), coefficients.get("cv_f2_pct"), coefficients.get("limit_pct"), _status(coefficients.get("status"))),
     ])
     deviations = analysis.get("pair_deviations") or []
-    row = _append_table(ws, row, "DESVIOS POR PAR", ("Par", "F0", "Desvio F0 (%)", "F2", "Desvio F2 (%)", "Energia", "Alertas"), [(item.get("pair"), item.get("f0"), item.get("f0_deviation_pct"), item.get("f2"), item.get("f2_deviation_pct"), item.get("energy"), item.get("alerts")) for item in deviations])
-    loo = analysis.get("leave_one_out") or []
-    _append_table(ws, row, "LEAVE-ONE-OUT", ("Par removido", "CV F0 atual", "Novo CV F0", "Variação F0", "CV F2 atual", "Novo CV F2", "Variação F2"), [(item.get("pair"), item.get("current_cv_f0_pct"), item.get("new_cv_f0_pct"), item.get("cv_f0_change_pct_points"), item.get("current_cv_f2_pct"), item.get("new_cv_f2_pct"), item.get("cv_f2_change_pct_points")) for item in loo])
-    _finish_sheet(ws)
-
-
-def _write_times(wb, analysis):
-    ws = wb.create_sheet("Tempos deltaT")
+    deviation_rows = []
+    for index, item in enumerate(deviations):
+        label = get_split_pair_public_label(pairs[index]) if index < len(pairs) else MISSING
+        deviation_rows.append((label, item.get("f0"), item.get("f0_deviation_pct"), item.get("f2"), item.get("f2_deviation_pct"), item.get("energy"), item.get("alerts")))
+    row = _append_table(ws, row, "DESVIOS POR PAR", ("Par", "F0 [N]", "Desvio F0 [%]", "F2 [N/(km/h)²]", "Desvio F2 [%]", "Energia [MJ/km]", "Alerta"), deviation_rows)
     times = analysis.get("time_summary") or {}
     groups = times.get("groups") or {}
-    row = _append_table(ws, 1, "CV DOS TEMPOS", ("Grupo", "n", "Média deltaT", "Desvio padrão", "CV deltaT (%)", "Limite (%)", "Status"), [(COMPONENT_LABELS.get(key, key), value.get("count"), value.get("mean"), value.get("stdev"), value.get("cv_pct"), times.get("cv_limit_pct"), _status(value.get("passed"))) for key, value in groups.items()])
+    row = _append_table(ws, row, "TEMPOS DELTAT", ("Grupo", "n", "Média deltaT [s]", "Desvio padrão [s]", "CV deltaT [%]", "Limite [%]", "Status"), [(COMPONENT_LABELS.get(key, key), value.get("count"), value.get("mean"), value.get("stdev"), value.get("cv_pct"), times.get("cv_limit_pct"), _status(value.get("passed"))) for key, value in groups.items()])
     opposite = times.get("opposite_direction") or {}
-    _append_table(ws, row, "DIFERENÇA IDA/VOLTA", ("Velocidade", "Média [+]", "Média [-]", "Diferença (%)", "Limite (%)", "Status"), [(key.title(), value.get("mean_plus"), value.get("mean_minus"), value.get("diff_pct"), times.get("opposite_mean_limit_pct"), _status(value.get("passed"))) for key, value in opposite.items()])
-    _finish_sheet(ws)
-
-
-def _write_weather(wb, pairs):
-    ws = wb.create_sheet("Meteorologia")
-    rows = []
-    for pair in pairs:
-        temperature, pressure, wind, alerts = _weather_for_pair(pair)
-        rows.append((format_split_pair_label(pair), temperature, pressure, wind, alerts))
-    _append_table(ws, 1, "METEOROLOGIA POR PAR", ("Par", "Temperatura (°C)", "Pressão (kPa)", "Vento (m/s)", "Alertas"), rows)
-    for row in range(3, ws.max_row + 1):
-        if (_number(ws.cell(row, 2).value) or -math.inf) > 35 or (_number(ws.cell(row, 4).value) or -math.inf) > 3:
-            for column in range(1, 6): ws.cell(row, column).fill = WARNING_FILL
-    _finish_sheet(ws)
-
-
-def _write_traceability(wb, pairs):
-    ws = wb.create_sheet("Rastreabilidade")
-    rows = []
-    for pair in pairs:
-        for component in COMPONENTS:
-            record = _component(pair, component)
-            ambient = (pair.get("ambient_by_component") or {}).get(component) or {}
-            rows.append((pair.get("id"), format_split_pair_label(pair), COMPONENT_LABELS[component], record.get("filename", pair.get(f"{component}_file")), record.get("source_role"), record.get("content_sha256") or record.get("source_sha256") or record.get("input_hash"), ambient.get("source") or pair.get("ambient_source"), ambient.get("sync_method") or ambient.get("method"), list(dict.fromkeys([*(pair.get("warnings") or []), *(ambient.get("warnings") or [])]))))
-    _append_table(ws, 1, "RASTREABILIDADE DOS PARES", ("pair_id técnico", "Label público", "Componente", "Arquivo", "Papel da fonte", "Hash de entrada", "Fonte meteo", "Método sync meteo", "Warnings"), rows)
+    _append_table(ws, row, "DIFERENÇA ENTRE SENTIDOS", ("Velocidade", "Média [+] [s]", "Média [-] [s]", "Diferença [%]", "Limite [%]", "Status"), [(key.title(), value.get("mean_plus"), value.get("mean_minus"), value.get("diff_pct"), times.get("opposite_mean_limit_pct"), _status(value.get("passed"))) for key, value in opposite.items()])
     _finish_sheet(ws)
 
 
@@ -290,13 +349,9 @@ def export_split_final_results_to_excel(*, final_results: dict | None, selected_
         consolidated["warnings"] = list(dict.fromkeys([*(consolidated.get("warnings") or []), *((final_results or {}).get("warnings") or [])]))
     analysis = deepcopy(deviation_analysis) if deviation_analysis is not None else analyze_split_selected_deviations(pairs)
     wb = Workbook()
-    _write_summary(wb, consolidated, consolidated.get("warnings") or analysis.get("warnings") or [], generated_at or datetime.now())
-    _write_vehicle(wb, vehicle_data)
+    _write_summary(wb, consolidated, generated_at or datetime.now(), vehicle_data, pairs)
     _write_pairs(wb, pairs)
-    _write_deviations(wb, analysis)
-    _write_times(wb, analysis)
-    _write_weather(wb, pairs)
-    _write_traceability(wb, pairs)
+    _write_deviations(wb, analysis, pairs)
     output = io.BytesIO()
     wb.save(output)
     return output.getvalue()

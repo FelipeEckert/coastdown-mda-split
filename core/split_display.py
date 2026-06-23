@@ -58,5 +58,15 @@ def format_split_pair_label(pair: dict | None) -> str:
     )
 
 
+def get_split_pair_public_label(pair: dict | None) -> str:
+    """Return a saved public label or rebuild it without exposing technical ids."""
+    source = pair if isinstance(pair, dict) else {}
+    for key in ("pair_label", "public_label", "label"):
+        saved = str(source.get(key) or "").strip()
+        if saved and not saved.lower().startswith("split_pair_"):
+            return saved
+    return format_split_pair_label(source).replace(MISSING_VALUE, "-")
+
+
 # Compatibility alias for code written before the public helper name stabilized.
 format_split_pair_public_label = format_split_pair_label

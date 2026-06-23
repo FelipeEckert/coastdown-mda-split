@@ -2028,3 +2028,46 @@ clique; uma etapa explicita de geracao evita construir o arquivo em toda
 renderizacao.
 
 ---
+
+## 2026-06-23 - Split: ID Tecnico Nao E Label De Relatorio
+
+### Decisao:
+O Excel final resolve o nome publico do par em uma fronteira propria. Um label
+salvo so e aceito quando nao comeca com `split_pair_`; nos demais casos, o nome e
+reconstruido pelas quatro passadas com `format_split_pair_label()`. A mesma regra
+e reaplicada aos desvios recebidos da analise em cache, sem confiar no campo
+`pair` dessa projecao diagnostica.
+
+O workbook final possui apenas Resumo Final, Pares Selecionados e Analise de
+Desvios e Tempos. Dados do veiculo e resumo meteorologico foram consolidados no
+Resumo Final; meteorologia por par permanece na tabela de pares. Leave-one-out
+continua no core e na UI, mas nao e escrito nem citado nos warnings do Excel.
+
+### Licao:
+Identidade tecnica e apresentacao publica precisam de fronteiras diferentes.
+Mesmo quando a primeira tabela esta protegida, projecoes derivadas ou em cache
+podem reintroduzir ids internos; por isso o export deve reconstruir labels em
+toda secao visivel e nunca tratar `id` como fallback de apresentacao.
+
+---
+
+## 2026-06-23 - Split: Acabamento De Export Deve Ser Explicito Por Aba
+
+### Decisao:
+O helper compartilhado `get_split_pair_public_label()` passou para
+`core/split_display.py`. O export e a analise de desvios usam essa mesma
+fronteira; assim desvios por par, meteorologia, warnings e leave-one-out da UI
+nao recebem mais o `id` tecnico como fallback visual.
+
+O acabamento do workbook remove congelamento e auto filtro em `_finish_sheet()`.
+No Resumo Final, apenas as quatro linhas de titulo sao mescladas em A:B. O status
+e localizado pelo texto `Status final` e sua celula de valor recebe preenchimento
+verde, amarelo ou vermelho conforme uma normalizacao explicita.
+
+### Licao:
+Configuracoes globais de worksheet, como freeze panes e auto filter, podem vazar
+para abas executivas onde nao fazem sentido. Acabamento visual que depende do
+significado de uma linha deve localiza-la pelo rotulo, nao por uma coordenada que
+muda quando secoes sao reorganizadas.
+
+---

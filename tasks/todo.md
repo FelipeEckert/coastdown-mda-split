@@ -190,7 +190,14 @@
 - [x] Adapt Split Excel export to consume only pairs with explicit `selected=True` from `split_comparison_pairs` and corrected final F0/F2.
 - [x] Restore the Split Results download after the exporter covers the new summary and all four component records.
 - [x] Add the four component-level ambient records and weather sync audit to Excel.
-- [ ] Review final workbook layout, labels and units before release.
+- [x] Consolidate the final workbook into Resumo Final, Pares Selecionados and Análise de Desvios e Tempos.
+- [x] Prevent technical `split_pair_*` ids from appearing as primary pair labels in the workbook.
+- [x] Move vehicle and weather summaries into Resumo Final and keep per-pair weather in Pares Selecionados.
+- [x] Remove the dedicated vehicle, times, weather and traceability sheets plus leave-one-out from Excel only.
+- [x] Remove freeze panes and automatic filters from all three final workbook sheets.
+- [x] Merge the four Resumo Final title rows across columns A:B and color the final-status cell by result.
+- [x] Share the public pair-label helper between Excel and deviation analysis, including UI leave-one-out and weather rows.
+- [ ] Manually validate the three-sheet workbook with real manual, fixed-weather and synchronized-weather pairs in Excel.
 
 ## Round 11A - Split Results and final Excel report
 - [x] Refactor Split Results as a read-only executive summary based on Final Comparison selections.

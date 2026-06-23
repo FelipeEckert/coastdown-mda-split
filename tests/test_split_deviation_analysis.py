@@ -6,6 +6,7 @@ import statistics
 import unittest
 
 from core.split_deviation_analysis import analyze_split_selected_deviations
+from core.split_display import get_split_pair_public_label
 
 
 def _pair(pair_id, f0, f2, offset=0.0, temperature=25.0, wind=1.0, pressure=101.0):
@@ -19,6 +20,10 @@ def _pair(pair_id, f0, f2, offset=0.0, temperature=25.0, wind=1.0, pressure=101.
         "high_minus_delta_t_s": 20.4 + offset,
         "low_plus_delta_t_s": 10.0 + offset,
         "low_minus_delta_t_s": 10.3 + offset,
+        "high_plus_run": 1,
+        "low_plus_run": 2,
+        "high_minus_run": 3,
+        "low_minus_run": 4,
         "ambient_by_component": {
             "high_plus": {
                 "temperature_c": temperature,
@@ -30,6 +35,35 @@ def _pair(pair_id, f0, f2, offset=0.0, temperature=25.0, wind=1.0, pressure=101.
 
 
 class SplitDeviationAnalysisTest(unittest.TestCase):
+    def test_public_label_helper_rebuilds_technical_id_and_handles_missing_runs(self):
+        pair = _pair("split_pair_manual", 100.0, 0.004)
+        pair["pair_label"] = "split_pair_manual"
+        self.assertEqual(
+            get_split_pair_public_label(pair),
+            "[+]: Run 1 / Run 2 | [-]: Run 3 / Run 4",
+        )
+        self.assertEqual(
+            get_split_pair_public_label({"id": "split_pair_empty"}),
+            "[+]: Run - / Run - | [-]: Run - / Run -",
+        )
+
+    def test_all_deviation_projections_use_public_pair_label(self):
+        pairs = [
+            _pair("split_pair_a", 100.0, 0.004),
+            _pair("split_pair_b", 101.0, 0.0041, 0.1),
+            _pair("split_pair_c", 102.0, 0.0042, 0.2),
+        ]
+        result = analyze_split_selected_deviations(pairs)
+        expected = "[+]: Run 1 / Run 2 | [-]: Run 3 / Run 4"
+        self.assertTrue(all(row["pair"] == expected for row in result["pair_deviations"]))
+        self.assertTrue(all(row["pair"] == expected for row in result["weather_summary"]["pairs"]))
+        self.assertTrue(all(row["pair"] == expected for row in result["leave_one_out"]))
+        self.assertFalse(any(
+            "split_pair_" in row["pair"]
+            for section in (result["pair_deviations"], result["weather_summary"]["pairs"], result["leave_one_out"])
+            for row in section
+        ))
+
     def test_fixed_environmental_conditions_are_read_without_wind_failure(self):
         pair = _pair("fixed", 100.0, 0.004)
         pair["ambient_by_component"] = {}
