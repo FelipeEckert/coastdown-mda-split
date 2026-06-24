@@ -436,6 +436,61 @@ def _render_search_diagnostics(metadata: dict | None, t) -> None:
         st.warning(t("split_auto_search_limited_warning"))
 
 
+def _render_generation_diagnostics(generation_metadata: dict | None, t) -> None:
+    if not isinstance(generation_metadata, dict):
+        return
+    st.markdown(f"**{t('split_auto_diagnostics_generation')}**")
+    columns = st.columns(2)
+    columns[0].metric(
+        t("split_auto_generated_count"),
+        str(generation_metadata.get("generated_count", 0)),
+    )
+    columns[1].metric(
+        t("split_auto_diagnostics_failed_count"),
+        str(generation_metadata.get("failed_count", 0)),
+    )
+    prefilter_applied = bool(generation_metadata.get("prefilter_applied"))
+    st.write(
+        f"**{t('split_auto_diagnostics_prefilter')}:** "
+        + (
+            t("split_auto_diagnostics_prefilter_enabled")
+            if prefilter_applied
+            else t("split_auto_diagnostics_prefilter_disabled")
+        )
+    )
+    prefilter = generation_metadata.get("prefilter") or {}
+    if prefilter_applied and prefilter:
+        rows = [
+            {
+                t("split_auto_prefilter_group"): t(GROUP_LABELS[group_key]),
+                t("split_auto_prefilter_input"): (prefilter.get(group_key) or {}).get(
+                    "input_count", 0
+                ),
+                t("split_auto_prefilter_output"): (prefilter.get(group_key) or {}).get(
+                    "output_count", 0
+                ),
+                t("split_auto_prefilter_filtered"): (prefilter.get(group_key) or {}).get(
+                    "filtered_count", 0
+                ),
+            }
+            for group_key in GROUP_LABELS
+            if group_key in prefilter
+        ]
+        if rows:
+            st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+
+
+def _render_selection_diagnostics(metadata: dict | None, t) -> None:
+    source = metadata if isinstance(metadata, dict) else {}
+    with st.expander(t("split_auto_diagnostics_title"), expanded=False):
+        _render_generation_diagnostics(source.get("generation"), t)
+        st.markdown(f"**{t('split_auto_diagnostics_search')}**")
+        if _search_diagnostic_values(source) is None:
+            st.caption(t("split_auto_diagnostics_search_not_applicable"))
+        else:
+            _render_search_diagnostics(source, t)
+
+
 def _constraint_status_label(status, t) -> str:
     if status is True:
         return t("split_auto_constraints_status_approved")
@@ -902,7 +957,7 @@ def _render_execution_result(pending: dict, t) -> None:
             st.warning(t("split_auto_constraints_pending_failed"))
         else:
             st.info(t("split_auto_constraints_inconclusive"))
-        _render_search_diagnostics(metadata, t)
+    _render_selection_diagnostics(metadata, t)
     first_row = st.columns(4)
     first_row[0].metric(
         t("split_auto_generated_count"),
@@ -1019,7 +1074,7 @@ def _render_execution_result(pending: dict, t) -> None:
 
 def _render_fallback_offer(offer: dict, t) -> None:
     st.warning(t("split_auto_constraints_no_valid_set"))
-    _render_search_diagnostics(offer.get("metadata"), t)
+    _render_selection_diagnostics(offer.get("metadata"), t)
     _render_constraint_validation(
         offer.get("constraint_validation"),
         t,

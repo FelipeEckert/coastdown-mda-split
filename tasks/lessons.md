@@ -2288,3 +2288,64 @@ precisam ser explicitas e rastreaveis em metadata, para que uma reducao agressiv
 do pool nunca remova silenciosamente dados que o usuario esperava ver na busca.
 
 ---
+
+## 2026-06-24 - Split: Unicidade De Run E Limite Do Pool, Nao Escopo Da Restricao
+
+### Contexto:
+Relato de producao: selecao automatica com K=5 e ~12 runs por grupo retornava
+"nao encontrado" com `evaluated_sets_count=0`, pool de busca=300 e ~8s de
+timeout. O diagnostico inicial (recebido como hipotese) apontava
+`_iter_candidate_sets()` em `core/split_selection_algorithms.py` como
+aplicando a restricao de unicidade de run no escopo errado (contra todo o
+pool, nao contra o conjunto parcial em construcao).
+
+### Investigacao:
+Uma reproducao sintetica (produto cartesiano real, 12 runs por grupo, K=5,
+pool=300) confirmou o sintoma exato, mas a leitura do codigo e testes
+adicionais mostraram que `used_runs` em `_iter_candidate_sets.visit()` ja
+acumulava apenas as runs dos pares ja selecionados na combinacao parcial,
+nunca do pool inteiro - o comportamento estava correto. A causa real tinha
+duas camadas:
+
+1. **Pool sem diversidade suficiente.** Um ranking por energia/erro-target
+   naturalmente concentra os primeiros 300 candidatos em torno das mesmas
+   poucas runs "melhores" por componente (high+/low+/high-/low-). Com
+   K=5 e diversidade de apenas 4 valores distintos em um componente, nenhum
+   conjunto de 5 pares sem repeticao de run pode existir no pool, mesmo que
+   exista fora dele.
+
+2. **Mesmo com diversidade exata igual a K, a busca DFS em ordem canonica
+   (por ranking) ainda podia nao encontrar nenhum conjunto completo dentro
+   do orcamento de tempo.** Um teste por amostragem aleatoria (greedy,
+   sem backtracking) encontrou um conjunto valido instantaneamente onde a
+   DFS canonica nao encontrava nenhum em 5s, provando que o problema nao era
+   inexistencia, mas ordem de busca: a DFS gasta o orcamento inteiro
+   explorando ramos muito conflituosos no topo do ranking antes de alcançar
+   combinacoes viaveis mais raras.
+
+### Decisao:
+`_constraint_search_pool()` agora expande o pool alem do tamanho-base
+configurado (`search_pool_size`) ate que cada componente tenha pelo menos
+`max(3*k, k+10)` runs fisicas distintas (naturalmente limitado pelo total de
+runs distintas disponiveis). `_iter_candidate_sets()` nao foi alterada - sua
+logica de escopo ja estava correta. Como camada extra de seguranca, uma
+busca aleatoria limitada (`_randomized_disjoint_set`, seed fixa) so ativa
+quando a busca exaustiva esgota seu orcamento de tempo/avaliacoes com
+`evaluated_sets_count == 0` - exatamente o sintoma relatado - e nunca quando
+a DFS ja avaliou pelo menos um conjunto completo.
+
+### Licao:
+Antes de implementar a correcao sugerida por um diagnostico externo, reproduza
+o sintoma e leia o codigo apontado. Neste caso a hipotese inicial nao
+correspondia ao comportamento real: a funcao indicada ja estava correta, e a
+causa verdadeira estava em uma camada anterior (selecao do pool) e em uma
+suposicao implicita (que diversidade==K seria suficiente, quando na pratica
+e necessaria margem). "Conjuntos avaliados: 0" e um sintoma especifico -
+significa que a busca exaustiva nunca completou nem um unico conjunto, nao
+que nenhum conjunto valido exista. Uma correcao de seguranca (busca aleatoria
+limitada) so deve ser ativada exatamente nesse sintoma, nunca como
+substituicao silenciosa do caminho deterministico - caso contrario, testes
+deterministicos que simulam timeout cedo proposital deixam de ser
+deterministicos.
+
+---

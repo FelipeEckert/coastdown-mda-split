@@ -1177,6 +1177,54 @@ TRANSLATIONS = {
         "pt": "A busca foi limitada por tempo/quantidade de combinações avaliadas. Pode haver combinações válidas fora do universo avaliado.",
         "en": "The search was limited by time/evaluated-combination count. Valid combinations may exist outside the evaluated universe."
     },
+    "split_auto_diagnostics_title": {
+        "pt": "Diagnóstico da seleção",
+        "en": "Selection diagnostics"
+    },
+    "split_auto_diagnostics_generation": {
+        "pt": "Geração de candidatos",
+        "en": "Candidate generation"
+    },
+    "split_auto_diagnostics_failed_count": {
+        "pt": "Falhas na geração",
+        "en": "Generation failures"
+    },
+    "split_auto_diagnostics_prefilter": {
+        "pt": "Pré-filtro MAD",
+        "en": "MAD pre-filter"
+    },
+    "split_auto_diagnostics_prefilter_enabled": {
+        "pt": "Aplicado",
+        "en": "Applied"
+    },
+    "split_auto_diagnostics_prefilter_disabled": {
+        "pt": "Desativado",
+        "en": "Disabled"
+    },
+    "split_auto_diagnostics_search": {
+        "pt": "Busca constrained",
+        "en": "Constrained search"
+    },
+    "split_auto_diagnostics_search_not_applicable": {
+        "pt": "Busca constrained não foi usada (nenhum critério normativo está ativo).",
+        "en": "Constrained search was not used (no normative criterion is active)."
+    },
+    "split_auto_prefilter_group": {
+        "pt": "Grupo",
+        "en": "Group"
+    },
+    "split_auto_prefilter_input": {
+        "pt": "Entrada",
+        "en": "Input"
+    },
+    "split_auto_prefilter_output": {
+        "pt": "Saída",
+        "en": "Output"
+    },
+    "split_auto_prefilter_filtered": {
+        "pt": "Filtradas",
+        "en": "Filtered"
+    },
     "split_auto_phase_generating": {
         "pt": "1. Gerando candidatos...",
         "en": "1. Generating candidates..."

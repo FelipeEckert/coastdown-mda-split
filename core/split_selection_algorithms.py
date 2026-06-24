@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 import math
+import random
 import time
 
 from core.split_candidate_set_validation import (
@@ -203,7 +204,22 @@ def _iter_candidate_sets(
     avoid_repeated_runs: bool,
     should_stop=None,
 ):
-    """Yield ranked combinations, pruning repeated run usage before each leaf."""
+    """Yield ranked combinations, pruning repeated run usage before each leaf.
+
+    `used_runs` only accumulates runs from candidates already placed in the
+    partial combination under construction (`selected`), never from the rest
+    of the pool. Two pool candidates sharing a physical run is expected and
+    normal for a Split cartesian-product pool; only two pairs inside the
+    same yielded k-set may never share one.
+
+    This canonical (rank-ascending) traversal order is deterministic and
+    exhaustive, but a ranked pool naturally clusters its best-ranked
+    candidates around the same few physical runs, which can make this
+    specific visiting order take a very long time to reach a single
+    complete leaf even when many exist elsewhere in the search space. See
+    `_randomized_disjoint_set` for the bounded rescue pass used when this
+    search exhausts its time/evaluation budget without a result.
+    """
     selected = []
 
     def visit(start_index: int, used_runs: set):
@@ -234,11 +250,60 @@ def _iter_candidate_sets(
     yield from visit(0, set())
 
 
+def _randomized_disjoint_set(
+    pool: list[dict],
+    k: int,
+    *,
+    avoid_repeated_runs: bool,
+    rng: random.Random,
+) -> list[dict] | None:
+    """Return one randomized run-disjoint k-subset of pool, or None.
+
+    A single randomized first-fit pass over a shuffled pool order, with no
+    backtracking. Used only as a bounded rescue once the deterministic,
+    exhaustive `_iter_candidate_sets` search has used its full time/
+    evaluation budget without reaching a single complete leaf - a single
+    fixed traversal order can stall deep in conflict-heavy branches even
+    when many disjoint k-subsets exist elsewhere in the same pool.
+    """
+    order = list(range(len(pool)))
+    rng.shuffle(order)
+    used_runs = set()
+    chosen = []
+    for index in order:
+        candidate = pool[index]
+        if avoid_repeated_runs:
+            usage = _normalized_run_usage(candidate)
+            if usage is None:
+                continue
+            usage_set = set(usage)
+            if used_runs.intersection(usage_set):
+                continue
+            used_runs.update(usage_set)
+        chosen.append(candidate)
+        if len(chosen) == k:
+            return chosen
+    return None
+
+
 def _constraint_search_pool(
     ranked_candidates: list[dict],
     limit: int,
+    *,
+    min_run_diversity: int = 1,
 ) -> tuple[list[dict], dict, int]:
-    """Return a unique ranked prefix plus original zero-based rank indices."""
+    """Return a unique ranked prefix plus original zero-based rank indices.
+
+    The prefix normally stops at `limit`, but is extended past it while any
+    Split component (high+/low+/high-/low-) has fewer than
+    `min_run_diversity` distinct physical runs among the candidates
+    collected so far. A low-energy/low-error ranking naturally clusters
+    around the same few best runs in one or more components, so a
+    fixed-size prefix can otherwise contain too few distinct runs in some
+    slot to ever assemble `k` mutually run-disjoint sets - making the
+    constrained search provably infeasible before it evaluates a single
+    complete set.
+    """
     valid_candidates = [
         candidate
         for candidate in ranked_candidates or []
@@ -247,14 +312,30 @@ def _constraint_search_pool(
     pool = []
     rank_indices = {}
     duplicate_count = 0
+    slot_diversity: list[set] | None = None
+
     for rank_index, candidate in enumerate(valid_candidates):
         signature = _signature_sort_key(candidate)
         if signature in rank_indices:
             duplicate_count += 1
             continue
         rank_indices[signature] = rank_index
-        if len(pool) < limit:
-            pool.append(candidate)
+
+        if len(pool) >= limit:
+            diversity_sufficient = slot_diversity is not None and all(
+                len(slot_set) >= min_run_diversity for slot_set in slot_diversity
+            )
+            if diversity_sufficient:
+                break
+
+        pool.append(candidate)
+        usage = _normalized_run_usage(candidate)
+        if usage is not None:
+            if slot_diversity is None:
+                slot_diversity = [set() for _ in usage]
+            for slot_set, identity in zip(slot_diversity, usage):
+                slot_set.add(identity)
+
     return pool, rank_indices, duplicate_count
 
 
@@ -321,6 +402,9 @@ def select_top_k_candidates_with_constraints_v2(
     pool, rank_indices, duplicate_count = _constraint_search_pool(
         candidates,
         requested_pool_size,
+        min_run_diversity=(
+            max(3 * requested_k, requested_k + 10) if avoid_repeated_runs else 1
+        ),
     )
     enabled = normalize_split_time_constraints({
         "time_cv": bool(require_time_cv),
@@ -339,6 +423,8 @@ def select_top_k_candidates_with_constraints_v2(
         "constraints_satisfied": False,
         "evaluated_sets_count": 0,
         "search_pool_size": len(pool),
+        "requested_pool_size": requested_pool_size,
+        "pool_expanded_for_run_diversity": len(pool) > min(requested_pool_size, len(candidates)),
         "valid_sets_found": 0,
         "max_set_evaluations_reached": False,
         "elapsed_seconds": 0.0,
@@ -356,6 +442,12 @@ def select_top_k_candidates_with_constraints_v2(
     if len(candidates) > requested_pool_size:
         metadata["warnings"].append(
             f"Constraint search used {len(pool)} of {len(candidates)} ranked candidates."
+        )
+    if metadata["pool_expanded_for_run_diversity"]:
+        metadata["warnings"].append(
+            f"Search pool was expanded from {requested_pool_size} to {len(pool)} "
+            f"ranked candidates to guarantee at least {requested_k} distinct runs "
+            "per Split component."
         )
     if duplicate_count:
         metadata["warnings"].append(
@@ -436,6 +528,83 @@ def select_top_k_candidates_with_constraints_v2(
         metadata["warnings"].append(
             f"Search stopped after max_search_seconds={search_seconds:.3f}."
         )
+
+    rescue_metadata = {
+        "attempted": False,
+        "evaluations": 0,
+        "found_valid_set": False,
+        "elapsed_seconds": 0.0,
+    }
+    if (
+        best_valid is None
+        and avoid_repeated_runs
+        and metadata["evaluated_sets_count"] == 0
+        and (metadata["timeout_reached"] or metadata["max_set_evaluations_reached"])
+    ):
+        rescue_metadata["attempted"] = True
+        rescue_started = time.perf_counter()
+        rescue_time_budget = max(1.0, min(3.0, search_seconds))
+        rescue_max_attempts = 500
+        rng = random.Random(0)
+        evaluated_signatures = set()
+        attempts = 0
+        while (
+            attempts < rescue_max_attempts
+            and metadata["evaluated_sets_count"] < evaluation_limit
+            and time.perf_counter() - rescue_started < rescue_time_budget
+        ):
+            attempts += 1
+            candidate_set = _randomized_disjoint_set(
+                pool,
+                requested_k,
+                avoid_repeated_runs=avoid_repeated_runs,
+                rng=rng,
+            )
+            if candidate_set is None:
+                continue
+            candidate_set = tuple(candidate_set)
+            signature = frozenset(
+                _signature_sort_key(candidate) for candidate in candidate_set
+            )
+            if signature in evaluated_signatures:
+                continue
+            evaluated_signatures.add(signature)
+            validation = validate_split_candidate_set(
+                list(candidate_set),
+                coefficient_cv_limit_pct=coefficient_cv_limit_pct,
+                time_cv_limit_pct=time_cv_limit_pct,
+                opposite_time_limit_pct=opposite_time_limit_pct,
+            )
+            metadata["evaluated_sets_count"] += 1
+            rescue_metadata["evaluations"] += 1
+            constraint_satisfaction = evaluate_split_constraint_satisfaction(
+                validation,
+                enabled,
+            )
+            score_key = _candidate_set_rank_score(candidate_set, rank_indices)
+            if constraint_satisfaction is not False:
+                metadata["valid_sets_found"] += 1
+                if best_valid_key is None or score_key < best_valid_key:
+                    best_valid = list(candidate_set)
+                    best_valid_key = score_key
+                    best_valid_status = constraint_satisfaction
+                    best_valid_validation = validation
+                rescue_metadata["found_valid_set"] = True
+                break
+            if best_failed_key is None or score_key < best_failed_key:
+                best_failed_key = score_key
+                best_failed_candidates = list(candidate_set)
+                best_failed_validation = validation
+        rescue_metadata["elapsed_seconds"] = time.perf_counter() - rescue_started
+        metadata["elapsed_seconds"] += rescue_metadata["elapsed_seconds"]
+        if rescue_metadata["found_valid_set"]:
+            metadata["warnings"].append(
+                "A valid set was found by a bounded randomized rescue pass "
+                "after the exhaustive search used its full time/evaluation "
+                "budget without reaching a complete set."
+            )
+    metadata["rescue"] = rescue_metadata
+
     if best_valid is not None:
         metadata.update(
             {

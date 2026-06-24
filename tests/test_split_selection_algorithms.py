@@ -539,5 +539,206 @@ class SplitSelectionAlgorithmsTest(unittest.TestCase):
         self.assertFalse(hasattr(module, "st"))
 
 
+def _cartesian_pool_candidates(n=12, seed=42, use_mad_prefilter=False):
+    """Build a realistic high+/low+/high-/low- cartesian candidate pool.
+
+    Mirrors the production shape: n runs per group, each candidate's
+    run_usage built from the real `build_split_run_usage` identity, ranked
+    by a synthetic energy. Different candidates legitimately share physical
+    runs (it's a cartesian product), only the final K-set may not.
+    """
+    import random as _random
+
+    from core.split_candidate_generation import generate_full_split_candidates_exact
+    from core.split_pair_candidate import build_split_run_usage
+
+    rng = _random.Random(seed)
+
+    def make_run(role, heading, run_id, base_delta_t):
+        return {
+            "interval_name": role,
+            "source_role": role,
+            "heading": heading,
+            "run_id": run_id,
+            "filename": f"{role}.csv",
+            "delta_t_s": base_delta_t + rng.uniform(-0.3, 0.3),
+        }
+
+    parsed = {
+        "high": (
+            [make_run("high", "+", index, 20.0) for index in range(n)]
+            + [make_run("high", "-", 100 + index, 20.5) for index in range(n)]
+        ),
+        "low": (
+            [make_run("low", "+", 200 + index, 10.0) for index in range(n)]
+            + [make_run("low", "-", 300 + index, 10.5) for index in range(n)]
+        ),
+    }
+
+    def builder(*, high_plus_run, low_plus_run, high_minus_run, low_minus_run, **_):
+        energy = (
+            high_plus_run["delta_t_s"]
+            + low_plus_run["delta_t_s"]
+            + high_minus_run["delta_t_s"]
+            + low_minus_run["delta_t_s"]
+        )
+        identifier = (
+            f"{high_plus_run['run_id']}/{low_plus_run['run_id']}/"
+            f"{high_minus_run['run_id']}/{low_minus_run['run_id']}"
+        )
+        return {
+            "id": identifier,
+            "energy": energy,
+            "run_usage": build_split_run_usage(
+                high_plus_run=high_plus_run,
+                low_plus_run=low_plus_run,
+                high_minus_run=high_minus_run,
+                low_minus_run=low_minus_run,
+            ),
+            "high_plus_delta_t_s": high_plus_run["delta_t_s"],
+            "low_plus_delta_t_s": low_plus_run["delta_t_s"],
+            "high_minus_delta_t_s": high_minus_run["delta_t_s"],
+            "low_minus_delta_t_s": low_minus_run["delta_t_s"],
+            "F0_mean": 100.0,
+            "F2_mean": 0.004,
+        }
+
+    candidates, generation_metadata = generate_full_split_candidates_exact(
+        parsed,
+        vehicle_data={"effective_mass": 1.0},
+        candidate_builder=builder,
+        use_mad_prefilter=use_mad_prefilter,
+    )
+    return candidates, generation_metadata
+
+
+class SplitSelectionAlgorithmsRealisticPoolTest(unittest.TestCase):
+    """Regression coverage for the run-uniqueness scope fix (K=5, ~12 runs/group)."""
+
+    def test_constrained_search_finds_disjoint_sets_in_realistic_cartesian_pool(self):
+        candidates, _ = _cartesian_pool_candidates(n=12)
+        ranked = rank_candidates_by_energy(candidates)
+
+        selected, metadata = select_top_k_candidates_with_constraints_v2(
+            ranked,
+            5,
+            avoid_repeated_runs=True,
+            require_time_cv=True,
+            require_opposite_time_difference=True,
+            search_pool_size=300,
+            max_set_evaluations=3000,
+            max_search_seconds=10.0,
+        )
+
+        self.assertEqual(len(selected), 5)
+        self.assertGreater(metadata["evaluated_sets_count"], 0)
+        self.assertTrue(metadata["constraints_satisfied"])
+
+    def test_final_set_never_repeats_a_physical_run(self):
+        candidates, _ = _cartesian_pool_candidates(n=12)
+        ranked = rank_candidates_by_energy(candidates)
+
+        selected, _ = select_top_k_candidates_with_constraints_v2(
+            ranked,
+            5,
+            avoid_repeated_runs=True,
+            require_time_cv=True,
+            require_opposite_time_difference=True,
+            search_pool_size=300,
+            max_set_evaluations=3000,
+            max_search_seconds=10.0,
+        )
+
+        seen_runs = set()
+        for candidate in selected:
+            usage = set(candidate["run_usage"])
+            self.assertFalse(seen_runs.intersection(usage))
+            seen_runs.update(usage)
+
+    def test_avoid_repeated_runs_false_bypasses_uniqueness_in_realistic_pool(self):
+        candidates, _ = _cartesian_pool_candidates(n=12)
+        ranked = rank_candidates_by_energy(candidates)
+
+        selected, metadata = select_top_k_candidates_with_constraints_v2(
+            ranked,
+            5,
+            avoid_repeated_runs=False,
+            require_time_cv=False,
+            require_opposite_time_difference=False,
+            search_pool_size=300,
+            max_set_evaluations=3000,
+            max_search_seconds=10.0,
+        )
+
+        self.assertEqual(len(selected), 5)
+        self.assertEqual(
+            [candidate["id"] for candidate in selected],
+            [candidate["id"] for candidate in ranked[:5]],
+        )
+        self.assertGreater(metadata["evaluated_sets_count"], 0)
+
+    def test_mad_prefilter_pipeline_still_finds_disjoint_sets(self):
+        candidates, generation_metadata = _cartesian_pool_candidates(
+            n=10, use_mad_prefilter=True,
+        )
+        self.assertTrue(generation_metadata["prefilter_applied"])
+        ranked = rank_candidates_by_energy(candidates)
+
+        selected, metadata = select_top_k_candidates_with_constraints_v2(
+            ranked,
+            5,
+            avoid_repeated_runs=True,
+            require_time_cv=True,
+            require_opposite_time_difference=True,
+            search_pool_size=300,
+            max_set_evaluations=3000,
+            max_search_seconds=10.0,
+        )
+
+        self.assertEqual(len(selected), 5)
+        self.assertGreater(metadata["evaluated_sets_count"], 0)
+
+    def test_rescue_recovers_a_valid_set_when_search_times_out_immediately(self):
+        candidates, _ = _cartesian_pool_candidates(n=12)
+        ranked = rank_candidates_by_energy(candidates)
+
+        selected, metadata = select_top_k_candidates_with_constraints_v2(
+            ranked,
+            5,
+            avoid_repeated_runs=True,
+            require_time_cv=False,
+            require_opposite_time_difference=False,
+            search_pool_size=2000,
+            max_set_evaluations=3000,
+            max_search_seconds=1e-9,
+        )
+
+        self.assertTrue(metadata["rescue"]["attempted"])
+        self.assertTrue(metadata["rescue"]["found_valid_set"])
+        self.assertEqual(len(selected), 5)
+        seen_runs = set()
+        for candidate in selected:
+            usage = set(candidate["run_usage"])
+            self.assertFalse(seen_runs.intersection(usage))
+            seen_runs.update(usage)
+
+    def test_rescue_does_not_attempt_when_dfs_already_evaluated_sets(self):
+        ranked = [
+            _constrained_candidate("a", high_minus=30.0),
+            _constrained_candidate("b", high_minus=30.1),
+            _constrained_candidate("c", high_minus=30.2),
+        ]
+
+        selected, metadata = select_top_k_candidates_with_constraints_v2(
+            ranked,
+            2,
+            max_set_evaluations=1,
+        )
+
+        self.assertEqual(selected, [])
+        self.assertEqual(metadata["evaluated_sets_count"], 1)
+        self.assertFalse(metadata["rescue"]["attempted"])
+
+
 if __name__ == "__main__":
     unittest.main()

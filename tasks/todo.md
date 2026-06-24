@@ -408,3 +408,15 @@
 - [x] Wire the same parameters through `run_split_auto_selection_exact()` in `core/split_auto_selection.py`, defaulting `mad_min_pool_size` to `max(k + 2, 4)`.
 - [x] Add regression coverage for normal filtering, too-few-records skip, mad-is-zero skip, min-pool-size preservation, disabled prefilter and cartesian-size reduction.
 - [ ] Validate real-world timing improvement on a 12-run-per-group dataset in the running Streamlit app.
+
+## Run-uniqueness search fix - 2026-06-24
+- [x] Diagnose the reported `evaluated_sets_count=0` failure (K=5, ~12 runs/group, pool=300, ~8s timeout) with a synthetic cartesian-product reproduction.
+- [x] Confirm `_iter_candidate_sets()`'s run-uniqueness scope was already correct (tracks only the partial in-progress k-set, not the whole pool) — the originally suspected root cause did not match the reproduced behavior.
+- [x] Identify the real causes: (1) the constrained search pool lacked enough distinct physical runs per Split component for a ranking that naturally clusters around the same few best runs, and (2) even with sufficient diversity, canonical rank-ordered backtracking can still stall deep in conflict-heavy branches before reaching a single complete leaf.
+- [x] Add `min_run_diversity` to `_constraint_search_pool()` in `core/split_selection_algorithms.py`, expanding the pool past its base size until every component (high+/low+/high-/low-) has at least `max(3*k, k+10)` distinct physical runs (capped naturally by total distinct runs available).
+- [x] Fix an off-by-one in the diversity tracking that counted a candidate's own identities before deciding whether to include it in the pool.
+- [x] Add a bounded randomized rescue pass (`_randomized_disjoint_set()`) that only activates when the exhaustive search reaches its time/evaluation budget with `evaluated_sets_count == 0`, to recover a valid run-disjoint set when canonical traversal order stalls.
+- [x] Add `pool_expanded_for_run_diversity`, `requested_pool_size` and `rescue` fields to selector metadata for full traceability.
+- [x] Expose `generated_count`, generation `failed_count` and per-group MAD prefilter input/output/filtered counts in a new collapsed "Diagnóstico da seleção" expander in `pages/page_split_auto_selection.py`, shown for both the approved-result and fallback-offer paths.
+- [x] Add regression coverage: realistic cartesian pool finds disjoint sets, final set never repeats a run, `avoid_repeated_runs=False` still bypasses uniqueness, MAD-prefiltered pipeline still finds disjoint sets, and the rescue pass activates/recovers only when DFS evaluates zero sets.
+- [ ] Complete real-browser validation with a real ~12-run-per-group dataset and K=5 to confirm the previously reported timeout no longer occurs.

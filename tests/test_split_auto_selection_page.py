@@ -14,6 +14,10 @@ from pages.page_split_auto_selection import (
     _format_candidate_display_value,
     _pending_from_fallback_offer,
     _pending_has_constraint_warning,
+    _render_execution_result,
+    _render_fallback_offer,
+    _render_generation_diagnostics,
+    _render_selection_diagnostics,
     _replace_dialog_state_is_valid,
     _replacement_constraint_preview,
     _render_search_diagnostics,
@@ -468,6 +472,33 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
                 True,
             )
         )
+
+    def test_generation_diagnostics_show_counts_and_prefilter_per_group(self):
+        source = inspect.getsource(_render_generation_diagnostics)
+
+        self.assertIn("generated_count", source)
+        self.assertIn("failed_count", source)
+        self.assertIn("split_auto_diagnostics_failed_count", source)
+        self.assertIn("prefilter_applied", source)
+        self.assertIn("split_auto_diagnostics_prefilter_enabled", source)
+        self.assertIn("split_auto_diagnostics_prefilter_disabled", source)
+        self.assertIn("input_count", source)
+        self.assertIn("output_count", source)
+        self.assertIn("filtered_count", source)
+
+    def test_selection_diagnostics_wraps_generation_and_search_in_one_expander(self):
+        source = inspect.getsource(_render_selection_diagnostics)
+
+        self.assertIn('st.expander(t("split_auto_diagnostics_title")', source)
+        self.assertIn("expanded=False", source)
+        self.assertIn("_render_generation_diagnostics", source)
+        self.assertIn("_render_search_diagnostics", source)
+        self.assertIn("split_auto_diagnostics_search_not_applicable", source)
+
+    def test_execution_result_and_fallback_offer_use_selection_diagnostics(self):
+        for func in (_render_execution_result, _render_fallback_offer):
+            source = inspect.getsource(func)
+            self.assertIn("_render_selection_diagnostics", source)
 
     def test_time_status_labels_cover_three_states(self):
         self.assertEqual(
