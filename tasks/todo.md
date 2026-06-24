@@ -420,3 +420,13 @@
 - [x] Expose `generated_count`, generation `failed_count` and per-group MAD prefilter input/output/filtered counts in a new collapsed "Diagnóstico da seleção" expander in `pages/page_split_auto_selection.py`, shown for both the approved-result and fallback-offer paths.
 - [x] Add regression coverage: realistic cartesian pool finds disjoint sets, final set never repeats a run, `avoid_repeated_runs=False` still bypasses uniqueness, MAD-prefiltered pipeline still finds disjoint sets, and the rescue pass activates/recovers only when DFS evaluates zero sets.
 - [ ] Complete real-browser validation with a real ~12-run-per-group dataset and K=5 to confirm the previously reported timeout no longer occurs.
+
+## Results page visual fixes - 2026-06-24
+- [x] Replace the `st.columns`/`st.metric` consolidated summary in `pages/page_split_results.py` with a single HTML card (`split-summary-card`), matching the requested 3-row layout: pairs + conformity, F0/F2/energy grid, CV F0/F2 diagnostic row.
+- [x] Drive the card's conformity icon (✅/❌/⚠️) from `analysis["time_summary"]["passed"]` (the real Split normative time validation), not from `core/split_results.py`'s CV-F0/F2-based `conformity_status`.
+- [x] Reword `split_results_status_conforming`/`split_results_status_nonconforming` in `translations.py` to drop the Standard-style "(CV F0/F2 <= 10%)" parenthetical; add `split_results_status_inconclusive` for the new card and time-check rows.
+- [x] Add `is_meteo_sync_warning()` classifier and `_split_warnings_by_audience()` in `pages/page_split_results.py`; route critical pair warnings through `st.warning` and meteo-sync warnings into a closed `st.expander` with a counted title.
+- [x] Rewrite `_render_deviation_summary()` to show the six real Split normative metrics (CV Delta t high+/high-/low+/low- <= 2.5%, opposite-direction mean diff high/low <= 10%) via `format_split_time_group_label()`/`format_split_opposite_time_label()`, with CV F0/F2 shown separately and explicitly labeled diagnostic/non-normative.
+- [x] Add all new PT/EN strings to `translations.py` (card labels, diagnostic label, meteo-sync expander title, deviation-table column headers/section titles).
+- [x] Add/update regression tests in `tests/test_split_results_formatting.py` for the conformity mapping, card HTML (status/color/escaping), warning classifier/splitter, expander grouping and the six-metric deviation table.
+- [ ] Manually validate the new card, collapsed meteo-sync expander and six-metric deviation table in the running Streamlit app with a real selected-pair set.

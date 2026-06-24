@@ -2349,3 +2349,50 @@ deterministicos que simulam timeout cedo proposital deixam de ser
 deterministicos.
 
 ---
+
+## 2026-06-24 - Resultados Split: conformidade vem de time_summary, nao de conformity_status
+
+### Contexto:
+`pages/page_split_results.py` tinha duas nocoes de "conformidade" coexistindo
+na mesma pagina: (1) `core/split_results.py`'s `conformity_status`, calculado
+a partir do CV de F0/F2 (limite 10%) - um criterio herdado do metodo
+Standard, nunca normativo para Split - e (2) a validacao normativa real de
+Split (`validate_split_selected_times()`, exposta como
+`analysis["time_summary"]["passed"]`), que verifica CV de Delta t por grupo
+(<=2,5%) e diferenca entre medias de sentidos opostos (<=10%), exatamente
+como documentado em `CLAUDE.md` ("CV de F0/F2 e diagnostico apenas - nao
+reprova candidatos"). O card consolidado e o banner de "Validacao dos
+resultados" usavam (1) para informar status de conformidade ao usuario,
+o que e normativamente incorreto.
+
+### Decisao:
+O novo card HTML consolidado (`_build_consolidated_results_card_html`) le
+APENAS `analysis["time_summary"]["passed"]` para o icone/status de
+conformidade (✅ conforme / ❌ nao conforme / ⚠️ inconclusivo), nunca
+`summary["conformity_status"]`. `core/split_results.py` e seus testes
+(`tests/test_split_results.py`, que ja fixam o comportamento de
+`conformity_status` como "not_evaluable"/"incomplete") foram deixados
+intocados de proposito - a mudanca foi inteiramente do lado de
+apresentacao/leitura na pagina, nao do calculo em `core/`. CV F0/F2 continua
+exibido, mas sempre rotulado "(diagnostico)" e sem badge de aprovado/
+reprovado. A secao "Validacao dos resultados" (`_render_coefficients`) foi
+mantida estruturalmente (fora do escopo explicito do pedido), apenas com o
+texto generico "Conforme"/"Nao conforme" (sem o parenteses
+"CV F0/F2 <= 10%") reaproveitado de `split_results_status_conforming/
+nonconforming` em `translations.py`, que agora tambem serve aos seis itens
+normativos de tempo (`_check_status_label`).
+
+### Licao:
+Quando duas fontes de "status" coexistem num mesmo modulo - uma herdada do
+metodo antigo e outra normativa do metodo atual - identifique exatamente
+qual estrutura de dados alimenta o elemento de UI visivel ao usuario antes
+de assumir que "status de conformidade" e um conceito unico. Neste caso a
+hipotese inicial do usuario (`split_final_results` com `time_status`) tambem
+nao correspondia ao codigo real: a pagina nunca le `split_final_results` do
+`session_state` - ela recalcula tudo via `consolidate_split_final_results()`
+e `get_cached_split_deviation_analysis()` a cada render. Avisos tecnicos de
+sincronizacao meteo (`is_meteo_sync_warning`) tambem nao devem influenciar
+esse status nem aparecer como `st.warning` individual; ficam agrupados em um
+expander fechado, mantendo rastreabilidade sem poluir a tela principal.
+
+---

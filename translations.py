@@ -1769,12 +1769,16 @@ TRANSLATIONS = {
         "en": "Conformity status"
     },
     "split_results_status_conforming": {
-        "pt": "Conforme (CV F0/F2 ≤ 10%)",
-        "en": "Conforming (F0/F2 CV ≤ 10%)"
+        "pt": "Conforme",
+        "en": "Conforming"
     },
     "split_results_status_nonconforming": {
-        "pt": "Não conforme (CV F0 ou F2 > 10%)",
-        "en": "Nonconforming (F0 or F2 CV > 10%)"
+        "pt": "Não conforme",
+        "en": "Nonconforming"
+    },
+    "split_results_status_inconclusive": {
+        "pt": "Inconclusivo",
+        "en": "Inconclusive"
     },
     "split_results_status_not_evaluable": {
         "pt": "Não avaliável com menos de dois valores",
@@ -1851,6 +1855,62 @@ TRANSLATIONS = {
     "split_results_no_ambient_traceability": {
         "pt": "Este par não possui rastreabilidade ambiental por componente.",
         "en": "This pair has no component-level ambient traceability."
+    },
+    "split_results_card_conformity": {
+        "pt": "Conformidade",
+        "en": "Conformity"
+    },
+    "split_results_card_conformity_criteria": {
+        "pt": "CV Δt ≤ 2,5% | Dif. médias ≤ 10%",
+        "en": "Δt CV ≤ 2.5% | Mean diff ≤ 10%"
+    },
+    "split_results_diagnostic_label": {
+        "pt": "(diagnóstico)",
+        "en": "(diagnostic)"
+    },
+    "split_results_meteo_sync_expander": {
+        "pt": "Detalhes de sincronização meteorológica ({count} avisos)",
+        "en": "Weather synchronization details ({count} warnings)"
+    },
+    "split_results_deviation_title": {
+        "pt": "Análise de desvios",
+        "en": "Deviation analysis"
+    },
+    "split_results_deviation_time_overall": {
+        "pt": "Tempos Δt",
+        "en": "Δt times"
+    },
+    "split_results_deviation_weather": {
+        "pt": "Meteorologia",
+        "en": "Weather"
+    },
+    "split_results_deviation_time_criteria_title": {
+        "pt": "Critérios normativos de tempo",
+        "en": "Normative time criteria"
+    },
+    "split_results_deviation_metric": {
+        "pt": "Métrica",
+        "en": "Metric"
+    },
+    "split_results_deviation_value": {
+        "pt": "Valor",
+        "en": "Value"
+    },
+    "split_results_deviation_limit": {
+        "pt": "Limite",
+        "en": "Limit"
+    },
+    "split_results_deviation_status": {
+        "pt": "Status",
+        "en": "Status"
+    },
+    "split_results_deviation_coefficients_title": {
+        "pt": "Diagnóstico de coeficientes (não normativo)",
+        "en": "Coefficient diagnostics (non-normative)"
+    },
+    "split_results_deviation_details_note": {
+        "pt": "Detalhes completos permanecem em Comparativo Final > Análise de desvios.",
+        "en": "Full details remain available in Final Comparison > Deviation Analysis."
     },
     "split_results_export": {
         "pt": "Exportação",

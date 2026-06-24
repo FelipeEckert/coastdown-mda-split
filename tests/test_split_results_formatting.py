@@ -9,9 +9,15 @@ from data.split_exporters import (
     get_cached_split_export,
 )
 from pages.page_split_results import (
+    _build_consolidated_results_card_html,
+    _conformity_status_from_time_validation,
     _display,
     _pair_rows,
+    _render_coefficients,
     _render_deviation_summary,
+    _render_summary,
+    _split_warnings_by_audience,
+    is_meteo_sync_warning,
 )
 from translations import get_translator
 
@@ -27,7 +33,7 @@ class _State(dict):
 class SplitResultsFormattingTest(unittest.TestCase):
     def test_results_time_summary_uses_public_configured_speed_labels(self):
         analysis = {
-            "coefficient_summary": {"status": "approved"},
+            "coefficient_summary": {"status": "approved", "cv_f0_pct": 3.1, "cv_f2_pct": 4.2},
             "time_summary": {
                 "status": "approved",
                 "groups": {
@@ -44,15 +50,78 @@ class SplitResultsFormattingTest(unittest.TestCase):
         fake_st = Mock()
         fake_st.columns.return_value = [Mock(), Mock(), Mock()]
         pairs = [{"v2_reference_kmh": 83.0, "v1_reference_kmh": 41.0}]
+        t = get_translator("pt")
 
         with patch("pages.page_split_results.st", fake_st):
-            _render_deviation_summary(analysis, pairs, get_translator("pt"))
+            _render_deviation_summary(analysis, pairs, t)
 
         frame = fake_st.dataframe.call_args.args[0]
-        self.assertEqual(frame.iloc[0]["Grupo"], "C.V. Δt — Vel. ref. alta 83 km/h [+]")
-        self.assertEqual(frame.iloc[1]["Grupo"], "C.V. Δt — Vel. ref. baixa 41 km/h [-]")
+        metric_key = t("split_results_deviation_metric")
+        self.assertEqual(
+            frame.iloc[0][metric_key], "C.V. Δt — Vel. ref. alta 83 km/h [+]",
+        )
+        self.assertEqual(
+            frame.iloc[3][metric_key], "C.V. Δt — Vel. ref. baixa 41 km/h [-]",
+        )
         self.assertNotIn("high_plus", frame.to_string())
         self.assertNotIn("low_minus", frame.to_string())
+
+    def test_deviation_summary_shows_six_normative_time_metrics(self):
+        analysis = {
+            "coefficient_summary": {"status": "approved", "cv_f0_pct": 3.1, "cv_f2_pct": 4.2},
+            "time_summary": {
+                "status": "approved",
+                "cv_limit_pct": 2.5,
+                "opposite_mean_limit_pct": 10.0,
+                "groups": {
+                    "high_plus": {"cv_pct": 1.2, "mean": 20.0, "passed": True},
+                    "high_minus": {"cv_pct": 1.3, "mean": 20.1, "passed": True},
+                    "low_plus": {"cv_pct": 1.1, "mean": 10.0, "passed": True},
+                    "low_minus": {"cv_pct": 1.4, "mean": 10.1, "passed": True},
+                },
+                "opposite_direction": {
+                    "high": {"diff_pct": 0.5, "passed": True},
+                    "low": {"diff_pct": 0.6, "passed": True},
+                },
+            },
+            "weather_summary": {"status": "approved"},
+        }
+        fake_st = Mock()
+        fake_st.columns.return_value = [Mock(), Mock(), Mock()]
+        t = get_translator("pt")
+
+        with patch("pages.page_split_results.st", fake_st):
+            _render_deviation_summary(analysis, [], t)
+
+        frame = fake_st.dataframe.call_args.args[0]
+        self.assertEqual(len(frame), 6)
+
+    def test_deviation_summary_does_not_use_standard_coefficient_wording(self):
+        analysis = {
+            "coefficient_summary": {"status": "approved", "cv_f0_pct": 12.0, "cv_f2_pct": 4.2},
+            "time_summary": {"status": "approved", "groups": {}, "opposite_direction": {}},
+            "weather_summary": {"status": "approved"},
+        }
+        columns_mock = Mock()
+        fake_st = Mock()
+        fake_st.columns.return_value = [columns_mock, columns_mock, columns_mock]
+        t = get_translator("pt")
+
+        with patch("pages.page_split_results.st", fake_st):
+            _render_deviation_summary(analysis, [], t)
+
+        rendered_texts = (
+            [str(call.args[0]) for call in fake_st.markdown.call_args_list]
+            + [str(call.args[0]) for call in fake_st.subheader.call_args_list]
+            + [str(call.args[0]) for call in columns_mock.metric.call_args_list]
+        )
+        self.assertFalse(
+            any("CV F0/F2" in text for text in rendered_texts),
+            "Standard-style 'CV F0/F2' wording must not appear in deviation analysis.",
+        )
+        self.assertTrue(
+            any(t("split_results_diagnostic_label") in text for text in rendered_texts)
+        )
 
     def test_unit_bearing_headers_have_unitless_values(self):
         pair = {
@@ -111,6 +180,134 @@ class SplitResultsFormattingTest(unittest.TestCase):
             from pages.page_split_results import render
             render(lambda key: key)
         exporter.assert_not_called()
+
+    def test_conformity_status_maps_time_validation_passed(self):
+        self.assertEqual(
+            _conformity_status_from_time_validation({"passed": True}), "conforming",
+        )
+        self.assertEqual(
+            _conformity_status_from_time_validation({"passed": False}), "nonconforming",
+        )
+        self.assertEqual(
+            _conformity_status_from_time_validation({"passed": None}), "inconclusive",
+        )
+        self.assertEqual(_conformity_status_from_time_validation(None), "inconclusive")
+
+    def test_consolidated_card_html_reflects_time_validation_status(self):
+        t = get_translator("pt")
+        summary = {
+            "num_pairs": 3,
+            "mean_f0": 130.2186,
+            "mean_f2": 0.046123,
+            "mean_energy": 0.512,
+            "cv_f0": 2.31,
+            "cv_f2": 3.42,
+        }
+        approved_html = _build_consolidated_results_card_html(
+            summary, {"passed": True}, t,
+        )
+        self.assertIn("✅", approved_html)
+        self.assertIn(t("split_results_status_conforming"), approved_html)
+        self.assertIn("#4caf50", approved_html)
+        self.assertIn(t("split_results_diagnostic_label"), approved_html)
+        self.assertNotIn("CV F0/F2", approved_html)
+
+        failed_html = _build_consolidated_results_card_html(
+            summary, {"passed": False}, t,
+        )
+        self.assertIn("❌", failed_html)
+        self.assertIn(t("split_results_status_nonconforming"), failed_html)
+        self.assertIn("#f44336", failed_html)
+
+        inconclusive_html = _build_consolidated_results_card_html(
+            summary, None, t,
+        )
+        self.assertIn("⚠️", inconclusive_html)
+        self.assertIn(t("split_results_status_inconclusive"), inconclusive_html)
+        self.assertIn("#ff9800", inconclusive_html)
+
+    def test_consolidated_card_html_escapes_untrusted_text(self):
+        t = get_translator("pt")
+        summary = {"num_pairs": "<script>1</script>", "mean_f0": None}
+        rendered = _build_consolidated_results_card_html(summary, {"passed": True}, t)
+        self.assertNotIn("<script>", rendered)
+
+    def test_render_summary_renders_card_via_markdown(self):
+        fake_st = Mock()
+        t = get_translator("pt")
+        summary = {"num_pairs": 1, "mean_f0": 100.0, "mean_f2": 0.004, "mean_energy": 0.2, "cv_f0": None, "cv_f2": None}
+        with patch("pages.page_split_results.st", fake_st):
+            _render_summary(summary, {"passed": True}, t)
+        html_arg = fake_st.markdown.call_args.args[0]
+        self.assertIn("split-summary-card", html_arg)
+        self.assertEqual(fake_st.markdown.call_args.kwargs.get("unsafe_allow_html"), True)
+
+    def test_is_meteo_sync_warning_classifies_technical_notes(self):
+        self.assertTrue(is_meteo_sync_warning(
+            "The weather date differs from the run date; synchronization used time of day only."
+        ))
+        self.assertTrue(is_meteo_sync_warning(
+            "Multiple weather records were equally close; the first source was selected."
+        ))
+        self.assertFalse(is_meteo_sync_warning("Pair excluded due to missing F0."))
+        self.assertFalse(is_meteo_sync_warning(None))
+
+    def test_split_warnings_by_audience_separates_groups(self):
+        warnings = [
+            "Pair excluded due to missing F0.",
+            "The weather date differs from the run date; synchronization used time of day only.",
+            "",
+            None,
+        ]
+        critical, meteo_sync = _split_warnings_by_audience(warnings)
+        self.assertEqual(critical, ["Pair excluded due to missing F0."])
+        self.assertEqual(
+            meteo_sync,
+            ["The weather date differs from the run date; synchronization used time of day only."],
+        )
+
+    def test_coefficients_section_groups_meteo_sync_warnings_into_expander(self):
+        summary = {
+            "mean_f0": 100.0, "mean_f2": 0.004, "mean_energy": 0.2,
+            "cv_f0": 2.0, "cv_f2": 3.0, "cv_energy": None,
+            "conformity_status": "conforming",
+            "warnings": [
+                "Pair excluded due to missing F0.",
+                "The weather date differs from the run date; synchronization used time of day only.",
+            ],
+        }
+        fake_st = Mock()
+        fake_expander = Mock()
+        fake_expander.__enter__ = Mock(return_value=fake_expander)
+        fake_expander.__exit__ = Mock(return_value=False)
+        fake_st.expander.return_value = fake_expander
+        t = get_translator("pt")
+
+        with patch("pages.page_split_results.st", fake_st):
+            _render_coefficients(summary, t)
+
+        warning_texts = [str(call.args[0]) for call in fake_st.warning.call_args_list]
+        self.assertIn("Pair excluded due to missing F0.", warning_texts)
+        self.assertFalse(any("weather date differs" in text for text in warning_texts))
+        fake_st.expander.assert_called_once()
+        expander_title = fake_st.expander.call_args.args[0]
+        self.assertIn("1", expander_title)
+        self.assertEqual(fake_st.expander.call_args.kwargs.get("expanded"), False)
+
+    def test_coefficients_section_skips_expander_without_meteo_sync_warnings(self):
+        summary = {
+            "mean_f0": 100.0, "mean_f2": 0.004, "mean_energy": 0.2,
+            "cv_f0": 2.0, "cv_f2": 3.0, "cv_energy": None,
+            "conformity_status": "conforming",
+            "warnings": [],
+        }
+        fake_st = Mock()
+        t = get_translator("pt")
+
+        with patch("pages.page_split_results.st", fake_st):
+            _render_coefficients(summary, t)
+
+        fake_st.expander.assert_not_called()
 
 
 if __name__ == "__main__":
