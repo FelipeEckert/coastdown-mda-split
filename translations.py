@@ -1095,6 +1095,112 @@ TRANSLATIONS = {
         "pt": "Quando ativado, a mesma passada high/low, dire\u00e7\u00e3o e fonte n\u00e3o ser\u00e1 usada em mais de um candidato sugerido.",
         "en": "When enabled, the same high/low run, direction, and source will not be used in more than one suggested candidate."
     },
+    "split_auto_constraint_section": {
+        "pt": "Critérios de validação do conjunto sugerido",
+        "en": "Suggested-set validation criteria"
+    },
+    "split_auto_constraint_description": {
+        "pt": "Esses critérios são avaliados sobre o conjunto de pares sugeridos, conforme a validação normativa dos tempos no método Split.",
+        "en": "These criteria are evaluated over the suggested pair set according to the Split method's normative time validation."
+    },
+    "split_auto_require_time_cv": {
+        "pt": "Exigir C.V. Δt por velocidade/sentido <= 2,5%",
+        "en": "Require Δt C.V. per speed/direction <= 2.5%"
+    },
+    "split_auto_require_opposite_difference": {
+        "pt": "Exigir diferença média entre sentidos <= 10%",
+        "en": "Require mean difference between directions <= 10%"
+    },
+    "split_auto_search_advanced_settings": {
+        "pt": "Configurações avançadas da busca",
+        "en": "Advanced search settings"
+    },
+    "split_auto_search_pool_size": {
+        "pt": "Tamanho máximo da pool de busca",
+        "en": "Maximum search pool size"
+    },
+    "split_auto_search_max_set_evaluations": {
+        "pt": "Máximo de conjuntos avaliados",
+        "en": "Maximum evaluated sets"
+    },
+    "split_auto_search_max_seconds": {
+        "pt": "Tempo máximo de busca [s]",
+        "en": "Maximum search time [s]"
+    },
+    "split_auto_search_disabled_help": {
+        "pt": "A busca constrained não é usada quando todos os critérios estão desligados.",
+        "en": "Constrained search is not used when all criteria are disabled."
+    },
+    "split_auto_search_evaluated_sets": {
+        "pt": "Conjuntos avaliados",
+        "en": "Evaluated sets"
+    },
+    "split_auto_search_valid_sets": {
+        "pt": "Conjuntos válidos encontrados",
+        "en": "Valid sets found"
+    },
+    "split_auto_search_pool": {
+        "pt": "Pool de busca",
+        "en": "Search pool"
+    },
+    "split_auto_search_strategy": {
+        "pt": "Estratégia",
+        "en": "Strategy"
+    },
+    "split_auto_search_strategy_constraint_first": {
+        "pt": "constraint-first",
+        "en": "constraint-first"
+    },
+    "split_auto_search_elapsed_seconds": {
+        "pt": "Tempo decorrido [s]",
+        "en": "Elapsed time [s]"
+    },
+    "split_auto_search_time_limit": {
+        "pt": "Limite de tempo [s]",
+        "en": "Time limit [s]"
+    },
+    "split_auto_search_timeout_status": {
+        "pt": "Timeout atingido",
+        "en": "Timeout reached"
+    },
+    "split_auto_search_evaluation_limit_status": {
+        "pt": "Limite de avaliações atingido",
+        "en": "Evaluation limit reached"
+    },
+    "split_auto_yes": {"pt": "Sim", "en": "Yes"},
+    "split_auto_no": {"pt": "Não", "en": "No"},
+    "split_auto_search_limit_reached": {
+        "pt": "A busca atingiu o limite configurado de avaliações; pode haver combinações válidas fora da busca avaliada.",
+        "en": "The search reached the configured evaluation limit; valid combinations may exist outside the evaluated search."
+    },
+    "split_auto_search_limited_warning": {
+        "pt": "A busca foi limitada por tempo/quantidade de combinações avaliadas. Pode haver combinações válidas fora do universo avaliado.",
+        "en": "The search was limited by time/evaluated-combination count. Valid combinations may exist outside the evaluated universe."
+    },
+    "split_auto_phase_generating": {
+        "pt": "1. Gerando candidatos...",
+        "en": "1. Generating candidates..."
+    },
+    "split_auto_phase_ranking": {
+        "pt": "2. Rankeando candidatos...",
+        "en": "2. Ranking candidates..."
+    },
+    "split_auto_phase_searching": {
+        "pt": "3. Buscando combinação válida dentro dos limites configurados...",
+        "en": "3. Searching for a valid combination within configured limits..."
+    },
+    "split_auto_phase_finalizing": {
+        "pt": "4. Finalizando sugestões...",
+        "en": "4. Finalizing suggestions..."
+    },
+    "split_auto_phase_stopped_by_limit": {
+        "pt": "Busca encerrada por limite de tempo/avaliações.",
+        "en": "Search stopped by the time/evaluation limit."
+    },
+    "split_auto_phase_completed": {
+        "pt": "Seleção automática concluída.",
+        "en": "Automatic selection completed."
+    },
     "split_auto_target_f0": {
         "pt": "F0 alvo",
         "en": "Target F0"
@@ -1106,6 +1212,14 @@ TRANSLATIONS = {
     "split_auto_target_score": {
         "pt": "Score target",
         "en": "Target score"
+    },
+    "split_auto_cv_f0_diagnostic": {
+        "pt": "CV F0 [%] (diagnóstico)",
+        "en": "F0 CV [%] (diagnostic)"
+    },
+    "split_auto_cv_f2_diagnostic": {
+        "pt": "CV F2 [%] (diagnóstico)",
+        "en": "F2 CV [%] (diagnostic)"
     },
     "split_auto_exact_limit_exceeded": {
         "pt": "O total estimado excede o limite configurado. A gera\u00e7\u00e3o exata ser\u00e1 bloqueada. Em rodada futura ser\u00e1 implementado o modo otimizado por pr\u00e9-sele\u00e7\u00e3o direcional.",
@@ -1229,6 +1343,26 @@ TRANSLATIONS = {
         "pt": "Este par ser\u00e1 removido da lista de sugest\u00f5es e substitu\u00eddo pela pr\u00f3xima sugest\u00e3o v\u00e1lida do mesmo ranking.",
         "en": "This pair will be removed from the suggestion list and replaced by the next valid suggestion from the same ranking."
     },
+    "split_auto_replace_current_constraint_status": {
+        "pt": "Status atual do conjunto",
+        "en": "Current set status"
+    },
+    "split_auto_replace_next_constraint_status": {
+        "pt": "Status após substituição",
+        "en": "Status after replacement"
+    },
+    "split_auto_replace_constraints_failed": {
+        "pt": "A substituição deixa ou mantém o conjunto fora dos critérios ativos.",
+        "en": "The replacement leaves or keeps the set outside the active criteria."
+    },
+    "split_auto_replace_constraints_inconclusive": {
+        "pt": "Após a substituição, o conjunto permanece inconclusivo por dados insuficientes.",
+        "en": "After replacement, the set remains inconclusive because of insufficient data."
+    },
+    "split_auto_replace_constraints_approved": {
+        "pt": "Após a substituição, o conjunto atende aos critérios ativos.",
+        "en": "After replacement, the set meets the active criteria."
+    },
     "split_auto_replace_current_pair": {
         "pt": "Par atual",
         "en": "Current pair"
@@ -1305,6 +1439,47 @@ TRANSLATIONS = {
         "pt": "Diagn\u00f3stico normativo dos tempos",
         "en": "Normative time diagnostic"
     },
+    "split_auto_constraints_approved": {
+        "pt": "✅ Conjunto sugerido atende aos critérios ativos.",
+        "en": "✅ The suggested set meets the active criteria."
+    },
+    "split_auto_constraints_pending_failed": {
+        "pt": "⚠️ Conjunto sugerido não atende a todos os critérios normativos de tempos.",
+        "en": "⚠️ The suggested set does not meet all normative time criteria."
+    },
+    "split_auto_constraints_card_warning": {
+        "pt": "⚠️ Conjunto sugerido não atende a todos os critérios normativos de tempos.",
+        "en": "⚠️ The suggested set does not meet all normative time criteria."
+    },
+    "split_auto_constraints_inconclusive": {
+        "pt": "O conjunto sugerido possui verificações inconclusivas por amostra insuficiente.",
+        "en": "The suggested set has inconclusive checks because of insufficient samples."
+    },
+    "split_auto_constraints_no_valid_set": {
+        "pt": "⚠️ Não foi encontrada combinação aprovada dentro dos limites de busca configurados para os critérios de tempos.",
+        "en": "⚠️ No approved combination was found within the configured search limits for the time criteria."
+    },
+    "split_auto_use_fallback": {
+        "pt": "Preencher sugestões mesmo assim",
+        "en": "Fill suggestions anyway"
+    },
+    "split_auto_constraint_diagnostic": {
+        "pt": "Diagnóstico do melhor conjunto encontrado",
+        "en": "Best available set diagnostic"
+    },
+    "split_auto_constraint_warnings": {
+        "pt": "Avisos da validação do conjunto",
+        "en": "Set-validation warnings"
+    },
+    "split_auto_constraints_status_approved": {"pt": "Aprovado", "en": "Approved"},
+    "split_auto_constraints_status_failed": {"pt": "Reprovado", "en": "Failed"},
+    "split_auto_constraints_status_inconclusive": {"pt": "Inconclusivo", "en": "Inconclusive"},
+    "split_auto_constraint_cv_high_plus": {"pt": "C.V. Δt — Vel. ref. alta [+]", "en": "Δt C.V. — High reference speed [+]"},
+    "split_auto_constraint_cv_high_minus": {"pt": "C.V. Δt — Vel. ref. alta [-]", "en": "Δt C.V. — High reference speed [-]"},
+    "split_auto_constraint_cv_low_plus": {"pt": "C.V. Δt — Vel. ref. baixa [+]", "en": "Δt C.V. — Low reference speed [+]"},
+    "split_auto_constraint_cv_low_minus": {"pt": "C.V. Δt — Vel. ref. baixa [-]", "en": "Δt C.V. — Low reference speed [-]"},
+    "split_auto_constraint_diff_high": {"pt": "Dif. médias Δt — Vel. ref. alta: [+] vs [-]", "en": "Δt mean difference — High reference speed: [+] vs [-]"},
+    "split_auto_constraint_diff_low": {"pt": "Dif. médias Δt — Vel. ref. baixa: [+] vs [-]", "en": "Δt mean difference — Low reference speed: [+] vs [-]"},
     "split_auto_time_overall_status": {
         "pt": "Status geral",
         "en": "Overall status"

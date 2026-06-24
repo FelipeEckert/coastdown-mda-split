@@ -10,9 +10,12 @@ import pandas as pd
 import streamlit as st
 
 from core.split_auto_selection import (
+    evaluate_split_constraint_satisfaction,
     find_replacement_candidate,
+    normalize_split_time_constraints,
     replace_pending_candidate,
     run_split_auto_selection_exact,
+    validate_split_candidate_set,
 )
 from core.split_candidate_generation import (
     estimate_full_candidate_count,
@@ -221,12 +224,12 @@ def _candidate_rows(candidates: list[dict], algorithm: str, t) -> list[dict]:
                     ),
                     "F0 [N]": _finite_float(candidate.get(f"F0_{suffix}")),
                     "F2 [N/(km/h)^2]": _finite_float(candidate.get(f"F2_{suffix}")),
-                    "CV F0 [%]": (
+                    t("split_auto_cv_f0_diagnostic"): (
                         coefficient_variation_percent(
                             candidate.get("F0_plus"), candidate.get("F0_minus")
                         ) if is_average else None
                     ),
-                    "CV F2 [%]": (
+                    t("split_auto_cv_f2_diagnostic"): (
                         coefficient_variation_percent(
                             candidate.get("F2_plus"), candidate.get("F2_minus")
                         ) if is_average else None
@@ -270,8 +273,8 @@ def _candidate_table(candidate: dict, algorithm: str, t):
     numeric_formats = {
         "F0 [N]": 4,
         "F2 [N/(km/h)^2]": 6,
-        "CV F0 [%]": 2,
-        "CV F2 [%]": 2,
+        t("split_auto_cv_f0_diagnostic"): 2,
+        t("split_auto_cv_f2_diagnostic"): 2,
         t("split_auto_temperature"): 1,
         t("split_auto_pressure"): 2,
         t("split_auto_wind"): 2,
@@ -358,6 +361,250 @@ def _render_time_validation(time_validation: dict | None, t) -> None:
             st.warning("\n".join(str(warning) for warning in warnings))
 
 
+def _constraints_active(constraints_enabled: dict | None) -> bool:
+    return any(normalize_split_time_constraints(constraints_enabled).values())
+
+
+def _default_constraint_search_pool_size(k: int) -> int:
+    return max(80, int(k) * 20, int(k) + 40)
+
+
+def _search_diagnostic_values(metadata: dict | None) -> dict | None:
+    source = metadata if isinstance(metadata, dict) else {}
+    selection = source.get("selection") or source
+    if selection.get("strategy") != "constraint_first_v2":
+        return None
+    return {
+        "strategy": selection.get("strategy"),
+        "evaluated_sets_count": selection.get("evaluated_sets_count", 0),
+        "valid_sets_found": selection.get("valid_sets_found", 0),
+        "search_pool_size": selection.get("search_pool_size", 0),
+        "max_set_evaluations_reached": bool(
+            selection.get("max_set_evaluations_reached", False)
+        ),
+        "elapsed_seconds": selection.get("elapsed_seconds", 0.0),
+        "max_search_seconds": selection.get("max_search_seconds", 0.0),
+        "timeout_reached": bool(selection.get("timeout_reached", False)),
+    }
+
+
+def _render_search_diagnostics(metadata: dict | None, t) -> None:
+    diagnostic = _search_diagnostic_values(metadata)
+    if diagnostic is None:
+        return
+    metrics = (
+        ("split_auto_search_evaluated_sets", diagnostic["evaluated_sets_count"]),
+        ("split_auto_search_valid_sets", diagnostic["valid_sets_found"]),
+        ("split_auto_search_pool", diagnostic["search_pool_size"]),
+        (
+            "split_auto_search_strategy",
+            t("split_auto_search_strategy_constraint_first"),
+        ),
+        (
+            "split_auto_search_elapsed_seconds",
+            _format_number(diagnostic["elapsed_seconds"], 2),
+        ),
+        (
+            "split_auto_search_time_limit",
+            _format_number(diagnostic["max_search_seconds"], 1),
+        ),
+        (
+            "split_auto_search_timeout_status",
+            (
+                t("split_auto_yes")
+                if diagnostic["timeout_reached"]
+                else t("split_auto_no")
+            ),
+        ),
+        (
+            "split_auto_search_evaluation_limit_status",
+            (
+                t("split_auto_yes")
+                if diagnostic["max_set_evaluations_reached"]
+                else t("split_auto_no")
+            ),
+        ),
+    )
+    for start in range(0, len(metrics), 4):
+        columns = st.columns(4)
+        for column, (label_key, value) in zip(columns, metrics[start:start + 4]):
+            column.metric(t(label_key), str(value))
+    if (
+        diagnostic["max_set_evaluations_reached"]
+        or diagnostic["timeout_reached"]
+    ):
+        st.warning(t("split_auto_search_limited_warning"))
+
+
+def _constraint_status_label(status, t) -> str:
+    if status is True:
+        return t("split_auto_constraints_status_approved")
+    if status is False:
+        return t("split_auto_constraints_status_failed")
+    return t("split_auto_constraints_status_inconclusive")
+
+
+def _constraint_warning_messages(validation: dict | None, warnings=None) -> list[str]:
+    messages = [str(item) for item in warnings or [] if str(item).strip()]
+    if isinstance(validation, dict):
+        messages.extend(
+            str(item)
+            for item in validation.get("warnings") or []
+            if str(item).strip()
+        )
+        messages.extend(
+            f"Failed check: {item}"
+            for item in validation.get("failed_checks") or []
+        )
+    return list(dict.fromkeys(messages))
+
+
+def _build_selection_state(
+    *,
+    algorithm: str,
+    candidates: list[dict],
+    ranked_pool: list[dict],
+    metadata: dict,
+    avoid_repeated_runs: bool,
+    target_f0,
+    target_f2,
+    ambient_mode: str,
+    weather_metadata,
+) -> tuple[dict | None, dict | None]:
+    """Build either a reviewable pending set or an explicit fallback offer."""
+    constraints_enabled = normalize_split_time_constraints(
+        metadata.get("constraints_enabled")
+    )
+    constraint_validation = metadata.get("constraint_validation")
+    common = {
+        "algorithm": algorithm,
+        "candidates": list(candidates or []),
+        "ranked_pool": list(ranked_pool or []),
+        "metadata": metadata,
+        "avoid_repeated_runs": avoid_repeated_runs,
+        "target_f0": target_f0,
+        "target_f2": target_f2,
+        "replacement_history": [],
+        "replacement_feedback": None,
+        "merge_metadata": None,
+        "pool_strategy": "balanced_v2",
+        "ambient_mode": ambient_mode,
+        "weather_metadata": weather_metadata,
+        "constraints_enabled": constraints_enabled,
+        "constraints_satisfied": metadata.get("constraints_satisfied"),
+        "constraint_validation": constraint_validation,
+        "fallback_used": False,
+        "constraint_warnings": _constraint_warning_messages(
+            constraint_validation,
+            metadata.get("constraint_warnings"),
+        ),
+    }
+    fallback_candidates = list(
+        ((metadata.get("selection") or {}).get("fallback_candidates")) or []
+    )
+    if _constraints_active(constraints_enabled) and not candidates:
+        offer = {
+            **common,
+            "candidates": fallback_candidates,
+            "constraints_satisfied": False,
+            "awaiting_fallback_confirmation": bool(fallback_candidates),
+        }
+        return None, offer
+    return {**common, "awaiting_fallback_confirmation": False}, None
+
+
+def _pending_from_fallback_offer(offer: dict) -> dict:
+    """Promote an explicit fallback offer to pending only after user action."""
+    pending = deepcopy(offer)
+    pending["awaiting_fallback_confirmation"] = False
+    pending["fallback_used"] = True
+    pending["constraints_satisfied"] = False
+    metadata = dict(pending.get("metadata") or {})
+    metadata["selected_count"] = len(pending.get("candidates") or [])
+    metadata["constraints_satisfied"] = False
+    metadata["fallback_used"] = True
+    pending["metadata"] = metadata
+    return pending
+
+
+def _replacement_constraint_preview(
+    pending: dict,
+    replace_index: int,
+    replacement: dict,
+) -> dict:
+    """Validate the current and simulated post-replacement candidate sets."""
+    constraints_enabled = normalize_split_time_constraints(
+        pending.get("constraints_enabled")
+    )
+    if not _constraints_active(constraints_enabled):
+        return {
+            "constraints_enabled": constraints_enabled,
+            "current_status": None,
+            "next_status": None,
+            "current_validation": None,
+            "next_validation": None,
+        }
+    candidates = list(pending.get("candidates") or [])
+    simulated = list(candidates)
+    simulated[replace_index] = replacement
+    current_validation = validate_split_candidate_set(candidates)
+    next_validation = validate_split_candidate_set(simulated)
+    return {
+        "constraints_enabled": constraints_enabled,
+        "current_status": evaluate_split_constraint_satisfaction(
+            current_validation,
+            constraints_enabled,
+        ),
+        "next_status": evaluate_split_constraint_satisfaction(
+            next_validation,
+            constraints_enabled,
+        ),
+        "current_validation": current_validation,
+        "next_validation": next_validation,
+    }
+
+
+def _pending_has_constraint_warning(pending: dict) -> bool:
+    return (
+        _constraints_active(pending.get("constraints_enabled"))
+        and pending.get("constraints_satisfied") is False
+    )
+
+
+def _render_constraint_validation(
+    validation: dict | None,
+    t,
+    *,
+    expanded: bool = False,
+) -> None:
+    if not isinstance(validation, dict):
+        return
+    groups = validation.get("time_group_results") or {}
+    opposite = validation.get("opposite_time_results") or {}
+    rows = [
+        ("split_auto_constraint_cv_high_plus", (groups.get("high_plus") or {}).get("cv_pct")),
+        ("split_auto_constraint_cv_high_minus", (groups.get("high_minus") or {}).get("cv_pct")),
+        ("split_auto_constraint_cv_low_plus", (groups.get("low_plus") or {}).get("cv_pct")),
+        ("split_auto_constraint_cv_low_minus", (groups.get("low_minus") or {}).get("cv_pct")),
+        ("split_auto_constraint_diff_high", (opposite.get("high") or {}).get("diff_pct")),
+        ("split_auto_constraint_diff_low", (opposite.get("low") or {}).get("diff_pct")),
+    ]
+    with st.expander(t("split_auto_constraint_diagnostic"), expanded=expanded):
+        st.dataframe(
+            pd.DataFrame(
+                [
+                    {
+                        t("split_auto_time_check"): t(label_key),
+                        t("split_auto_time_value"): _format_number(value),
+                    }
+                    for label_key, value in rows
+                ]
+            ),
+            width="stretch",
+            hide_index=True,
+        )
+
+
 def _store_pending_selection(pending: dict) -> None:
     st.session_state.split_auto_selection_pending = pending
     st.session_state.split_auto_selection_last_result = pending
@@ -368,11 +615,22 @@ def _store_pending_selection(pending: dict) -> None:
         tests[active_test_id]["split_auto_selection_last_result"] = pending
 
 
+def _store_fallback_offer(offer: dict) -> None:
+    st.session_state.split_auto_selection_pending = None
+    st.session_state.split_auto_selection_last_result = offer
+    active_test_id = st.session_state.get("active_test_id")
+    tests = st.session_state.get("tests") or {}
+    if active_test_id in tests:
+        tests[active_test_id]["split_auto_selection_pending"] = None
+        tests[active_test_id]["split_auto_selection_last_result"] = offer
+
+
 def _set_replace_request(
     replace_index: int,
     old_candidate: dict,
     new_candidate: dict,
     metadata: dict,
+    constraint_preview: dict | None = None,
 ) -> None:
     request = {
         "index": replace_index,
@@ -381,6 +639,7 @@ def _set_replace_request(
         "old_signature": split_candidate_signature(old_candidate),
         "new_signature": split_candidate_signature(new_candidate),
         "metadata": deepcopy(metadata),
+        "constraint_preview": deepcopy(constraint_preview),
     }
     st.session_state.split_auto_replace_request = request
     st.session_state.split_auto_replace_dialog_open = True
@@ -444,6 +703,11 @@ def _preview_pending_suggestion(replace_index: int) -> bool:
         candidates[replace_index],
         replacement,
         replacement_metadata,
+        _replacement_constraint_preview(
+            pending,
+            replace_index,
+            replacement,
+        ),
     )
     return True
 
@@ -477,6 +741,19 @@ def _confirm_pending_replacement() -> bool:
         _clear_replace_request()
         return False
     pending["candidates"] = candidates
+    constraints_enabled = normalize_split_time_constraints(
+        pending.get("constraints_enabled")
+    )
+    if _constraints_active(constraints_enabled):
+        constraint_validation = validate_split_candidate_set(candidates)
+        pending["constraint_validation"] = constraint_validation
+        pending["constraints_satisfied"] = evaluate_split_constraint_satisfaction(
+            constraint_validation,
+            constraints_enabled,
+        )
+        pending["constraint_warnings"] = _constraint_warning_messages(
+            constraint_validation
+        )
     pending["replacement_feedback"] = replacement_metadata
     pending["replacement_history"] = list(pending.get("replacement_history") or []) + [
         replacement_metadata
@@ -512,6 +789,33 @@ def _replace_dialog_content(t) -> None:
         width="stretch",
         hide_index=True,
     )
+    constraint_preview = request.get("constraint_preview") or {}
+    if _constraints_active(constraint_preview.get("constraints_enabled")):
+        status_columns = st.columns(2)
+        status_columns[0].metric(
+            t("split_auto_replace_current_constraint_status"),
+            _constraint_status_label(
+                constraint_preview.get("current_status"),
+                t,
+            ),
+        )
+        status_columns[1].metric(
+            t("split_auto_replace_next_constraint_status"),
+            _constraint_status_label(
+                constraint_preview.get("next_status"),
+                t,
+            ),
+        )
+        if constraint_preview.get("next_status") is False:
+            st.warning(t("split_auto_replace_constraints_failed"))
+        elif constraint_preview.get("next_status") is None:
+            st.info(t("split_auto_replace_constraints_inconclusive"))
+        else:
+            st.success(t("split_auto_replace_constraints_approved"))
+        _render_constraint_validation(
+            constraint_preview.get("next_validation"),
+            t,
+        )
 
     confirm_column, cancel_column = st.columns(2)
     if confirm_column.button(
@@ -562,11 +866,13 @@ def _merge_pending_suggestions() -> None:
 
 def _clear_pending_suggestions() -> None:
     st.session_state.split_auto_selection_pending = None
+    st.session_state.split_auto_selection_last_result = None
     _clear_replace_request()
     active_test_id = st.session_state.get("active_test_id")
     tests = st.session_state.get("tests") or {}
     if active_test_id in tests:
         tests[active_test_id]["split_auto_selection_pending"] = None
+        tests[active_test_id]["split_auto_selection_last_result"] = None
 
 
 def _render_merge_feedback(merge_metadata: dict, t) -> None:
@@ -589,6 +895,14 @@ def _render_execution_result(pending: dict, t) -> None:
     algorithm = metadata.get("algorithm") or pending.get("algorithm") or "energy"
 
     st.success(t("split_auto_completed"))
+    if _constraints_active(pending.get("constraints_enabled")):
+        if pending.get("constraints_satisfied") is True:
+            st.success(t("split_auto_constraints_approved"))
+        elif pending.get("constraints_satisfied") is False:
+            st.warning(t("split_auto_constraints_pending_failed"))
+        else:
+            st.info(t("split_auto_constraints_inconclusive"))
+        _render_search_diagnostics(metadata, t)
     first_row = st.columns(4)
     first_row[0].metric(
         t("split_auto_generated_count"),
@@ -668,6 +982,8 @@ def _render_execution_result(pending: dict, t) -> None:
                 ):
                     _preview_pending_suggestion(index)
                     st.rerun()
+                if _pending_has_constraint_warning(pending):
+                    st.warning(t("split_auto_constraints_card_warning"))
                 _render_weather_candidate_summary(candidate, t)
                 st.dataframe(
                     _candidate_table(candidate, algorithm, t),
@@ -689,9 +1005,39 @@ def _render_execution_result(pending: dict, t) -> None:
         ):
             _clear_pending_suggestions()
             st.rerun()
-    _render_time_validation(metadata.get("time_validation"), t)
+    if isinstance(pending.get("constraint_validation"), dict):
+        _render_constraint_validation(
+            pending.get("constraint_validation"),
+            t,
+            expanded=_pending_has_constraint_warning(pending),
+        )
+    else:
+        _render_time_validation(metadata.get("time_validation"), t)
     if isinstance(merge_metadata, dict):
         _render_merge_feedback(merge_metadata, t)
+
+
+def _render_fallback_offer(offer: dict, t) -> None:
+    st.warning(t("split_auto_constraints_no_valid_set"))
+    _render_search_diagnostics(offer.get("metadata"), t)
+    _render_constraint_validation(
+        offer.get("constraint_validation"),
+        t,
+        expanded=True,
+    )
+    warnings = offer.get("constraint_warnings") or []
+    if warnings:
+        with st.expander(t("split_auto_constraint_warnings"), expanded=False):
+            st.warning("\n".join(str(item) for item in warnings))
+    if offer.get("candidates") and st.button(
+        t("split_auto_use_fallback"),
+        type="primary",
+        width="stretch",
+        key="split_auto_use_fallback",
+    ):
+        _store_pending_selection(_pending_from_fallback_offer(offer))
+        _clear_replace_request()
+        st.rerun()
 
 
 def render(t) -> None:
@@ -772,6 +1118,66 @@ def render(t) -> None:
         key="split_auto_avoid_repeated",
     )
     settings_columns[2].caption(t("split_auto_avoid_repeated_help"))
+
+    st.markdown(f"#### {t('split_auto_constraint_section')}")
+    st.caption(t("split_auto_constraint_description"))
+    constraint_columns = st.columns(2)
+    require_time_cv = constraint_columns[0].checkbox(
+        t("split_auto_require_time_cv"),
+        value=True,
+        key="split_auto_require_time_cv",
+    )
+    require_opposite_time_difference = constraint_columns[1].checkbox(
+        t("split_auto_require_opposite_difference"),
+        value=True,
+        key="split_auto_require_opposite_difference",
+    )
+    constraints_enabled = any(
+        (
+            require_time_cv,
+            require_opposite_time_difference,
+        )
+    )
+    with st.expander(
+        t("split_auto_search_advanced_settings"),
+        expanded=False,
+    ):
+        search_columns = st.columns(3)
+        search_pool_size = int(
+            search_columns[0].number_input(
+                t("split_auto_search_pool_size"),
+                min_value=max(1, k),
+                max_value=10000,
+                value=_default_constraint_search_pool_size(k),
+                step=20,
+                key="split_auto_search_pool_size",
+                disabled=not constraints_enabled,
+            )
+        )
+        max_set_evaluations = int(
+            search_columns[1].number_input(
+                t("split_auto_search_max_set_evaluations"),
+                min_value=1,
+                max_value=1000000,
+                value=3000,
+                step=500,
+                key="split_auto_search_max_set_evaluations",
+                disabled=not constraints_enabled,
+            )
+        )
+        max_search_seconds = float(
+            search_columns[2].number_input(
+                t("split_auto_search_max_seconds"),
+                min_value=0.1,
+                max_value=600.0,
+                value=30.0,
+                step=5.0,
+                key="split_auto_search_max_seconds",
+                disabled=not constraints_enabled,
+            )
+        )
+        if not constraints_enabled:
+            st.caption(t("split_auto_search_disabled_help"))
 
     st.markdown(f"#### {t('split_auto_environment_section')}")
     ambient_options = {
@@ -882,9 +1288,25 @@ def render(t) -> None:
         disabled=not can_execute,
     ):
         progress = st.progress(0.0)
+        phase_placeholder = st.empty()
 
         def progress_callback(value):
-            progress.progress(min(max(float(value), 0.0), 1.0))
+            generation_progress = min(max(float(value), 0.0), 1.0)
+            progress.progress(0.05 + generation_progress * 0.50)
+
+        def phase_callback(phase):
+            phase_config = {
+                "generating": (0.05, "split_auto_phase_generating"),
+                "ranking": (0.60, "split_auto_phase_ranking"),
+                "searching": (0.65, "split_auto_phase_searching"),
+                "finalizing": (0.95, "split_auto_phase_finalizing"),
+            }
+            progress_value, label_key = phase_config.get(
+                phase,
+                (0.0, "split_auto_running"),
+            )
+            progress.progress(progress_value)
+            phase_placeholder.caption(t(label_key))
 
         try:
             with st.spinner(t("split_auto_running")):
@@ -900,35 +1322,64 @@ def render(t) -> None:
                     max_combinations=max_combinations,
                     replacement_pool_size=max(100, k * 10, k + 50),
                     progress_callback=progress_callback,
+                    phase_callback=phase_callback,
                     exclude_invalid_weather=exclude_invalid_weather,
+                    require_time_cv=require_time_cv,
+                    require_opposite_time_difference=(
+                        require_opposite_time_difference
+                    ),
+                    search_pool_size=search_pool_size,
+                    max_set_evaluations=max_set_evaluations,
+                    max_search_seconds=max_search_seconds,
                 )
         except ValueError as exc:
             progress.empty()
             st.error(str(exc))
         else:
             progress.progress(1.0)
+            selection_metadata = metadata.get("selection") or {}
+            if (
+                selection_metadata.get("timeout_reached")
+                or selection_metadata.get("max_set_evaluations_reached")
+            ):
+                phase_placeholder.caption(t("split_auto_phase_stopped_by_limit"))
+            else:
+                phase_placeholder.caption(t("split_auto_phase_completed"))
             ranked_pool = list(metadata.pop("replacement_pool", []))
-            pending = {
-                "algorithm": algorithm,
-                "candidates": candidates,
-                "ranked_pool": ranked_pool,
-                "metadata": metadata,
-                "avoid_repeated_runs": avoid_repeated_runs,
-                "target_f0": target_f0,
-                "target_f2": target_f2,
-                "replacement_history": [],
-                "replacement_feedback": None,
-                "merge_metadata": None,
-                "pool_strategy": "balanced_v2",
-                "ambient_mode": ambient_mode,
-                "weather_metadata": weather_metadata,
-            }
-            _store_pending_selection(pending)
+            pending, fallback_offer = _build_selection_state(
+                algorithm=algorithm,
+                candidates=candidates,
+                ranked_pool=ranked_pool,
+                metadata=metadata,
+                avoid_repeated_runs=avoid_repeated_runs,
+                target_f0=target_f0,
+                target_f2=target_f2,
+                ambient_mode=ambient_mode,
+                weather_metadata=weather_metadata,
+            )
+            if pending is not None:
+                _store_pending_selection(pending)
+            elif fallback_offer is not None:
+                _store_fallback_offer(fallback_offer)
             _clear_replace_request()
-            if not candidates:
+            if (
+                not candidates
+                and (
+                    fallback_offer is None
+                    or not fallback_offer.get("candidates")
+                )
+            ):
                 st.warning(t("split_auto_no_candidates_returned"))
 
     pending = st.session_state.get("split_auto_selection_pending")
     if isinstance(pending, dict):
         st.markdown("---")
         _render_execution_result(pending, t)
+    else:
+        fallback_offer = st.session_state.get("split_auto_selection_last_result")
+        if (
+            isinstance(fallback_offer, dict)
+            and fallback_offer.get("awaiting_fallback_confirmation") is True
+        ):
+            st.markdown("---")
+            _render_fallback_offer(fallback_offer, t)

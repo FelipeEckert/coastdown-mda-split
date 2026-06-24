@@ -4,6 +4,7 @@
 import inspect
 import math
 import unittest
+from unittest.mock import patch
 
 from core.split_selection_algorithms import (
     mark_algorithm_source,
@@ -11,6 +12,7 @@ from core.split_selection_algorithms import (
     rank_candidates_by_target,
     select_top_k_candidates,
     select_top_k_candidates_with_constraints,
+    select_top_k_candidates_with_constraints_v2,
 )
 
 
@@ -82,7 +84,165 @@ class SplitSelectionAlgorithmsTest(unittest.TestCase):
 
         self.assertEqual([item["id"] for item in selected], ["a", "c"])
         self.assertTrue(metadata["constraints_satisfied"])
-        self.assertEqual(metadata["evaluated_sets_count"], 2)
+        self.assertEqual(metadata["evaluated_sets_count"], 3)
+        self.assertEqual(metadata["strategy"], "constraint_first_v2")
+        self.assertEqual(metadata["valid_sets_found"], 1)
+
+    def test_v2_finds_valid_set_outside_previous_top_100_pool(self):
+        ranked = [
+            _constrained_candidate(f"bad-{index}", high_minus=30.0)
+            for index in range(100)
+        ] + [
+            _constrained_candidate(
+                "good-1",
+                high_plus=20.0,
+                high_minus=20.2,
+                low_plus=10.0,
+                low_minus=10.2,
+            ),
+            _constrained_candidate(
+                "good-2",
+                high_plus=20.1,
+                high_minus=20.3,
+                low_plus=10.05,
+                low_minus=10.25,
+            ),
+        ]
+
+        selected, metadata = select_top_k_candidates_with_constraints_v2(
+            ranked,
+            2,
+            search_pool_size=102,
+            max_set_evaluations=6000,
+        )
+
+        self.assertEqual([item["id"] for item in selected], ["good-1", "good-2"])
+        self.assertTrue(metadata["constraints_satisfied"])
+        self.assertEqual(metadata["search_pool_size"], 102)
+        self.assertEqual(metadata["valid_sets_found"], 1)
+        self.assertFalse(metadata["max_set_evaluations_reached"])
+
+    def test_v2_stops_on_wall_clock_timeout_with_fallback(self):
+        ranked = [
+            _constrained_candidate("a", high_minus=30.0),
+            _constrained_candidate("b", high_minus=30.1),
+            _constrained_candidate("c", high_minus=30.2),
+        ]
+
+        clock_calls = 0
+
+        def fake_clock():
+            nonlocal clock_calls
+            clock_calls += 1
+            return 0.0 if clock_calls <= 7 else 31.0
+
+        with patch(
+            "core.split_selection_algorithms.time.perf_counter",
+            side_effect=fake_clock,
+        ):
+            selected, metadata = select_top_k_candidates_with_constraints_v2(
+                ranked,
+                2,
+                max_set_evaluations=100,
+                max_search_seconds=30.0,
+            )
+
+        self.assertEqual(selected, [])
+        self.assertEqual(metadata["evaluated_sets_count"], 1)
+        self.assertTrue(metadata["timeout_reached"])
+        self.assertFalse(metadata["max_set_evaluations_reached"])
+        self.assertEqual(metadata["elapsed_seconds"], 31.0)
+        self.assertEqual(metadata["max_search_seconds"], 30.0)
+        self.assertEqual(
+            [item["id"] for item in metadata["fallback_candidates"]],
+            ["a", "b"],
+        )
+        self.assertTrue(any("max_search_seconds" in item for item in metadata["warnings"]))
+
+    def test_v2_rejects_invalid_wall_clock_limit(self):
+        with self.assertRaises(ValueError):
+            select_top_k_candidates_with_constraints_v2(
+                [_constrained_candidate("a")],
+                1,
+                max_search_seconds=0,
+            )
+
+    def test_v2_chooses_lowest_aggregate_rank_score_after_validation(self):
+        ranked = [_constrained_candidate(identifier) for identifier in "abcdef"]
+        valid_ids = {("a", "f"), ("b", "c")}
+
+        def fake_validation(candidates, **_kwargs):
+            ids = tuple(candidate["id"] for candidate in candidates)
+            approved = ids in valid_ids
+            return {
+                "passed": approved,
+                "coefficient_status": "failed",
+                "time_status": "approved" if approved else "failed",
+                "cv_f0_pct": 1.0,
+                "cv_f2_pct": 1.0,
+                "time_group_results": {
+                    component: {
+                        "passed": approved if component == "high_plus" else True
+                    }
+                    for component in (
+                        "high_plus", "high_minus", "low_plus", "low_minus"
+                    )
+                },
+                "opposite_time_results": {
+                    interval: {"passed": True}
+                    for interval in ("high", "low")
+                },
+                "failed_checks": [] if approved else ["time.group.high_plus"],
+                "warnings": [],
+            }
+
+        with patch(
+            "core.split_selection_algorithms.validate_split_candidate_set",
+            side_effect=fake_validation,
+        ):
+            selected, metadata = select_top_k_candidates_with_constraints_v2(
+                ranked,
+                2,
+            )
+
+        self.assertEqual([item["id"] for item in selected], ["b", "c"])
+        self.assertEqual(metadata["valid_sets_found"], 2)
+        self.assertEqual(metadata["best_valid_score"], 3)
+        self.assertEqual(metadata["evaluated_sets_count"], 15)
+
+    def test_v2_accepts_high_coefficient_cv_when_times_pass(self):
+        ranked = [
+            {
+                **_constrained_candidate("a"),
+                "F0_mean": 100.0,
+                "F2_mean": 0.004,
+            },
+            {
+                **_constrained_candidate(
+                    "b",
+                    high_plus=20.1,
+                    high_minus=20.3,
+                    low_plus=10.05,
+                    low_minus=10.25,
+                ),
+                "F0_mean": 150.0,
+                "F2_mean": 0.008,
+            },
+        ]
+
+        selected, metadata = select_top_k_candidates_with_constraints_v2(
+            ranked,
+            2,
+        )
+
+        self.assertEqual([item["id"] for item in selected], ["a", "b"])
+        self.assertTrue(metadata["constraints_satisfied"])
+        self.assertEqual(
+            metadata["constraints_enabled"],
+            {"time_cv": True, "opposite_time_difference": True},
+        )
+        self.assertEqual(metadata["validation"]["coefficient_status"], "failed")
+        self.assertEqual(metadata["validation"]["failed_checks"], [])
 
     def test_constrained_selector_respects_repeated_runs(self):
         shared = (_usage("high", "+", 1, "h.csv", "high", "hash"),)
@@ -112,11 +272,34 @@ class SplitSelectionAlgorithmsTest(unittest.TestCase):
         self.assertEqual(selected, [])
         self.assertFalse(metadata["constraints_satisfied"])
         self.assertFalse(metadata["fallback_used"])
+        self.assertEqual(metadata["strategy"], "constraint_first_v2")
+        self.assertEqual(metadata["valid_sets_found"], 0)
+        self.assertIsNotNone(metadata["best_failed_score"])
         self.assertEqual(
             [item["id"] for item in metadata["fallback_candidates"]],
             ["b", "c"],
         )
         self.assertIsNotNone(metadata["best_failed_validation"])
+
+    def test_v2_fallback_is_best_complete_set_by_original_ranking(self):
+        ranked = [
+            _constrained_candidate("a", high_minus=30.0),
+            _constrained_candidate("b", high_minus=30.1),
+            _constrained_candidate("c", high_minus=30.2),
+        ]
+
+        selected, metadata = select_top_k_candidates_with_constraints_v2(
+            ranked,
+            2,
+        )
+
+        self.assertEqual(selected, [])
+        self.assertEqual(
+            [item["id"] for item in metadata["fallback_candidates"]],
+            ["a", "b"],
+        )
+        self.assertEqual(metadata["best_failed_score"], 1)
+        self.assertTrue(metadata["best_failed_validation"]["failed_checks"])
 
     def test_constrained_selector_respects_max_set_evaluations(self):
         ranked = [
@@ -133,6 +316,7 @@ class SplitSelectionAlgorithmsTest(unittest.TestCase):
 
         self.assertEqual(selected, [])
         self.assertEqual(metadata["evaluated_sets_count"], 1)
+        self.assertTrue(metadata["max_set_evaluations_reached"])
         self.assertTrue(any("max_set_evaluations" in warning for warning in metadata["warnings"]))
 
     def test_constrained_selector_accepts_inconclusive_single_pair(self):

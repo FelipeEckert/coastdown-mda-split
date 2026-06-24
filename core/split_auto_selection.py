@@ -6,7 +6,11 @@ from __future__ import annotations
 from copy import deepcopy
 
 from core.split_candidate_generation import generate_full_split_candidates_exact
-from core.split_candidate_set_validation import validate_split_candidate_set
+from core.split_candidate_set_validation import (
+    evaluate_split_constraint_satisfaction,
+    normalize_split_time_constraints,
+    validate_split_candidate_set,
+)
 from core.split_pair_candidate import split_candidate_signature
 from core.split_selection_algorithms import (
     VALID_ALGORITHMS,
@@ -14,6 +18,7 @@ from core.split_selection_algorithms import (
     rank_candidates_by_energy,
     rank_candidates_by_target,
     select_top_k_candidates,
+    select_top_k_candidates_with_constraints_v2,
 )
 from core.split_time_validation import validate_split_selected_times
 
@@ -54,6 +59,11 @@ def _warnings(*sources) -> list[str]:
             continue
         warnings.extend(source.get("warnings") or [])
     return list(dict.fromkeys(str(warning) for warning in warnings if str(warning).strip()))
+
+
+def _notify_phase(callback, phase: str) -> None:
+    if callback is not None:
+        callback(phase)
 
 
 def _empty_selection_metadata(k: int, avoid_repeated_runs: bool) -> dict:
@@ -270,14 +280,22 @@ def run_split_auto_selection_exact(
     max_combinations: int | None = None,
     replacement_pool_size: int | None = None,
     progress_callback=None,
+    phase_callback=None,
     candidate_builder=None,
     exclude_invalid_weather: bool = False,
+    require_coefficient_cv: bool = False,
+    require_time_cv: bool = False,
+    require_opposite_time_difference: bool = False,
+    search_pool_size: int | None = None,
+    max_set_evaluations: int = 3000,
+    max_search_seconds: float = 30.0,
 ) -> tuple[list[dict], dict]:
     """Run exact automatic Split candidate generation, ranking and diagnostics."""
     algorithm_name = _algorithm_name(algorithm)
     requested = _requested_k(k)
     pool_limit = _replacement_pool_limit(replacement_pool_size)
 
+    _notify_phase(phase_callback, "generating")
     candidates, generation_metadata = generate_full_split_candidates_exact(
         split_parsed_runs,
         vehicle_data=vehicle_data,
@@ -298,6 +316,11 @@ def run_split_auto_selection_exact(
                 valid_candidates.append(candidate)
         candidates = valid_candidates
 
+    constraints_enabled = normalize_split_time_constraints({
+        "time_cv": bool(require_time_cv),
+        "opposite_time_difference": bool(require_opposite_time_difference),
+    })
+    constraints_active = any(constraints_enabled.values())
     metadata = {
         "mode": "exact",
         "algorithm": algorithm_name,
@@ -312,6 +335,10 @@ def run_split_auto_selection_exact(
         "generation": generation_metadata,
         "selection": _empty_selection_metadata(requested, avoid_repeated_runs),
         "time_validation": None,
+        "constraints_enabled": constraints_enabled,
+        "constraints_satisfied": None,
+        "constraint_validation": None,
+        "constraint_warnings": [],
         "warnings": _warnings(generation_metadata),
     }
     if weather_filtered_count:
@@ -322,6 +349,7 @@ def run_split_auto_selection_exact(
         metadata["replacement_pool"] = []
 
     if not candidates:
+        _notify_phase(phase_callback, "finalizing")
         metadata["warnings"] = _warnings(
             generation_metadata,
             {"warnings": ["No candidates were generated for automatic selection."]},
@@ -329,6 +357,7 @@ def run_split_auto_selection_exact(
         )
         return [], metadata
 
+    _notify_phase(phase_callback, "ranking")
     if algorithm_name == "energy":
         ranked_candidates = rank_candidates_by_energy(candidates)
     else:
@@ -336,16 +365,41 @@ def run_split_auto_selection_exact(
             raise ValueError("target_f0 and target_f2 are required for target ranking.")
         ranked_candidates = rank_candidates_by_target(candidates, target_f0, target_f2)
     metadata["ranked_count"] = len(ranked_candidates)
-    selected_candidates, selection_metadata = select_top_k_candidates(
-        ranked_candidates,
-        requested,
-        avoid_repeated_runs=avoid_repeated_runs,
-    )
+    if constraints_active:
+        _notify_phase(phase_callback, "searching")
+        selected_candidates, selection_metadata = (
+            select_top_k_candidates_with_constraints_v2(
+                ranked_candidates,
+                requested,
+                avoid_repeated_runs=avoid_repeated_runs,
+                require_time_cv=require_time_cv,
+                require_opposite_time_difference=(
+                    require_opposite_time_difference
+                ),
+                search_pool_size=search_pool_size,
+                max_set_evaluations=max_set_evaluations,
+                max_search_seconds=max_search_seconds,
+            )
+        )
+    else:
+        selected_candidates, selection_metadata = select_top_k_candidates(
+            ranked_candidates,
+            requested,
+            avoid_repeated_runs=avoid_repeated_runs,
+        )
+    fallback_candidates = list(selection_metadata.get("fallback_candidates") or [])
     marked_candidates = mark_algorithm_source(selected_candidates, algorithm_name)
+    marked_fallback_candidates = mark_algorithm_source(
+        fallback_candidates,
+        algorithm_name,
+    )
+    if constraints_active:
+        selection_metadata["fallback_candidates"] = marked_fallback_candidates
+    diagnostic_candidates = marked_candidates or marked_fallback_candidates
     if pool_limit is not None:
         replacement_pool = _build_replacement_pool(
             ranked_candidates,
-            selected_candidates,
+            selected_candidates or fallback_candidates,
             pool_limit,
             avoid_repeated_runs=avoid_repeated_runs,
         )
@@ -353,13 +407,29 @@ def run_split_auto_selection_exact(
             replacement_pool,
             algorithm_name,
         )
-    time_validation = validate_split_selected_times(marked_candidates)
+    time_validation = validate_split_selected_times(diagnostic_candidates)
+    constraint_validation = None
+    constraints_satisfied = None
+    constraint_warnings = []
+    if constraints_active:
+        constraint_validation = (
+            selection_metadata.get("validation")
+            or selection_metadata.get("best_failed_validation")
+        )
+        constraints_satisfied = selection_metadata.get("constraints_satisfied")
+        constraint_warnings = _warnings(
+            selection_metadata,
+            constraint_validation,
+        )
 
     metadata.update(
         {
             "selected_count": len(marked_candidates),
             "selection": selection_metadata,
             "time_validation": time_validation,
+            "constraints_satisfied": constraints_satisfied,
+            "constraint_validation": constraint_validation,
+            "constraint_warnings": constraint_warnings,
         }
     )
     if len(marked_candidates) < requested:
@@ -372,4 +442,5 @@ def run_split_auto_selection_exact(
         time_validation,
         {"warnings": metadata.get("warnings") or []},
     )
+    _notify_phase(phase_callback, "finalizing")
     return marked_candidates, metadata

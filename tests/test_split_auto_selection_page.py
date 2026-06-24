@@ -1,6 +1,7 @@
 # coding: utf-8
 """Tests for UI-neutral formatting helpers used by Split auto-selection."""
 
+import inspect
 import unittest
 from copy import deepcopy
 
@@ -8,9 +9,17 @@ from pages.page_split_auto_selection import (
     _candidate_run_time_label,
     _candidate_rows,
     _candidate_table,
+    _build_selection_state,
+    _default_constraint_search_pool_size,
     _format_candidate_display_value,
+    _pending_from_fallback_offer,
+    _pending_has_constraint_warning,
     _replace_dialog_state_is_valid,
+    _replacement_constraint_preview,
+    _render_search_diagnostics,
+    _search_diagnostic_values,
     _time_status_label,
+    render,
 )
 from translations import get_translator
 
@@ -18,6 +27,276 @@ from translations import get_translator
 class SplitAutoSelectionPageTest(unittest.TestCase):
     def setUp(self):
         self.t = get_translator("en")
+
+    @staticmethod
+    def _norm_candidate(identifier, high_minus=20.2):
+        run_base = ord(identifier[0]) * 10
+        return {
+            "id": identifier,
+            "F0_mean": 100.0,
+            "F2_mean": 0.004,
+            "high_plus_delta_t_s": 20.0,
+            "high_minus_delta_t_s": high_minus,
+            "low_plus_delta_t_s": 10.0,
+            "low_minus_delta_t_s": 10.2,
+            "run_usage": (
+                ("high", "+", run_base),
+                ("low", "+", run_base + 1),
+                ("high", "-", run_base + 2),
+                ("low", "-", run_base + 3),
+            ),
+        }
+
+    @staticmethod
+    def _selection_metadata(*, satisfied, validation, fallback=None, enabled=True):
+        constraints = {
+            "time_cv": enabled,
+            "opposite_time_difference": enabled,
+        }
+        return {
+            "algorithm": "energy",
+            "selected_count": 2 if satisfied else 0,
+            "constraints_enabled": constraints,
+            "constraints_satisfied": satisfied,
+            "constraint_validation": validation,
+            "constraint_warnings": validation.get("warnings") or [],
+            "selection": {
+                "strategy": "constraint_first_v2" if enabled else None,
+                "evaluated_sets_count": 12,
+                "valid_sets_found": 2 if satisfied else 0,
+                "search_pool_size": 250,
+                "max_set_evaluations_reached": False,
+                "elapsed_seconds": 1.25,
+                "max_search_seconds": 30.0,
+                "timeout_reached": False,
+                "fallback_candidates": fallback or [],
+            },
+        }
+
+    def test_render_has_only_two_default_enabled_time_constraint_checkboxes(self):
+        source = inspect.getsource(render)
+        for key in (
+            "split_auto_require_time_cv",
+            "split_auto_require_opposite_difference",
+        ):
+            self.assertIn(f'key="{key}"', source)
+            key_position = source.index(f'key="{key}"')
+            self.assertIn("value=True", source[key_position - 100:key_position])
+        self.assertNotIn("split_auto_require_coefficient_cv", source)
+
+    def test_render_exposes_advanced_v2_search_controls(self):
+        source = inspect.getsource(render)
+
+        for key in (
+            "split_auto_search_pool_size",
+            "split_auto_search_max_set_evaluations",
+            "split_auto_search_max_seconds",
+        ):
+            self.assertIn(f'key="{key}"', source)
+        self.assertIn("search_pool_size=search_pool_size", source)
+        self.assertIn("max_set_evaluations=max_set_evaluations", source)
+        self.assertIn("max_search_seconds=max_search_seconds", source)
+
+    def test_v2_search_defaults_follow_k(self):
+        self.assertEqual(_default_constraint_search_pool_size(1), 80)
+        self.assertEqual(_default_constraint_search_pool_size(4), 80)
+        self.assertEqual(_default_constraint_search_pool_size(5), 100)
+
+    def test_search_diagnostic_exposes_v2_strategy_and_counts(self):
+        diagnostic = _search_diagnostic_values(
+            {
+                "selection": {
+                    "strategy": "constraint_first_v2",
+                    "evaluated_sets_count": 123,
+                    "valid_sets_found": 4,
+                    "search_pool_size": 250,
+                    "max_set_evaluations_reached": True,
+                    "elapsed_seconds": 30.4,
+                    "max_search_seconds": 30.0,
+                    "timeout_reached": True,
+                }
+            }
+        )
+
+        self.assertEqual(diagnostic["strategy"], "constraint_first_v2")
+        self.assertEqual(diagnostic["evaluated_sets_count"], 123)
+        self.assertEqual(diagnostic["valid_sets_found"], 4)
+        self.assertEqual(diagnostic["search_pool_size"], 250)
+        self.assertTrue(diagnostic["max_set_evaluations_reached"])
+        self.assertEqual(diagnostic["elapsed_seconds"], 30.4)
+        self.assertEqual(diagnostic["max_search_seconds"], 30.0)
+        self.assertTrue(diagnostic["timeout_reached"])
+
+        source = inspect.getsource(_render_search_diagnostics)
+        self.assertIn("split_auto_search_evaluated_sets", source)
+        self.assertIn("split_auto_search_valid_sets", source)
+        self.assertIn("split_auto_search_pool", source)
+        self.assertIn("split_auto_search_strategy", source)
+        self.assertIn("split_auto_search_limited_warning", source)
+
+    def test_search_diagnostic_is_absent_for_legacy_top_k(self):
+        self.assertIsNone(
+            _search_diagnostic_values({"selection": {"requested_k": 2}})
+        )
+
+    def test_limited_search_messages_are_not_absolute(self):
+        translate = get_translator("pt")
+        no_valid = translate("split_auto_constraints_no_valid_set")
+        limited = translate("split_auto_search_limited_warning")
+
+        self.assertIn("dentro dos limites de busca configurados", no_valid)
+        self.assertIn("pode haver combinações válidas", limited.lower())
+
+    def test_progress_reserves_completion_for_after_constrained_search(self):
+        source = inspect.getsource(render)
+
+        self.assertIn("generation_progress * 0.50", source)
+        self.assertIn('"searching": (0.65', source)
+        self.assertIn('"finalizing": (0.95', source)
+        self.assertLess(
+            source.index("progress.progress(1.0)"),
+            source.index("ranked_pool = list"),
+        )
+
+    def test_approved_set_builds_pending_with_constraint_validation(self):
+        candidates = [self._norm_candidate("a"), self._norm_candidate("b")]
+        from core.split_candidate_set_validation import validate_split_candidate_set
+        validation = validate_split_candidate_set(candidates)
+        metadata = self._selection_metadata(
+            satisfied=True,
+            validation=validation,
+        )
+
+        pending, offer = _build_selection_state(
+            algorithm="energy", candidates=candidates, ranked_pool=[],
+            metadata=metadata, avoid_repeated_runs=True,
+            target_f0=None, target_f2=None, ambient_mode="fixed",
+            weather_metadata=None,
+        )
+
+        self.assertIsNone(offer)
+        self.assertTrue(pending["constraints_satisfied"])
+        self.assertIs(pending["constraint_validation"], validation)
+        self.assertFalse(pending["fallback_used"])
+
+    def test_failed_set_creates_offer_without_pending(self):
+        fallback = [
+            self._norm_candidate("a", high_minus=30.0),
+            self._norm_candidate("b", high_minus=30.1),
+        ]
+        from core.split_candidate_set_validation import validate_split_candidate_set
+        validation = validate_split_candidate_set(fallback)
+        metadata = self._selection_metadata(
+            satisfied=False,
+            validation=validation,
+            fallback=fallback,
+        )
+
+        pending, offer = _build_selection_state(
+            algorithm="energy", candidates=[], ranked_pool=[],
+            metadata=metadata, avoid_repeated_runs=True,
+            target_f0=None, target_f2=None, ambient_mode="fixed",
+            weather_metadata=None,
+        )
+
+        self.assertIsNone(pending)
+        self.assertTrue(offer["awaiting_fallback_confirmation"])
+        self.assertFalse(offer["fallback_used"])
+        self.assertIs(offer["constraint_validation"], validation)
+        self.assertEqual(
+            offer["metadata"]["selection"]["strategy"],
+            "constraint_first_v2",
+        )
+
+    def test_confirmed_fallback_becomes_pending_and_warns_cards(self):
+        offer = {
+            "candidates": [self._norm_candidate("a")],
+            "metadata": {"selected_count": 0},
+            "constraints_enabled": {
+                "time_cv": True,
+                "opposite_time_difference": True,
+            },
+            "constraints_satisfied": False,
+            "fallback_used": False,
+            "awaiting_fallback_confirmation": True,
+        }
+
+        pending = _pending_from_fallback_offer(offer)
+
+        self.assertTrue(pending["fallback_used"])
+        self.assertFalse(pending["constraints_satisfied"])
+        self.assertFalse(pending["awaiting_fallback_confirmation"])
+        self.assertEqual(pending["metadata"]["selected_count"], 1)
+        self.assertTrue(_pending_has_constraint_warning(pending))
+
+    def test_replacement_preview_reports_current_and_next_constraint_status(self):
+        candidates = [
+            self._norm_candidate("a", high_minus=30.0),
+            self._norm_candidate("b", high_minus=30.1),
+        ]
+        pending = {
+            "candidates": candidates,
+            "constraints_enabled": {
+                "time_cv": True,
+                "opposite_time_difference": True,
+            },
+        }
+
+        preview = _replacement_constraint_preview(
+            pending,
+            0,
+            self._norm_candidate("c", high_minus=20.2),
+        )
+
+        self.assertFalse(preview["current_status"])
+        self.assertFalse(preview["next_status"])
+        self.assertIsInstance(preview["next_validation"], dict)
+
+    def test_pending_strips_legacy_coefficient_constraint(self):
+        candidate = self._norm_candidate("a")
+        metadata = self._selection_metadata(
+            satisfied=True,
+            validation={},
+        )
+        metadata["constraints_enabled"]["coefficient_cv"] = True
+
+        pending, _ = _build_selection_state(
+            algorithm="energy", candidates=[candidate], ranked_pool=[],
+            metadata=metadata, avoid_repeated_runs=True,
+            target_f0=None, target_f2=None, ambient_mode="fixed",
+            weather_metadata=None,
+        )
+
+        self.assertEqual(
+            pending["constraints_enabled"],
+            {"time_cv": True, "opposite_time_difference": True},
+        )
+
+    def test_normative_constraint_diagnostic_omits_coefficient_cv(self):
+        from pages.page_split_auto_selection import _render_constraint_validation
+
+        source = inspect.getsource(_render_constraint_validation)
+        self.assertNotIn("cv_f0_pct", source)
+        self.assertNotIn("cv_f2_pct", source)
+
+    def test_disabled_constraints_keep_legacy_pending_flow(self):
+        candidate = self._norm_candidate("a")
+        metadata = self._selection_metadata(
+            satisfied=None,
+            validation={},
+            enabled=False,
+        )
+
+        pending, offer = _build_selection_state(
+            algorithm="energy", candidates=[candidate], ranked_pool=[],
+            metadata=metadata, avoid_repeated_runs=True,
+            target_f0=None, target_f2=None, ambient_mode="fixed",
+            weather_metadata=None,
+        )
+
+        self.assertIsNone(offer)
+        self.assertEqual(pending["candidates"], [candidate])
+        self.assertFalse(pending["fallback_used"])
 
     def test_candidate_rows_use_public_pair_label(self):
         rows = _candidate_rows(
@@ -47,6 +326,8 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
         )
         self.assertEqual(rows[0]["F0 [N]"], 99.0)
         self.assertEqual(rows[2]["F0 [N]"], 100.0)
+        self.assertIn(self.t("split_auto_cv_f0_diagnostic"), rows[2])
+        self.assertIn(self.t("split_auto_cv_f2_diagnostic"), rows[2])
         self.assertIsNone(rows[2][self.t("split_auto_target_score")])
         self.assertTrue(rows[2]["_is_average"])
         self.assertEqual(

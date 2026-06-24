@@ -333,4 +333,70 @@
 - [x] Add ranked constrained top-k search with early `run_usage` pruning and a configurable evaluation limit.
 - [x] Return the best ranked failed set only as an explicit, unapplied fallback in metadata.
 - [x] Add focused tests for every normative failure, non-top-k valid selection, repeated runs, fallback and evaluation limit.
-- [ ] Integrate the constrained selector into the automatic-selection orchestrator and UI in a later round.
+- [x] Integrate the constrained selector into the automatic-selection orchestrator and UI in Round 13A.2.
+
+## Round 13A.2 - Candidate-set validation in Automatic Selection UI
+- [x] Initially add three set criteria; superseded by the normative time-only adjustment below.
+- [x] Route the orchestrator through constrained top-k only when at least one criterion is enabled.
+- [x] Preserve the previous top-k flow when all set criteria are disabled.
+- [x] Store approved or inconclusive suggestions in pending with constraint validation metadata.
+- [x] Keep failed constrained results outside pending and expose the best failed set as an explicit fallback offer.
+- [x] Promote fallback candidates to pending only after the user clicks the explicit confirmation button.
+- [x] Show all eight coefficient/time diagnostic values and warnings for failed fallback sets.
+- [x] Revalidate current and simulated sets in the replacement preview without blocking the existing replacement action.
+- [x] Recompute and persist constraint status after a confirmed replacement.
+- [x] Add PT/EN strings and automated core/page coverage for approved, failed, fallback, replacement and disabled-criteria flows.
+- [ ] Complete the requested real-browser validation for Energy and Target, approved set, failed set, fallback, merge and Final Comparison deviation status.
+
+## Round 13B.1 - Constraint-first automatic set selector
+- [x] Audit the v1 constrained search pool, early return, ranking dependence and evaluation cap.
+- [x] Add `constraint_first_v2` with default pool `max(200, k * 50, k + 100)` and 20,000 set evaluations.
+- [x] Validate complete sets without partial CV/time pruning and preserve only safe `run_usage` pruning.
+- [x] Continue searching after the first valid set and choose the minimum aggregate zero-based rank-index sum.
+- [x] Deduplicate candidate identities before combinatorial search.
+- [x] Track strategy, actual pool, evaluated/valid set counts, evaluation-limit status and best valid/failed scores.
+- [x] Keep the original helper name as a compatibility wrapper and route the automatic-selection orchestrator through v2.
+- [x] Add regression proving a valid set beyond the former top-100 prefix is found.
+- [x] Add regression proving the best aggregate-score valid set wins instead of the first valid set.
+- [x] Preserve explicit failed fallback, repeated-run protection and Streamlit independence.
+- [x] Distinguish an exhaustive no-valid result from an incomplete search stopped by `max_set_evaluations` in Round 13B.2.
+
+## Round 13B.2 - Constraint-first v2 diagnostics in Automatic Selection UI
+- [x] Keep legacy top-k when all active set criteria are disabled and use v2 when any criterion is enabled.
+- [x] Add collapsed advanced inputs for maximum search-pool size and evaluated-set limit.
+- [x] Use defaults `max(200, k * 50, k + 100)` and 20,000 evaluations.
+- [x] Pass both advanced limits through the pure automatic-selection orchestrator.
+- [x] Show evaluated sets, valid sets, actual pool and `constraint-first` strategy for approved and failed searches.
+- [x] Replace the absolute no-valid wording with a result scoped to the performed search.
+- [x] Show a specific warning when `max_set_evaluations_reached=True` indicates an incomplete search.
+- [x] Preserve explicit fallback confirmation, selector-v2 metadata and failed-set warnings in pending cards.
+- [x] Preserve current/after constraint diagnostics in replacement preview without blocking replacement.
+- [x] Add PT/EN strings and automated coverage for defaults, advanced controls, metrics, limited-search wording, fallback and legacy top-k.
+- [ ] Complete real-browser Energy/Target validation with approved, exhaustive-failed, limited-failed and fallback scenarios.
+
+## Critical hotfix - Bounded constrained search performance
+- [x] Diagnose the full generation progress reaching 100% before constrained set search completed.
+- [x] Reduce default pool to `max(80, k * 20, k + 40)` and evaluated sets to 3,000.
+- [x] Add a 30-second wall-clock limit using `time.perf_counter()`.
+- [x] Make backtracking itself cooperatively stop on time/evaluation budgets, including branches that yield no complete set.
+- [x] Return explicit top-k-compatible fallback metadata without applying pending automatically.
+- [x] Add elapsed time, time limit and timeout status to selector metadata and UI diagnostics.
+- [x] Add a configurable advanced maximum-search-time field.
+- [x] Reserve 100% progress for completion and expose generation, ranking, constrained search and finalization phases.
+- [x] Show a limited-search warning for timeout or evaluated-set exhaustion.
+- [x] Confirm that set-signature caching would have no useful reuse because the deduplicated combination generator emits each set once.
+- [x] Add timeout, evaluation cap, fallback, safe-default, phase and legacy-top-k regression coverage.
+- [ ] Complete mandatory real-browser Energy/Target timing validation with default and increased budgets.
+
+## Normative adjustment - Time-only automatic Split selection
+- [x] Remove the `CV F0/F2 <= 10%` checkbox from Automatic Selection.
+- [x] Keep only Delta t group CV <= 2.5% and opposite-direction mean difference <= 10% as active constraints.
+- [x] Preserve F0/F2 sample CV and status as explicitly diagnostic-only fields in candidate-set validation.
+- [x] Remove coefficient CV from `passed`, normative `failed_checks` and automatic-selection warnings.
+- [x] Normalize selector, orchestrator, pending and replacement metadata to time-only constraint keys.
+- [x] Ignore legacy `coefficient_cv` flags without activating constrained search or failing replacement status.
+- [x] Remove F0/F2 rows from the normative failure diagnostic and label candidate-card F0/F2 CV as diagnostic.
+- [x] Update failure messages and the six normative time-check labels.
+- [x] Add regressions proving high F0/F2 CV is accepted when all time checks pass.
+- [x] Preserve time-group and opposite-direction failures, fallback, timeout and legacy top-k behavior.
+- [ ] Complete real-browser Energy/Target validation and confirm Final Comparison/Results keep coefficient CV separate from automatic normative filtering.

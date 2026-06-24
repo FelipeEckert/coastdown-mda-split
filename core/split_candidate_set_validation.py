@@ -10,6 +10,18 @@ from core.split_time_validation import (
 )
 
 
+TIME_CONSTRAINT_KEYS = ("time_cv", "opposite_time_difference")
+
+
+def normalize_split_time_constraints(constraints_enabled: dict | None) -> dict:
+    """Return only normative Split time constraints, ignoring legacy keys."""
+    source = constraints_enabled if isinstance(constraints_enabled, dict) else {}
+    return {
+        key: bool(source.get(key))
+        for key in TIME_CONSTRAINT_KEYS
+    }
+
+
 def _coefficient_values(candidates: list[dict]) -> tuple[list[float], list[float]]:
     f0_values = []
     f2_values = []
@@ -52,11 +64,12 @@ def validate_split_candidate_set(
     time_cv_limit_pct: float = 2.5,
     opposite_time_limit_pct: float = 10.0,
 ) -> dict:
-    """Validate coefficient and time constraints for a complete candidate set."""
+    """Validate normative times and retain coefficient CV as diagnostics only."""
     valid_candidates = [
         candidate for candidate in candidates or [] if isinstance(candidate, dict)
     ]
     warnings = []
+    coefficient_warnings = []
     if len(valid_candidates) != len(candidates or []):
         warnings.append("One or more candidates are not valid mappings.")
 
@@ -72,17 +85,21 @@ def validate_split_candidate_set(
         coefficient_cv_limit_pct,
     )
     if len(f0_values) != len(valid_candidates):
-        warnings.append(
+        coefficient_warnings.append(
             "One or more candidates are missing corrected F0_mean/F0."
         )
     if len(f2_values) != len(valid_candidates):
-        warnings.append(
+        coefficient_warnings.append(
             "One or more candidates are missing corrected F2_mean/F2."
         )
     if cv_f0_pct is None:
-        warnings.append("Insufficient sample to evaluate corrected F0 CV.")
+        coefficient_warnings.append(
+            "Insufficient sample to evaluate corrected F0 CV."
+        )
     if cv_f2_pct is None:
-        warnings.append("Insufficient sample to evaluate corrected F2 CV.")
+        coefficient_warnings.append(
+            "Insufficient sample to evaluate corrected F2 CV."
+        )
 
     time_validation = validate_split_selected_times(
         valid_candidates,
@@ -96,10 +113,6 @@ def validate_split_candidate_set(
     }[time_validation["passed"]]
 
     failed_checks = []
-    if cv_f0_pct is not None and cv_f0_pct > coefficient_cv_limit_pct:
-        failed_checks.append("coefficient.cv_f0")
-    if cv_f2_pct is not None and cv_f2_pct > coefficient_cv_limit_pct:
-        failed_checks.append("coefficient.cv_f2")
     for component, result in time_validation["groups"].items():
         if result["passed"] is False:
             failed_checks.append(f"time.group.{component}")
@@ -107,18 +120,12 @@ def validate_split_candidate_set(
         if result["passed"] is False:
             failed_checks.append(f"time.opposite.{interval}")
 
-    statuses = (coefficient_status, time_status)
-    if "failed" in statuses:
-        passed = False
-    elif all(status == "approved" for status in statuses):
-        passed = True
-    else:
-        passed = None
-
     warnings.extend(time_validation["warnings"])
     return {
-        "passed": passed,
+        "passed": time_validation["passed"],
         "coefficient_status": coefficient_status,
+        "coefficient_diagnostic_only": True,
+        "coefficient_warnings": list(dict.fromkeys(coefficient_warnings)),
         "time_status": time_status,
         "cv_f0_pct": cv_f0_pct,
         "cv_f2_pct": cv_f2_pct,
@@ -127,3 +134,27 @@ def validate_split_candidate_set(
         "failed_checks": failed_checks,
         "warnings": list(dict.fromkeys(warnings)),
     }
+
+
+def evaluate_split_constraint_satisfaction(
+    validation: dict,
+    constraints_enabled: dict,
+) -> bool | None:
+    """Return aggregate status considering only normative Split time checks."""
+    enabled = normalize_split_time_constraints(constraints_enabled)
+    active_checks = []
+    if enabled["time_cv"]:
+        active_checks.extend(
+            result["passed"]
+            for result in validation["time_group_results"].values()
+        )
+    if enabled["opposite_time_difference"]:
+        active_checks.extend(
+            result["passed"]
+            for result in validation["opposite_time_results"].values()
+        )
+    if any(check is False for check in active_checks):
+        return False
+    if active_checks and any(check is None for check in active_checks):
+        return None
+    return True

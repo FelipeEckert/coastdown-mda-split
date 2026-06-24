@@ -135,21 +135,24 @@ class SplitAutoSelectionTest(unittest.TestCase):
         self.assertEqual(result["time_status"], "approved")
         self.assertEqual(result["failed_checks"], [])
 
-    def test_candidate_set_validation_fails_f0_cv(self):
+    def test_candidate_set_validation_keeps_f0_cv_as_diagnostic(self):
         result = validate_split_candidate_set(
             [_norm_candidate("a", f0=100.0), _norm_candidate("b", f0=120.0)]
         )
 
-        self.assertFalse(result["passed"])
-        self.assertIn("coefficient.cv_f0", result["failed_checks"])
+        self.assertTrue(result["passed"])
+        self.assertEqual(result["coefficient_status"], "failed")
+        self.assertTrue(result["coefficient_diagnostic_only"])
+        self.assertNotIn("coefficient.cv_f0", result["failed_checks"])
 
-    def test_candidate_set_validation_fails_f2_cv(self):
+    def test_candidate_set_validation_keeps_f2_cv_as_diagnostic(self):
         result = validate_split_candidate_set(
             [_norm_candidate("a", f2=0.004), _norm_candidate("b", f2=0.006)]
         )
 
-        self.assertFalse(result["passed"])
-        self.assertIn("coefficient.cv_f2", result["failed_checks"])
+        self.assertTrue(result["passed"])
+        self.assertEqual(result["coefficient_status"], "failed")
+        self.assertNotIn("coefficient.cv_f2", result["failed_checks"])
 
     def test_candidate_set_validation_fails_time_group_cv(self):
         result = validate_split_candidate_set(
@@ -441,6 +444,115 @@ class SplitAutoSelectionTest(unittest.TestCase):
         self.assertEqual(metadata["generated_count"], 16)
         self.assertEqual(metadata["ranked_count"], 16)
         self.assertEqual(metadata["selected_count"], 2)
+
+    def test_orchestrator_uses_constrained_selector_for_approved_set(self):
+        phases = []
+        selected, metadata = run_split_auto_selection_exact(
+            _parsed(),
+            vehicle_data={"effective_mass": 1.0},
+            algorithm="energy",
+            k=2,
+            avoid_repeated_runs=False,
+            candidate_builder=_fake_builder,
+            require_time_cv=True,
+            require_opposite_time_difference=True,
+            search_pool_size=7,
+            max_set_evaluations=100,
+            max_search_seconds=5.0,
+            phase_callback=phases.append,
+        )
+
+        self.assertEqual(len(selected), 2)
+        self.assertTrue(metadata["constraints_satisfied"])
+        self.assertIsInstance(metadata["constraint_validation"], dict)
+        self.assertEqual(
+            metadata["selection"]["strategy"],
+            "constraint_first_v2",
+        )
+        self.assertEqual(metadata["selection"]["search_pool_size"], 7)
+        self.assertLessEqual(
+            metadata["selection"]["evaluated_sets_count"],
+            100,
+        )
+        self.assertEqual(
+            phases,
+            ["generating", "ranking", "searching", "finalizing"],
+        )
+        self.assertEqual(metadata["selection"]["max_search_seconds"], 5.0)
+        self.assertEqual(
+            metadata["selection"]["constraints_enabled"],
+            {
+                "time_cv": True,
+                "opposite_time_difference": True,
+            },
+        )
+
+    def test_orchestrator_returns_fallback_without_selecting_failed_set(self):
+        def failing_builder(**kwargs):
+            candidate = _fake_builder(**kwargs)
+            candidate["high_minus_delta_t_s"] = 30.0
+            return candidate
+
+        selected, metadata = run_split_auto_selection_exact(
+            _parsed(),
+            vehicle_data={"effective_mass": 1.0},
+            algorithm="energy",
+            k=2,
+            avoid_repeated_runs=False,
+            replacement_pool_size=10,
+            candidate_builder=failing_builder,
+            require_time_cv=True,
+            require_opposite_time_difference=True,
+        )
+
+        self.assertEqual(selected, [])
+        self.assertFalse(metadata["constraints_satisfied"])
+        self.assertIsInstance(metadata["constraint_validation"], dict)
+        fallback = metadata["selection"]["fallback_candidates"]
+        self.assertEqual(len(fallback), 2)
+        self.assertTrue(all(item["selected"] is False for item in fallback))
+        self.assertGreater(len(metadata["replacement_pool"]), 0)
+
+    def test_orchestrator_keeps_legacy_top_k_when_constraints_are_disabled(self):
+        phases = []
+        selected, metadata = run_split_auto_selection_exact(
+            _parsed(),
+            vehicle_data={"effective_mass": 1.0},
+            algorithm="energy",
+            k=2,
+            avoid_repeated_runs=False,
+            candidate_builder=_fake_builder,
+            require_time_cv=False,
+            require_opposite_time_difference=False,
+            phase_callback=phases.append,
+        )
+
+        self.assertEqual([item["id"] for item in selected], ["1/5/3/7", "1/5/3/8"])
+        self.assertIsNone(metadata["constraints_satisfied"])
+        self.assertNotIn("constraints_enabled", metadata["selection"])
+        self.assertEqual(phases, ["generating", "ranking", "finalizing"])
+
+    def test_legacy_coefficient_flag_does_not_activate_constrained_search(self):
+        phases = []
+        selected, metadata = run_split_auto_selection_exact(
+            _parsed(),
+            vehicle_data={"effective_mass": 1.0},
+            algorithm="energy",
+            k=2,
+            avoid_repeated_runs=False,
+            candidate_builder=_fake_builder,
+            require_coefficient_cv=True,
+            require_time_cv=False,
+            require_opposite_time_difference=False,
+            phase_callback=phases.append,
+        )
+
+        self.assertEqual(len(selected), 2)
+        self.assertEqual(
+            metadata["constraints_enabled"],
+            {"time_cv": False, "opposite_time_difference": False},
+        )
+        self.assertEqual(phases, ["generating", "ranking", "finalizing"])
 
     def test_target_mode_requires_targets(self):
         with self.assertRaises(ValueError):

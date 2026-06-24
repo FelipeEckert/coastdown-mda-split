@@ -2140,3 +2140,116 @@ sobre o conjunto final, e um fallback diagnostico deve permanecer separado da
 decisao de aplica-lo.
 
 ---
+
+## 2026-06-24 - Split: Fallback Normativo Exige Confirmacao Explicita
+
+### Decisao:
+A UI da Selecao Automatica envia os tres criterios ativos ao orquestrador, que
+usa a busca constrained somente quando pelo menos um deles esta ligado. Com
+todos desligados, a selecao top-k anterior permanece intacta.
+
+Um resultado constrained reprovado limpa qualquer pending anterior e fica
+somente em `split_auto_selection_last_result` como oferta de fallback. O melhor
+conjunto falho so passa para `split_auto_selection_pending` depois da acao
+explicita do usuario, quando recebe `fallback_used=True`, validacao completa e
+status reprovado rastreavel. Substituicoes simulam e exibem o status antes e
+depois; ao confirmar, a validacao do conjunto persistido e recalculada.
+
+### Licao:
+Resultado calculado, sugestao revisavel e fallback aceito sao estados distintos.
+Uma falha normativa nao pode reutilizar automaticamente o mesmo estado visual de
+um conjunto aprovado, e qualquer alteracao posterior dos candidatos precisa
+invalidar e recomputar o diagnostico coletivo.
+
+---
+
+## 2026-06-24 - Split: Primeiro Valido Nao E Constraint-First
+
+### Decisao:
+A busca constrained v1 usava apenas o prefixo `max(100, k * 20, k + 50)`,
+parava no primeiro conjunto nao reprovado e tinha limite padrao de 5.000
+avaliacoes. Assim, uma solucao fora do prefixo nunca era vista; quando o limite
+era atingido, o fallback podia ser retornado apesar de ainda existirem conjuntos
+nao avaliados. Alem disso, ordem lexicografica das combinacoes nao equivale ao
+menor score agregado do ranking.
+
+O seletor v2 amplia a pool para `max(200, k * 50, k + 100)`, avalia ate 20.000
+conjuntos completos, conta todos os validos encontrados e escolhe somente ao
+final o menor somatorio dos indices originais de ranking. As unicas podas antes
+da validacao coletiva sao identidade duplicada, tamanho K e conflito exato de
+`run_usage`. A metadata informa explicitamente quando o limite interrompeu uma
+busca ainda incompleta.
+
+### Licao:
+Uma busca limitada nao pode confundir "nao encontrei dentro do orcamento" com
+"nao existe". Restricoes baseadas em CV e medias pertencem ao conjunto completo;
+ranking individual serve para desempatar conjuntos conformes, nao para declarar
+inviabilidade antes de eles serem avaliados.
+
+---
+
+## 2026-06-24 - Split: Limite De Busca Precisa Ser Visivel Na UI
+
+### Decisao:
+A Selecao Automatica mantem os tres criterios normativos na superficie principal,
+mas move tamanho da pool e maximo de conjuntos avaliados para um expander
+avancado. Esses valores seguem os defaults do v2 e atravessam o orquestrador sem
+alterar o fluxo top-k quando todos os criterios estao desligados.
+
+O resultado apresenta estrategia, pool real, conjuntos avaliados e conjuntos
+validos tanto para sucesso quanto para fallback. A mensagem sem conjunto aprovado
+foi limitada semanticamente a busca realizada; quando o orcamento termina antes
+do espaco de busca, `max_set_evaluations_reached` produz um aviso explicito de
+que podem existir combinacoes validas ainda nao avaliadas.
+
+### Licao:
+Limites computacionais fazem parte do resultado, nao apenas da configuracao. Uma
+interface auditavel deve distinguir ausencia comprovada dentro de uma busca
+exaustiva de ausencia observada dentro de um orcamento interrompido.
+
+---
+
+## 2026-06-24 - Split: Timeout Precisa Interromper O Backtracking
+
+### Decisao:
+O hotfix reduz a pool padrao para `max(80, k * 20, k + 40)`, limita a 3.000
+conjuntos e adiciona 30 segundos de tempo de parede. O relogio usa
+`time.perf_counter()` e e consultado dentro da recursao combinatoria, pois medir
+somente entre conjuntos completos ainda permitiria travar em ramos com muitos
+conflitos de `run_usage` antes do proximo `yield`.
+
+O progresso agora reserva faixas separadas para geracao, ranking, busca
+constrained e finalizacao; 100% so e aplicado depois que o orquestrador retorna.
+Timeout e limite de avaliacoes preservam fallback explicito e aparecem na
+metadata e na UI. Nao foi adicionado cache por assinatura: depois da deduplicacao,
+cada combinacao e emitida uma unica vez, portanto o cache nao evitaria nenhuma
+validacao e apenas consumiria memoria.
+
+### Licao:
+Um limite verificado apenas no corpo consumidor nao torna um gerador recursivo
+interrompivel. O cancelamento precisa atravessar a propria enumeracao, e a barra
+de progresso deve representar todas as fases caras, nao apenas a primeira.
+
+---
+
+## 2026-06-24 - Split: Auto-Selecao Normativa Usa Apenas Tempos
+
+### Decisao:
+Na Selecao Automatica Split, somente o C.V. de deltaT por velocidade/sentido e a
+diferenca entre medias de sentidos opostos participam de `passed`,
+`failed_checks` e `constraints_satisfied`. O C.V. amostral de F0/F2 continua
+calculado no validador para rastreabilidade estatistica, com flag explicita de
+diagnostico, mas nao reprova candidatos nem aparece no diagnostico normativo da
+busca.
+
+Os estados de constraints sao normalizados para apenas `time_cv` e
+`opposite_time_difference`. Assim, pendings antigos que ainda carreguem
+`coefficient_cv=True` nao reativam silenciosamente a regra removida. Nos cards de
+candidato, CV F0/F2 permanece identificado como diagnostico.
+
+### Licao:
+Uma metrica calculada nao e automaticamente um criterio normativo. Manter
+diagnostico e decisao em campos separados permite preservar analise estatistica
+sem transformar um limite de outro contexto em filtro de selecao Split.
+
+---

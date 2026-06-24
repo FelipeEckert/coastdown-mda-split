@@ -5,8 +5,13 @@ from __future__ import annotations
 
 from copy import deepcopy
 import math
+import time
 
-from core.split_candidate_set_validation import validate_split_candidate_set
+from core.split_candidate_set_validation import (
+    evaluate_split_constraint_satisfaction,
+    normalize_split_time_constraints,
+    validate_split_candidate_set,
+)
 from core.split_comparison import SELECTION_SOURCE_ALGORITHM
 from core.split_pair_candidate import split_candidate_signature
 
@@ -191,54 +196,27 @@ def select_top_k_candidates(
     return selected, metadata
 
 
-def _constraint_satisfaction(validation: dict, enabled: dict) -> bool | None:
-    if (
-        enabled["coefficient_cv"]
-        and validation["coefficient_status"] == "failed"
-    ):
-        return False
-    active_checks = []
-    if enabled["coefficient_cv"]:
-        active_checks.append(
-            {
-                "approved": True,
-                "failed": False,
-                "insufficient_data": None,
-            }[validation["coefficient_status"]]
-        )
-    if enabled["time_cv"]:
-        active_checks.extend(
-            result["passed"]
-            for result in validation["time_group_results"].values()
-        )
-    if enabled["opposite_time_difference"]:
-        active_checks.extend(
-            result["passed"]
-            for result in validation["opposite_time_results"].values()
-        )
-    if any(check is False for check in active_checks):
-        return False
-    if active_checks and any(check is None for check in active_checks):
-        return None
-    return True
-
-
 def _iter_candidate_sets(
     candidates: list[dict],
     k: int,
     *,
     avoid_repeated_runs: bool,
+    should_stop=None,
 ):
     """Yield ranked combinations, pruning repeated run usage before each leaf."""
     selected = []
 
     def visit(start_index: int, used_runs: set):
+        if should_stop is not None and should_stop():
+            return
         if len(selected) == k:
             yield tuple(selected)
             return
         missing = k - len(selected)
         last_start = len(candidates) - missing
         for index in range(start_index, last_start + 1):
+            if should_stop is not None and should_stop():
+                return
             candidate = candidates[index]
             next_used_runs = used_runs
             if avoid_repeated_runs:
@@ -256,21 +234,57 @@ def _iter_candidate_sets(
     yield from visit(0, set())
 
 
-def select_top_k_candidates_with_constraints(
+def _constraint_search_pool(
+    ranked_candidates: list[dict],
+    limit: int,
+) -> tuple[list[dict], dict, int]:
+    """Return a unique ranked prefix plus original zero-based rank indices."""
+    valid_candidates = [
+        candidate
+        for candidate in ranked_candidates or []
+        if isinstance(candidate, dict)
+    ]
+    pool = []
+    rank_indices = {}
+    duplicate_count = 0
+    for rank_index, candidate in enumerate(valid_candidates):
+        signature = _signature_sort_key(candidate)
+        if signature in rank_indices:
+            duplicate_count += 1
+            continue
+        rank_indices[signature] = rank_index
+        if len(pool) < limit:
+            pool.append(candidate)
+    return pool, rank_indices, duplicate_count
+
+
+def _candidate_set_rank_score(
+    candidate_set: tuple[dict, ...],
+    rank_indices: dict,
+) -> tuple[int, tuple[int, ...]]:
+    indices = tuple(
+        rank_indices[_signature_sort_key(candidate)]
+        for candidate in candidate_set
+    )
+    return sum(indices), indices
+
+
+def select_top_k_candidates_with_constraints_v2(
     ranked_candidates: list[dict],
     k: int,
     *,
     avoid_repeated_runs: bool = True,
-    require_coefficient_cv: bool = True,
+    require_coefficient_cv: bool = False,
     require_time_cv: bool = True,
     require_opposite_time_difference: bool = True,
     coefficient_cv_limit_pct: float = 10.0,
     time_cv_limit_pct: float = 2.5,
     opposite_time_limit_pct: float = 10.0,
     search_pool_size: int | None = None,
-    max_set_evaluations: int = 5000,
+    max_set_evaluations: int = 3000,
+    max_search_seconds: float = 30.0,
 ) -> tuple[list[dict], dict]:
-    """Find the first ranked candidate set satisfying all active constraints."""
+    """Find valid sets first, then choose the best aggregate ranking score."""
     try:
         requested_k = int(k)
     except (TypeError, ValueError) as exc:
@@ -283,8 +297,11 @@ def select_top_k_candidates_with_constraints(
         raise ValueError("max_set_evaluations must be a positive integer.") from exc
     if evaluation_limit <= 0:
         raise ValueError("max_set_evaluations must be greater than zero.")
+    search_seconds = _finite_float(max_search_seconds)
+    if search_seconds is None or search_seconds <= 0:
+        raise ValueError("max_search_seconds must be a positive finite number.")
 
-    default_pool_size = max(100, requested_k * 20, requested_k + 50)
+    default_pool_size = max(80, requested_k * 20, requested_k + 40)
     if search_pool_size is None:
         requested_pool_size = default_pool_size
     else:
@@ -295,34 +312,55 @@ def select_top_k_candidates_with_constraints(
         if requested_pool_size <= 0:
             raise ValueError("search_pool_size must be greater than zero.")
 
+    search_started = time.perf_counter()
     candidates = [
         candidate
         for candidate in ranked_candidates or []
         if isinstance(candidate, dict)
     ]
-    pool = candidates[:requested_pool_size]
-    enabled = {
-        "coefficient_cv": bool(require_coefficient_cv),
+    pool, rank_indices, duplicate_count = _constraint_search_pool(
+        candidates,
+        requested_pool_size,
+    )
+    enabled = normalize_split_time_constraints({
         "time_cv": bool(require_time_cv),
         "opposite_time_difference": bool(require_opposite_time_difference),
-    }
+    })
     fallback_candidates, _ = select_top_k_candidates(
         candidates,
         requested_k,
         avoid_repeated_runs=avoid_repeated_runs,
     )
     metadata = {
+        "strategy": "constraint_first_v2",
         "requested_k": requested_k,
         "selected_count": 0,
         "constraints_enabled": enabled,
         "constraints_satisfied": False,
         "evaluated_sets_count": 0,
         "search_pool_size": len(pool),
+        "valid_sets_found": 0,
+        "max_set_evaluations_reached": False,
+        "elapsed_seconds": 0.0,
+        "max_search_seconds": search_seconds,
+        "timeout_reached": False,
+        "best_valid_score": None,
+        "best_failed_score": None,
+        "duplicate_candidates_skipped": duplicate_count,
         "fallback_used": False,
         "best_failed_validation": None,
         "fallback_candidates": list(fallback_candidates),
         "warnings": [],
     }
+
+    if len(candidates) > requested_pool_size:
+        metadata["warnings"].append(
+            f"Constraint search used {len(pool)} of {len(candidates)} ranked candidates."
+        )
+    if duplicate_count:
+        metadata["warnings"].append(
+            f"{duplicate_count} duplicate ranked candidate(s) were ignored."
+        )
 
     if len(pool) < requested_k:
         metadata["warnings"].append(
@@ -330,11 +368,36 @@ def select_top_k_candidates_with_constraints(
         )
         return [], metadata
 
-    for candidate_set in _iter_candidate_sets(
+    best_valid = None
+    best_valid_key = None
+    best_valid_status = None
+    best_valid_validation = None
+    best_failed_key = None
+    best_failed_candidates = None
+    best_failed_validation = None
+
+    def search_timed_out() -> bool:
+        return time.perf_counter() - search_started >= search_seconds
+
+    def search_should_stop() -> bool:
+        return (
+            metadata["evaluated_sets_count"] >= evaluation_limit
+            or search_timed_out()
+        )
+
+    candidate_sets = _iter_candidate_sets(
         pool,
         requested_k,
         avoid_repeated_runs=avoid_repeated_runs,
-    ):
+        should_stop=search_should_stop,
+    )
+    for candidate_set in candidate_sets:
+        if metadata["evaluated_sets_count"] >= evaluation_limit:
+            metadata["max_set_evaluations_reached"] = True
+            break
+        if search_timed_out():
+            metadata["timeout_reached"] = True
+            break
         validation = validate_split_candidate_set(
             list(candidate_set),
             coefficient_cv_limit_pct=coefficient_cv_limit_pct,
@@ -342,26 +405,61 @@ def select_top_k_candidates_with_constraints(
             opposite_time_limit_pct=opposite_time_limit_pct,
         )
         metadata["evaluated_sets_count"] += 1
-        constraint_satisfaction = _constraint_satisfaction(validation, enabled)
+        constraint_satisfaction = evaluate_split_constraint_satisfaction(
+            validation,
+            enabled,
+        )
+        score_key = _candidate_set_rank_score(candidate_set, rank_indices)
         if constraint_satisfaction is not False:
-            selected = list(candidate_set)
-            metadata.update(
-                {
-                    "selected_count": len(selected),
-                    "constraints_satisfied": constraint_satisfaction,
-                    "fallback_candidates": [],
-                    "validation": validation,
-                }
-            )
-            return selected, metadata
-        if metadata["best_failed_validation"] is None:
-            metadata["best_failed_validation"] = validation
-            metadata["fallback_candidates"] = list(candidate_set)
-        if metadata["evaluated_sets_count"] >= evaluation_limit:
-            metadata["warnings"].append(
-                f"Search stopped after max_set_evaluations={evaluation_limit}."
-            )
-            break
+            metadata["valid_sets_found"] += 1
+            if best_valid_key is None or score_key < best_valid_key:
+                best_valid = list(candidate_set)
+                best_valid_key = score_key
+                best_valid_status = constraint_satisfaction
+                best_valid_validation = validation
+            continue
+        if best_failed_key is None or score_key < best_failed_key:
+            best_failed_key = score_key
+            best_failed_candidates = list(candidate_set)
+            best_failed_validation = validation
+
+    metadata["elapsed_seconds"] = time.perf_counter() - search_started
+    if metadata["evaluated_sets_count"] >= evaluation_limit:
+        metadata["max_set_evaluations_reached"] = True
+    if metadata["elapsed_seconds"] >= search_seconds:
+        metadata["timeout_reached"] = True
+    if metadata["max_set_evaluations_reached"]:
+        metadata["warnings"].append(
+            f"Search stopped after max_set_evaluations={evaluation_limit}."
+        )
+    if metadata["timeout_reached"]:
+        metadata["warnings"].append(
+            f"Search stopped after max_search_seconds={search_seconds:.3f}."
+        )
+    if best_valid is not None:
+        metadata.update(
+            {
+                "selected_count": len(best_valid),
+                "constraints_satisfied": best_valid_status,
+                "best_valid_score": best_valid_key[0],
+                "fallback_candidates": [],
+                "validation": best_valid_validation,
+            }
+        )
+        return best_valid, metadata
+
+    if len(fallback_candidates) < requested_k and best_failed_candidates is not None:
+        fallback_candidates = best_failed_candidates
+    metadata["fallback_candidates"] = list(fallback_candidates)
+    metadata["best_failed_validation"] = best_failed_validation
+    if fallback_candidates:
+        try:
+            metadata["best_failed_score"] = _candidate_set_rank_score(
+                tuple(fallback_candidates),
+                rank_indices,
+            )[0]
+        except KeyError:
+            metadata["best_failed_score"] = None
 
     if metadata["best_failed_validation"] is None:
         metadata["warnings"].append(
@@ -378,6 +476,38 @@ def select_top_k_candidates_with_constraints(
             f"{requested_k} requested."
         )
     return [], metadata
+
+
+def select_top_k_candidates_with_constraints(
+    ranked_candidates: list[dict],
+    k: int,
+    *,
+    avoid_repeated_runs: bool = True,
+    require_coefficient_cv: bool = False,
+    require_time_cv: bool = True,
+    require_opposite_time_difference: bool = True,
+    coefficient_cv_limit_pct: float = 10.0,
+    time_cv_limit_pct: float = 2.5,
+    opposite_time_limit_pct: float = 10.0,
+    search_pool_size: int | None = None,
+    max_set_evaluations: int = 3000,
+    max_search_seconds: float = 30.0,
+) -> tuple[list[dict], dict]:
+    """Compatibility wrapper for the constraint-first v2 selector."""
+    return select_top_k_candidates_with_constraints_v2(
+        ranked_candidates,
+        k,
+        avoid_repeated_runs=avoid_repeated_runs,
+        require_coefficient_cv=require_coefficient_cv,
+        require_time_cv=require_time_cv,
+        require_opposite_time_difference=require_opposite_time_difference,
+        coefficient_cv_limit_pct=coefficient_cv_limit_pct,
+        time_cv_limit_pct=time_cv_limit_pct,
+        opposite_time_limit_pct=opposite_time_limit_pct,
+        search_pool_size=search_pool_size,
+        max_set_evaluations=max_set_evaluations,
+        max_search_seconds=max_search_seconds,
+    )
 
 
 def mark_algorithm_source(
