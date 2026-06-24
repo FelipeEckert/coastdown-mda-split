@@ -289,11 +289,17 @@ def run_split_auto_selection_exact(
     search_pool_size: int | None = None,
     max_set_evaluations: int = 3000,
     max_search_seconds: float = 30.0,
+    use_mad_prefilter: bool = True,
+    mad_multiplier: float = 2.5,
+    mad_min_pool_size: int | None = None,
 ) -> tuple[list[dict], dict]:
     """Run exact automatic Split candidate generation, ranking and diagnostics."""
     algorithm_name = _algorithm_name(algorithm)
     requested = _requested_k(k)
     pool_limit = _replacement_pool_limit(replacement_pool_size)
+    effective_min_pool = (
+        mad_min_pool_size if mad_min_pool_size is not None else max(requested + 2, 4)
+    )
 
     _notify_phase(phase_callback, "generating")
     candidates, generation_metadata = generate_full_split_candidates_exact(
@@ -303,6 +309,9 @@ def run_split_auto_selection_exact(
         candidate_builder=candidate_builder,
         max_combinations=max_combinations,
         progress_callback=progress_callback,
+        use_mad_prefilter=use_mad_prefilter,
+        mad_multiplier=mad_multiplier,
+        mad_min_pool_size=effective_min_pool,
     )
 
     weather_filtered_count = 0

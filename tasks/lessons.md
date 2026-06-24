@@ -2253,3 +2253,38 @@ diagnostico e decisao em campos separados permite preservar analise estatistica
 sem transformar um limite de outro contexto em filtro de selecao Split.
 
 ---
+
+## 2026-06-24 - Split: Pre-filtro MAD Antes Do Produto Cartesiano
+
+### Contexto:
+`generate_full_split_candidates_exact()` trava porque gera o produto cartesiano
+completo (high+ x high- x low+ x low-) antes de qualquer filtro. Com 12 runs por
+grupo, 12^4 = 20.736 candidatos, cada um exigindo calculo completo de f'0/f'2,
+correcao climatica e energia. O custo esta na geracao, nao na busca constrained,
+que ja tem budgets configurados.
+
+### Decisao:
+Adicionar `filter_group_by_mad()` em `core/split_candidate_generation.py`,
+aplicado por grupo (high_plus, low_plus, high_minus, low_minus) depois de
+`split_runs_by_role_and_heading()` e antes do produto cartesiano. MAD (Median
+Absolute Deviation) foi escolhido em vez de media+desvio-padrao porque e mais
+robusto em amostras pequenas (5-15 runs por grupo): um unico outlier nao desloca
+a mediana como desloca a media, e o MAD nao multiplica esse efeito ao quadrado
+como a variancia faz.
+
+Defaults: `mad_multiplier=2.5` (threshold = mediana + 2.5*MAD) e
+`min_pool_size = k + 2` calculado no orquestrador
+`run_split_auto_selection_exact()`. O filtro nunca reduz um grupo abaixo de
+`min_pool_size`; se reduziria demais, reverte para os primeiros `min_pool_size`
+registros ordenados (`skipped_reason="min_pool_preserved"`). Grupos com menos de
+3 runs validos ou MAD=0 pulam o filtro sem alterar a lista. `use_mad_prefilter`
+permite desabilitar e reproduzir o comportamento anterior exatamente.
+
+### Licao:
+Um pre-filtro de geracao deve atuar sobre o dado bruto (Delta t) mais barato de
+calcular, nunca sobre o resultado caro (f'0/f'2/energia) que ele existe para
+evitar calcular. Regras de seguranca (pool minimo, grupo pequeno, MAD zero)
+precisam ser explicitas e rastreaveis em metadata, para que uma reducao agressiva
+do pool nunca remova silenciosamente dados que o usuario esperava ver na busca.
+
+---

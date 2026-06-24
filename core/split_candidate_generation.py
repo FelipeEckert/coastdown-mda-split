@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import itertools
+import math
+import statistics
 
 from core.split_pair_candidate import build_algorithm_split_pair_candidate
 
@@ -54,6 +56,81 @@ def _sort_key(record: dict) -> tuple:
         normalized(source.get("interval_name")),
         delta_value,
     )
+
+
+def _valid_delta_t(record: dict) -> float | None:
+    if not isinstance(record, dict):
+        return None
+    try:
+        value = float(record.get("delta_t_s"))
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(value) or value <= 0:
+        return None
+    return value
+
+
+def filter_group_by_mad(
+    records: list[dict],
+    *,
+    mad_multiplier: float = 2.5,
+    min_pool_size: int = 4,
+) -> tuple[list[dict], dict]:
+    """Remove Δt outliers from a group using MAD (Median Absolute Deviation).
+
+    Returns (filtered_records, metadata). Never reduces the group below
+    min_pool_size records.
+    """
+    source = list(records or [])
+    metadata = {
+        "input_count": len(source),
+        "output_count": len(source),
+        "filtered_count": 0,
+        "skipped_reason": None,
+        "threshold": None,
+        "median_delta_t": None,
+        "mad": None,
+        "mad_multiplier": mad_multiplier,
+        "min_pool_size": min_pool_size,
+    }
+
+    valid_delta_t_values = [
+        value for value in (_valid_delta_t(record) for record in source) if value is not None
+    ]
+
+    if len(valid_delta_t_values) < 3:
+        metadata["skipped_reason"] = "too_few_records"
+        return source, metadata
+
+    median = statistics.median(valid_delta_t_values)
+    mad = statistics.median([abs(value - median) for value in valid_delta_t_values])
+    metadata["median_delta_t"] = median
+    metadata["mad"] = mad
+
+    if mad == 0:
+        metadata["skipped_reason"] = "mad_is_zero"
+        return source, metadata
+
+    threshold = median + mad_multiplier * mad
+    metadata["threshold"] = threshold
+
+    filtered = [
+        record
+        for record in source
+        if (lambda delta: delta is None or delta <= threshold)(_valid_delta_t(record))
+    ]
+
+    if len(filtered) < min_pool_size:
+        metadata["skipped_reason"] = "min_pool_preserved"
+        ordered = sorted(source, key=_sort_key)
+        result = ordered[:min_pool_size]
+        metadata["output_count"] = len(result)
+        metadata["filtered_count"] = len(source) - len(result)
+        return result, metadata
+
+    metadata["output_count"] = len(filtered)
+    metadata["filtered_count"] = len(source) - len(filtered)
+    return filtered, metadata
 
 
 def split_runs_by_role_and_heading(split_parsed_runs: dict) -> dict:
@@ -120,10 +197,25 @@ def generate_full_split_candidates_exact(
     candidate_builder=None,
     max_combinations: int | None = None,
     progress_callback=None,
+    use_mad_prefilter: bool = True,
+    mad_multiplier: float = 2.5,
+    mad_min_pool_size: int = 4,
 ) -> tuple[list[dict], dict]:
     """Generate exact complete Split candidates by cartesian product."""
     builder = candidate_builder or build_algorithm_split_pair_candidate
     grouped = split_runs_by_role_and_heading(split_parsed_runs)
+
+    prefilter_metadata = {}
+    if use_mad_prefilter:
+        for key in GROUP_KEYS:
+            filtered, filter_meta = filter_group_by_mad(
+                grouped[key],
+                mad_multiplier=mad_multiplier,
+                min_pool_size=mad_min_pool_size,
+            )
+            grouped[key] = filtered
+            prefilter_metadata[key] = filter_meta
+
     estimated_total = estimate_full_candidate_count(grouped)
     metadata = {
         "mode": "exact",
@@ -133,6 +225,8 @@ def generate_full_split_candidates_exact(
         "failed_count": 0,
         "skipped_count": 0,
         "group_counts": _group_counts(grouped),
+        "prefilter_applied": use_mad_prefilter,
+        "prefilter": prefilter_metadata,
         "warnings": list(grouped.get("warnings") or []),
     }
 

@@ -6,6 +6,7 @@ import unittest
 
 from core.split_candidate_generation import (
     estimate_full_candidate_count,
+    filter_group_by_mad,
     generate_full_split_candidates_exact,
     iter_full_candidate_run_groups,
     split_runs_by_role_and_heading,
@@ -227,6 +228,143 @@ class SplitCandidateGenerationTest(unittest.TestCase):
         self.assertNotIn("import streamlit", source.lower())
         self.assertNotIn("from streamlit", source.lower())
         self.assertFalse(hasattr(module, "st"))
+
+
+class FilterGroupByMadTest(unittest.TestCase):
+    def test_normal_filter_removes_single_outlier(self):
+        records = [
+            _run("high", "+", 1, delta_t_s=10.0),
+            _run("high", "+", 2, delta_t_s=10.1),
+            _run("high", "+", 3, delta_t_s=10.1),
+            _run("high", "+", 4, delta_t_s=10.2),
+            _run("high", "+", 5, delta_t_s=10.3),
+            _run("high", "+", 6, delta_t_s=20.0),
+        ]
+
+        filtered, metadata = filter_group_by_mad(records, min_pool_size=4)
+
+        self.assertEqual(metadata["input_count"], 6)
+        self.assertEqual(metadata["output_count"], 5)
+        self.assertEqual(metadata["filtered_count"], 1)
+        self.assertIsNone(metadata["skipped_reason"])
+        self.assertNotIn(6, [run["run_id"] for run in filtered])
+
+    def test_too_few_records_is_skipped(self):
+        records = [
+            _run("high", "+", 1, delta_t_s=10.0),
+            _run("high", "+", 2, delta_t_s=99.0),
+        ]
+
+        filtered, metadata = filter_group_by_mad(records, min_pool_size=4)
+
+        self.assertEqual(metadata["skipped_reason"], "too_few_records")
+        self.assertEqual(filtered, records)
+
+    def test_mad_is_zero_is_skipped(self):
+        records = [
+            _run("high", "+", 1, delta_t_s=10.0),
+            _run("high", "+", 2, delta_t_s=10.0),
+            _run("high", "+", 3, delta_t_s=10.0),
+        ]
+
+        filtered, metadata = filter_group_by_mad(records, min_pool_size=2)
+
+        self.assertEqual(metadata["skipped_reason"], "mad_is_zero")
+        self.assertEqual(filtered, records)
+
+    def test_min_pool_size_is_preserved_when_filter_is_too_aggressive(self):
+        records = [
+            _run("high", "+", 1, delta_t_s=10.0),
+            _run("high", "+", 2, delta_t_s=10.1),
+            _run("high", "+", 3, delta_t_s=10.2),
+            _run("high", "+", 4, delta_t_s=30.0),
+            _run("high", "+", 5, delta_t_s=40.0),
+        ]
+
+        filtered, metadata = filter_group_by_mad(records, min_pool_size=4)
+
+        self.assertEqual(metadata["skipped_reason"], "min_pool_preserved")
+        self.assertEqual(metadata["output_count"], 4)
+        self.assertEqual(len(filtered), 4)
+
+    def test_disabled_prefilter_keeps_full_cartesian_product(self):
+        def builder(*, high_plus_run, low_plus_run, high_minus_run, low_minus_run, **_):
+            return {
+                "id": (
+                    f"{high_plus_run['run_id']}/{low_plus_run['run_id']}/"
+                    f"{high_minus_run['run_id']}/{low_minus_run['run_id']}"
+                )
+            }
+
+        parsed = {
+            "high": [
+                _run("high", "+", 1, delta_t_s=10.0),
+                _run("high", "+", 2, delta_t_s=10.1),
+                _run("high", "+", 3, delta_t_s=99.0),
+                _run("high", "-", 4, delta_t_s=20.0),
+                _run("high", "-", 5, delta_t_s=20.1),
+                _run("high", "-", 6, delta_t_s=21.0),
+            ],
+            "low": [
+                _run("low", "+", 7, delta_t_s=10.0),
+                _run("low", "+", 8, delta_t_s=10.1),
+                _run("low", "+", 9, delta_t_s=10.2),
+                _run("low", "-", 10, delta_t_s=11.0),
+                _run("low", "-", 11, delta_t_s=11.1),
+                _run("low", "-", 12, delta_t_s=11.2),
+            ],
+        }
+
+        candidates, metadata = generate_full_split_candidates_exact(
+            parsed,
+            vehicle_data={"effective_mass": 1.0},
+            candidate_builder=builder,
+            use_mad_prefilter=False,
+        )
+
+        self.assertFalse(metadata["prefilter_applied"])
+        self.assertEqual(metadata["prefilter"], {})
+        self.assertEqual(metadata["estimated_total"], 3 * 3 * 3 * 3)
+        self.assertEqual(len(candidates), 3 * 3 * 3 * 3)
+
+    def test_mad_prefilter_reduces_cartesian_product_below_unfiltered_total(self):
+        def builder(*, high_plus_run, low_plus_run, high_minus_run, low_minus_run, **_):
+            return {
+                "id": (
+                    f"{high_plus_run['run_id']}/{low_plus_run['run_id']}/"
+                    f"{high_minus_run['run_id']}/{low_minus_run['run_id']}"
+                )
+            }
+
+        def _group(role, heading, base_id, base_delta_t):
+            runs = [
+                _run(role, heading, base_id + index, delta_t_s=base_delta_t + index * 0.01)
+                for index in range(11)
+            ]
+            runs.append(
+                _run(role, heading, base_id + 100, delta_t_s=base_delta_t * 2.0)
+            )
+            return runs
+
+        parsed = {
+            "high": _group("high", "+", 1, 20.0) + _group("high", "-", 200, 20.5),
+            "low": _group("low", "+", 400, 10.0) + _group("low", "-", 600, 10.5),
+        }
+
+        candidates, metadata = generate_full_split_candidates_exact(
+            parsed,
+            vehicle_data={"effective_mass": 1.0},
+            candidate_builder=builder,
+            use_mad_prefilter=True,
+            mad_min_pool_size=4,
+        )
+
+        self.assertTrue(metadata["prefilter_applied"])
+        self.assertEqual(metadata["estimated_total"], 11 ** 4)
+        self.assertLess(metadata["estimated_total"], 12 ** 4)
+        self.assertEqual(len(candidates), 11 ** 4)
+        for key in ("high_plus", "high_minus", "low_plus", "low_minus"):
+            self.assertEqual(metadata["prefilter"][key]["filtered_count"], 1)
 
 
 if __name__ == "__main__":

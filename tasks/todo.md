@@ -400,3 +400,11 @@
 - [x] Add regressions proving high F0/F2 CV is accepted when all time checks pass.
 - [x] Preserve time-group and opposite-direction failures, fallback, timeout and legacy top-k behavior.
 - [ ] Complete real-browser Energy/Target validation and confirm Final Comparison/Results keep coefficient CV separate from automatic normative filtering.
+
+## MAD pre-filter - 2026-06-24
+- [x] Add pure `filter_group_by_mad()` to `core/split_candidate_generation.py` with MAD outlier detection, min-pool-size guarantee, too-few-records and mad-is-zero skip reasons.
+- [x] Apply the pre-filter per group (high_plus/low_plus/high_minus/low_minus) after `split_runs_by_role_and_heading()` and before the cartesian product in `generate_full_split_candidates_exact()`.
+- [x] Add `use_mad_prefilter`, `mad_multiplier` and `mad_min_pool_size` parameters to `generate_full_split_candidates_exact()` and record per-group `prefilter` metadata.
+- [x] Wire the same parameters through `run_split_auto_selection_exact()` in `core/split_auto_selection.py`, defaulting `mad_min_pool_size` to `max(k + 2, 4)`.
+- [x] Add regression coverage for normal filtering, too-few-records skip, mad-is-zero skip, min-pool-size preservation, disabled prefilter and cartesian-size reduction.
+- [ ] Validate real-world timing improvement on a 12-run-per-group dataset in the running Streamlit app.
