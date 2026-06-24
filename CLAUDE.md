@@ -1,1041 +1,442 @@
-# Coastdown MDA - Multi-Test Analysis Platform
+# CLAUDE.md — Coastdown MDA Split
 
-## 🎯 Visão Geral do Projeto
-
-**Coastdown MDA** é uma plataforma de análise multi-teste para dados de coastdown veicular segundo norma **ABNT 10312**. Inspirado no ETAS MDA (Measure Data Analyzer), permite carregar, analisar e comparar múltiplos testes simultaneamente.
-
-### Escopo Atual
-- **Método suportado:** Standard APENAS (método Split será software separado)
-- **Fase de desenvolvimento:** v1.0 - Interface de gerenciamento de testes
-- **Base de código:** Migração de PyQt5 → Streamlit (versão v16)
+> Guia definitivo do projeto. Leia este arquivo inteiro antes de qualquer
+> modificação não trivial.
 
 ---
 
-## 🏗️ Arquitetura da Aplicação
+## Visão Geral
 
-### Conceito Visual (Inspirado no ETAS MDA)
+**Coastdown MDA Split** é uma aplicação Streamlit para análise de coastdown
+veicular pelo **método Split**, conforme ABNT NBR 10312.
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  [Logo] Coastdown MDA                    [Config] [Help]│
-├───────────────┬─────────────────────────────────────────┤
-│               │                                         │
-│  SIDEBAR      │         ÁREA PRINCIPAL                  │
-│  Tests        │                                         │
-│               │  ┌───────────────────────────────────┐  │
-│ ┌───────────┐ │  │                                   │  │
-│ │ + Novo    │ │  │     Análise do Teste Ativo        │  │
-│ │   Teste   │ │  │                                   │  │
-│ └───────────┘ │  │  [Pares] [Gráficos] [Algoritmos] │  │
-│               │  │                                   │  │
-│ ┌───────────┐ │  │                                   │  │
-│ │ ✅ Teste A│◄──┼──┤  Dados, tabelas, visualizações  │  │
-│ │ Veic. X   │ │  │                                   │  │
-│ │ 📁📊      │ │  └───────────────────────────────────┘  │
-│ └───────────┘ │                                         │
-│               │                                         │
-│ ┌───────────┐ │                                         │
-│ │ ✅ Teste B│ │                                         │
-│ │ Veic. Y   │ │                                         │
-│ │ 📁📊      │ │                                         │
-│ └───────────┘ │                                         │
-│               │                                         │
-│ ┌───────────┐ │                                         │
-│ │ ⚠️ Teste C│ │                                         │
-│ │ Veic. Z   │ │                                         │
-│ │ 📁❌      │ │  (falta arquivo meteo)                 │
-│ └───────────┘ │                                         │
-└───────────────┴─────────────────────────────────────────┘
-```
+Repositório: https://github.com/FelipeEckert/coastdown-mda-split
+Branch ativo: `setup/split-project`
 
-### Componentes Principais
-
-#### 1. **Sidebar - Gerenciador de Testes**
-- **Botão "+ Novo Teste"**: Abre modal para criar teste
-- **Cards de Teste**: Mini-cards mostrando:
-  - Nome do teste (editável)
-  - Status dos arquivos (✅ CSV | ✅ Meteo)
-  - Ícone de teste ativo (destaque visual)
-  - Botões: Editar | Duplicar | Remover
-
-#### 2. **Área Principal - Análise**
-- Exibe análise do teste **selecionado** na sidebar
-- Mantém toda a lógica das páginas 2-6 da v16:
-  - Dados do veículo
-  - Análise de pares
-  - Seleção por algoritmo
-  - Comparativo final
-  - Resultados
-
-#### 3. **Comparativo Multi-Teste** (Futuro - Fase 2)
-- Opção especial na sidebar: "📊 Comparar Testes"
-- Seleciona múltiplos testes
-- Gráficos sobrepostos
-- Tabela comparativa
+O projeto foi criado a partir do codebase Standard (`cd-streamlit`), mas toda
+lógica de método é Split pura. Standard e Split **nunca** se misturam.
 
 ---
 
-## 📂 Estrutura de Arquivos (Atual v16)
+## Princípio Central
+
+Só reutilize código Standard que seja **neutro de método** (infraestrutura).
+Toda lógica Split deve ser revisada, reimplementada e validada explicitamente.
+
+**Reutilizável (neutro):**
+- Layout Streamlit e sidebar multi-teste
+- Session state e gerenciamento de testes
+- Assets, logos, paleta de cores
+- `translations.py` e sistema i18n
+- Sincronização e carregamento de arquivo meteo
+- Infraestrutura de exportação Excel
+- Funções utilitárias genéricas
+
+**Não reutilizável (método-específico):**
+- Parser e modelo de dados
+- Workflow e páginas
+- Cálculo de coeficientes
+- Regras de validação
+- Conteúdo do relatório final
+
+---
+
+## Arquitetura da Aplicação
 
 ```
-coastdown_streamlit/
-├── app.py                          # App principal Streamlit
-├── CLAUDE.md                       # Este arquivo (contexto)
-├── config.py                       # Configurações
-├── translations.py                 # PT/EN
-├── requirements.txt                # Dependências
+coastdown-mda-split/
+├── app.py                          # Entrada Streamlit
+├── CLAUDE.md                       # Este arquivo
+├── AGENTS.md                       # Regras operacionais para agentes
+├── translations.py                 # PT/EN (nunca traduzir termos técnicos)
+├── requirements.txt
 │
 ├── .streamlit/
-│   └── config.toml                # Config Streamlit
+│   └── config.toml
 │
-├── pages/                          # Páginas do fluxo (v16)
-│   ├── page_1_abrir_teste.py      # [OBSOLETO] Será substituído
-│   ├── page_2_dados_veiculo.py    # ✅ Reutilizar
-│   ├── page_3_analise_pares.py    # ✅ Reutilizar
-│   ├── page_4_selecao_algoritmo.py # ✅ Reutilizar
-│   ├── page_5_comparativo.py      # ✅ Reutilizar
-│   └── page_6_resultados.py       # ⚠️ Reutilizar (tem bug)
+├── pages/                          # Páginas do fluxo Split
+│   ├── page_2_dados_veiculo.py     # Dados do veículo e massa efetiva
+│   ├── page_3_intervalo.py         # Seleção de intervalo (Interval Selection)
+│   ├── page_4_analise_pares.py     # Análise de pares (Coefficient Calculation)
+│   ├── page_5_comparativo.py       # Comparativo final e seleção
+│   └── page_6_resultados.py        # Resultados e exportação Excel
 │
-├── core/                           # ⚠️ NÃO MODIFICAR (código validado)
-│   ├── __init__.py
-│   ├── calculations.py            # Cálculos F0, F2, energia
-│   └── corrections.py             # Correção climática
+├── core/                           # ⚠️ Módulos puros — sem Streamlit
+│   ├── split_calculations.py       # f'0, f'2, ΔV, fórmulas normativas
+│   ├── split_corrections.py        # Correção climática f'→F (Split)
+│   ├── split_candidate_generation.py  # Geração de candidatos (produto cartesiano)
+│   ├── split_candidate_set_validation.py  # Validação normativa de conjuntos
+│   ├── split_pair_candidate.py     # Builder de par candidato
+│   ├── split_selection_algorithms.py   # Ranking e seleção top-K
+│   ├── split_auto_selection.py     # Orquestrador de seleção automática
+│   ├── split_time_validation.py    # CV e diferença entre sentidos
+│   ├── split_comparison_merge.py   # Merge de candidatos no comparativo
+│   └── split_energy.py             # Cálculo de energia (Split)
 │
-├── data/                          
-│   ├── __init__.py
-│   ├── loaders.py                 # Carrega CSV, meteo
-│   └── exporters.py               # Exporta Excel
+├── data/
+│   ├── loaders.py                  # Carrega CSV e meteo
+│   └── exporters.py                # Exporta Excel
 │
-└── utils/
-    ├── __init__.py
-    └── file_utils.py              # Utilitários
+├── utils/
+│   └── file_utils.py
+│
+└── tasks/
+    ├── todo.md                     # Status operacional — sempre atualizar
+    └── lessons.md                  # Decisões e lições duráveis
 ```
 
 ---
 
-## 🔑 Estrutura de Dados
+## Método Split — Conceito
 
-### Session State - Workspace Multi-Teste
+### Diferença fundamental vs. Standard
+
+| Aspecto | Standard | Split |
+|---|---|---|
+| Entrada | Curva contínua de desaceleração | Dois intervalos de velocidade fixos |
+| Saída | F0, F2 por regressão | f'0, f'2 por sistema de 2 equações |
+| "Par" | Uma passada + (ida) + uma passada − (volta) | high+, high−, low+, low− (4 componentes) |
+| Validação principal | CV F0/F2 ≤ 10% | CV Δt ≤ 2,5% por grupo; \|Δmédias\| ≤ 10% entre sentidos |
+
+### Intervalos padrão (norma — só defaults, não hardcode)
+
+```
+Alta velocidade:  90 → 70 km/h   Velocidade de referência V2 = 80 km/h
+Baixa velocidade: 45 → 35 km/h   Velocidade de referência V1 = 40 km/h
+```
+
+### Convenção ΔV
+
+```python
+delta_v = abs(v_initial - v_final)   # sempre positivo
+# NUNCA: delta_v = v_final - v_initial
+```
+
+---
+
+## Equações Normativas (ABNT NBR 10312 — §5.2.1.6)
+
+### Força resistiva por período
+
+```
+F = Me × (ΔV / Δt)
+```
+
+### Coeficientes f'0 e f'2
+
+```
+f'0 = Me / (V2² - V1²) × [(ΔV2/Δt2)×V1² − (ΔV1/Δt1)×V2²]
+
+f'2 = Me / (V2² - V1²) × [(ΔV1/Δt1) − (ΔV2/Δt2)]
+```
+
+Onde:
+- `V1`, `V2` = velocidades de referência (baixa e alta), em m/s
+- `ΔV1`, `ΔV2` = intervalos de velocidade centrados em V1 e V2, em m/s
+- `Δt1`, `Δt2` = tempo médio de desaceleração em cada intervalo, em s
+- `Me` = massa efetiva do veículo, em kg
+
+### Cadeia de massa normativa
+
+```
+M  = massa em ordem de marcha + 136 kg
+me = valor informado pelo usuário  OU  3% de M
+Me = M + me
+```
+
+### Correção climática (f'→F)
+
+Implementada em `core/split_corrections.py`. F2 inclui conversão de
+`N/(m/s)²` para `N/(km/h)²` pelo fator 12,96.
+
+---
+
+## Validação Normativa (§5.2.1.6.3)
+
+Duas restrições — aplicadas sobre o **conjunto** K de pares selecionados:
+
+```
+1. CV amostral de Δt ≤ 2,5%
+   Calculado separadamente para: high+, high−, low+, low−
+
+2. Diferença entre médias de sentidos opostos ≤ 10%
+   Calculado separadamente para: alta velocidade e baixa velocidade
+```
+
+**Importante:** CV de F0/F2 é **diagnóstico apenas** — não reprova candidatos
+na seleção automática (decisão normativa documentada em `tasks/lessons.md`
+2026-06-24).
+
+Uma amostra única mantém CV inconclusivo — não falha automaticamente.
+
+---
+
+## Algoritmo de Seleção Automática — Arquitetura Atual
+
+### Pipeline (em ordem de execução)
+
+```
+split_parsed_runs
+       │
+       ▼
+generate_full_split_candidates_exact()   ← GARGALO PRINCIPAL
+  split_candidate_generation.py
+  Produto cartesiano: high+ × high− × low+ × low−
+  Cada combinação: cálculo f'0/f'2 + correção + energia
+  Exemplo: 12⁴ = 20.736 candidatos gerados
+       │
+       ▼
+rank_candidates_by_energy()  ou  rank_candidates_by_target()
+  split_selection_algorithms.py
+       │
+       ▼
+select_top_k_candidates_with_constraints_v2()   ← constraint-first
+  Pool: max(80, k×20, k+40)
+  Limite: 3.000 conjuntos avaliados + 30s timeout
+  Valida CV Δt e diferença entre sentidos no conjunto completo
+       │
+       ▼
+Resultado aprovado  ou  Fallback explícito (confirmação do usuário)
+```
+
+### Por que trava
+
+O custo está na **geração**, não na busca constrained. Com 12 runs por grupo,
+`build_algorithm_split_pair_candidate` é chamado 12⁴ = 20.736 vezes, cada
+chamada fazendo cálculo completo (f'0/f'2 + correção climática + energia).
+O ranking e a busca constrained, que já têm budgets configurados, são rápidos
+em comparação.
+
+---
+
+## Algoritmo de Seleção Automática — Pré-filtro Proposto
+
+### Objetivo
+
+Reduzir o pool de cada grupo (high+, high−, low+, low−) **antes** do produto
+cartesiano, usando apenas os Δt brutos dos runs — sem cálculo de coeficientes.
+
+### Heurística
+
+Uma run cujo Δt é outlier no seu grupo muito provavelmente vai puxar o CV
+acima de 2,5% em qualquer conjunto que ela entre. Filtrar esses outliers antes
+da geração reduz o produto cartesiano drasticamente sem sacrificar a qualidade
+do resultado.
+
+Exemplo: 12 → 8 runs por grupo reduz de 12⁴ = 20.736 para 8⁴ = 4.096
+candidatos — redução de **5×**.
+
+### Método: MAD (Median Absolute Deviation)
+
+MAD é mais robusto que média + desvio padrão para detectar outliers em amostras
+pequenas (5–15 elementos):
+
+```python
+median = statistics.median(delta_t_values)
+mad    = statistics.median([abs(x - median) for x in delta_t_values])
+threshold = median + multiplier × mad   # multiplier padrão: 2.5
+```
+
+Uma run é marcada como outlier se seu Δt ultrapassar o threshold.
+
+### Regras de segurança
+
+1. **Pool mínimo garantido:** o pré-filtro nunca reduz um grupo abaixo de
+   `min(len(group), min_pool_size)` runs. Default `min_pool_size = k + 2`.
+   Se o filtro removeria demais, relaxa o threshold até preservar o mínimo.
+
+2. **Grupo pequeno (< 3 runs):** pré-filtro é pulado — sem runs suficientes
+   para calcular MAD com significância.
+
+3. **MAD = 0:** todos os Δt são idênticos — sem outliers, pulado.
+
+4. **Rastreabilidade:** metadata deve registrar quantas runs foram filtradas
+   por grupo e qual threshold foi usado.
+
+5. **Parâmetros configuráveis:** `mad_multiplier` (default 2.5) e
+   `min_pool_size` (default k + 2) passados pelo orquestrador.
+
+### Onde implementar
+
+**Arquivo:** `core/split_candidate_generation.py`
+
+**Nova função pura:**
+```python
+def filter_group_by_mad(
+    records: list[dict],
+    *,
+    mad_multiplier: float = 2.5,
+    min_pool_size: int = 4,
+) -> tuple[list[dict], dict]:
+    """
+    Remove outliers de Δt de um grupo por MAD.
+    Retorna (lista_filtrada, metadata_do_filtro).
+    Nunca reduz abaixo de min_pool_size.
+    """
+```
+
+**Ponto de chamada:** dentro de `split_runs_by_role_and_heading()` ou como
+etapa separada em `generate_full_split_candidates_exact()`, antes de
+`iter_full_candidate_run_groups()`.
+
+**Assinatura recomendada para o orquestrador:**
+```python
+def generate_full_split_candidates_exact(
+    split_parsed_runs: dict,
+    *,
+    vehicle_data: dict,
+    correction_context: dict | None = None,
+    candidate_builder=None,
+    max_combinations: int | None = None,
+    progress_callback=None,
+    use_mad_prefilter: bool = True,       # novo
+    mad_multiplier: float = 2.5,          # novo
+    mad_min_pool_size: int | None = None, # novo — default: k+2 via orquestrador
+) -> tuple[list[dict], dict]:
+```
+
+### Integração com o orquestrador
+
+`run_split_auto_selection_exact()` em `split_auto_selection.py` passa k para
+o gerador e calcula `mad_min_pool_size = max(requested_k + 2, 4)`.
+
+### O que NÃO mudar
+
+- A busca constrained (`select_top_k_candidates_with_constraints_v2`) não muda.
+- O validador de conjuntos (`validate_split_candidate_set`) não muda.
+- O ranking (energia ou target) não muda.
+- O fallback explícito não muda.
+- Nenhum arquivo de `core/` fora de `split_candidate_generation.py` e
+  `split_auto_selection.py` precisa ser tocado.
+
+---
+
+## Session State — Estrutura Multi-Teste
 
 ```python
 st.session_state.tests = {
     "test_1": {
         "id": "test_1",
-        "name": "Teste A - Veículo X",
-        "created_at": "2024-03-11 14:30:00",
-        "status": "complete",  # 'incomplete' | 'complete'
-        
-        # Arquivos carregados
-        "files": {
-            "csv_loaded": True,
-            "csv_path": "C:/data/teste_a.csv",
-            "meteo_loaded": True,
-            "meteo_path": "C:/data/meteo_a.csv"
-        },
-        
-        # Dados do teste (da v16)
-        "data_loaded": True,
-        "all_run_data": {...},              # Dict de runs
-        "vehicle_data_complete": True,
-        "total_mass": 1500.0,
-        "ref_vel_alta": 120.0,
-        "ref_vel_baixa": 40.0,
-        
-        # Pares calculados (da v16)
-        "calculated_pairs": {
-            "1/2": {
-                "pair_id": "1/2",
-                "f0_corr": 110.1802,
-                "f2_corr": 0.043108,
-                "energy": 5.3974,
-                "cv_f0": 14.64,
-                "cv_f2": 4.30,
-                "selected": False,
-                "selected_by_energy_algo": False,
-                "selected_by_target_algo": False
-            },
-            # ... mais pares
-        },
-        
-        # Pares finais selecionados
-        "pares_finais_selecionados": ["1/2", "3/4", "5/6"],
-        
-        # Resultados finais
-        "final_results": {
-            "mean_f0": 110.5,
-            "mean_f2": 0.043,
-            "cv_f0": 12.3,
-            "cv_f2": 5.1,
-            "energy": 5.4,
-            "num_pairs": 5
-        }
-    },
-    
-    "test_2": {
-        # Estrutura idêntica
-        # ...
+        "name": "Teste A — Veículo X",
+        "created_at": "2026-06-01 10:00:00",
+        "status": "complete",           # 'incomplete' | 'complete'
+
+        # Arquivos
+        "split_input_mode": "separate", # 'separate' | 'combined'
+        "split_input_version": 1,       # incrementa ao trocar arquivo
+
+        # Dados do veículo
+        "vehicle_model": "...",
+        "test_date": "...",
+        "running_order_mass_kg": 1300.0,
+        "inertia_mass_kg": 50.0,
+        "effective_mass_kg": 1486.0,    # Me = M + me
+
+        # Resultados Split
+        "split_parsed_runs": {...},     # saída do parser
+        "split_comparison_pairs": [...],# pares calculados
+        "split_auto_selection_pending": [...],
+        "split_final_results": {...},
+        "excel_buffer": None,
     }
 }
-
-# Teste ativo (exibido na área principal)
 st.session_state.active_test_id = "test_1"
-
-# Configurações globais
-st.session_state.app_config = {
-    "theme": "dark",
-    "language": "pt",
-    "auto_save": True
-}
 ```
 
 ---
 
-## 🎨 Design da Sidebar (Prioridade FASE 1)
+## Sistema i18n
 
-### Card de Teste - Especificação
-
-Cada card deve ter:
-
-```
-┌─────────────────────────────────┐
-│ ✅ Teste A - Veículo X          │ ◄─ Nome (editável inline)
-├─────────────────────────────────┤
-│ 📁 CSV:   ✅ teste_a.csv        │ ◄─ Status arquivo CSV
-│ 📊 Meteo: ✅ meteo_a.csv        │ ◄─ Status arquivo meteo
-├─────────────────────────────────┤
-│ [📝 Editar] [📋 Duplicar] [🗑️]  │ ◄─ Ações
-└─────────────────────────────────┘
-```
-
-### Estados Visuais
-
-| Status | Cor de Fundo | Borda | Descrição |
-|--------|-------------|-------|-----------|
-| **Ativo** | `#2d4a7c` | 2px solid `#4a9eff` | Teste selecionado |
-| **Completo** | `#1e1e1e` | 1px solid `#3d3d3d` | Tudo OK |
-| **Incompleto** | `#1e1e1e` | 1px solid `#ff9800` | Falta arquivo |
-| **Erro** | `#1e1e1e` | 1px solid `#f44336` | Erro no carregamento |
-
-### Modal "+ Novo Teste"
-
-Ao clicar em "+ Novo Teste", abre modal:
-
-```
-┌────────────────────────────────────┐
-│  Criar Novo Teste                  │
-├────────────────────────────────────┤
-│                                    │
-│  Nome do Teste:                    │
-│  [Teste A - Veículo X________]     │
-│                                    │
-│  Arquivo CSV (dados do teste):     │
-│  [Selecionar arquivo...]  [📁]     │
-│                                    │
-│  Arquivo Meteorológico (opcional): │
-│  [Selecionar arquivo...]  [📁]     │
-│                                    │
-│  ┌──────────────────────────────┐  │
-│  │  ⚠️ Dados Fixos              │  │
-│  │  (se não tiver meteo)        │  │
-│  │                              │  │
-│  │  Temperatura: [25.0] °C      │  │
-│  │  Pressão:     [101.3] kPa    │  │
-│  └──────────────────────────────┘  │
-│                                    │
-│      [Cancelar]  [Criar Teste]     │
-└────────────────────────────────────┘
-```
-
----
-
-## 🔄 Fluxo de Usuário (UX)
-
-### Workflow Típico
-
-1. **Iniciar aplicação**
-   - Sidebar vazia (sem testes)
-   - Área principal: mensagem "Crie ou carregue um teste para começar"
-
-2. **Criar primeiro teste**
-   - Clica "+ Novo Teste"
-   - Preenche nome
-   - Carrega CSV
-   - Carrega meteo (ou insere T/P fixas)
-   - Clica "Criar Teste"
-
-3. **Análise automática**
-   - Card aparece na sidebar
-   - Teste é ativado automaticamente
-   - Área principal carrega dados do veículo (página 2 da v16)
-
-4. **Análise de pares**
-   - Usuário navega pelas sub-abas:
-     - Dados do Veículo
-     - Análise de Pares
-     - Seleção por Algoritmo
-     - Comparativo Final
-     - Resultados
-
-5. **Adicionar mais testes**
-   - Clica "+ Novo Teste" novamente
-   - Repete processo
-   - Agora tem 2+ testes na sidebar
-
-6. **Alternar entre testes**
-   - Clica em qualquer card da sidebar
-   - Área principal atualiza para mostrar dados daquele teste
-
-7. **Comparar testes** (Futuro - Fase 2)
-   - Clica em "📊 Comparar Testes"
-   - Seleciona quais testes comparar
-   - Vê gráficos/tabelas lado a lado
-
----
-
-## 🛠️ Tarefas de Desenvolvimento - FASE 1
-
-### Prioridade ALTA (Fazer AGORA com Claude Code)
-
-- [ ] **1. Refatorar app.py**
-  - Criar sidebar moderna
-  - Implementar gerenciador de testes
-  - Modal "+ Novo Teste"
-
-- [ ] **2. Criar componente TestCard**
-  - Visual moderno (cards estilo MDA)
-  - Estados visuais (ativo/completo/erro)
-  - Ações inline (editar/duplicar/remover)
-
-- [ ] **3. Adaptar Session State**
-  - Migrar de `st.session_state.calculated_pairs` único
-  - Para `st.session_state.tests[test_id].calculated_pairs`
-  - Manter compatibilidade com páginas 2-6
-
-- [ ] **4. Integrar páginas existentes**
-  - Páginas 2-6 devem ler dados do `active_test_id`
-  - Função helper: `get_active_test()` → retorna dict do teste ativo
-  - **NÃO reescrever lógica de cálculos!**
-
-### Prioridade MÉDIA (Depois da Fase 1)
-
-- [ ] **5. Testar Página 6**
-  - Verificar se resultados aparecem corretamente
-  - Testar com múltiplos testes
-  - Validar exportação
-
-- [ ] **6. Sistema de salvamento**
-  - Salvar workspace em JSON/pickle
-  - Botão "Salvar Projeto"
-  - Botão "Abrir Projeto"
-
-- [ ] **7. Melhorias UX**
-  - Drag & drop de arquivos
-  - Atalhos de teclado
-  - Tooltips informativos
-
-### Prioridade BAIXA (Fase 2 - Futuro)
-
-- [ ] **7. Comparativo multi-teste**
-  - Seleção de múltiplos testes
-  - Gráficos sobrepostos
-  - Tabela comparativa
-
-- [ ] **8. Exportação avançada**
-  - Relatório PDF multi-teste
-  - Excel com múltiplas abas (um teste por aba)
-
----
-
-## 🤖 Claude Code - Workflow Orchestration
-
-### Diretrizes de Trabalho
-
-Estas são instruções **específicas para o Claude Code** ao trabalhar neste projeto.
-
-#### 1. Plan Mode Default ⚡
-- **SEMPRE** entrar em modo planejamento para tarefas não-triviais (3+ passos ou decisões arquiteturais)
-- Se algo der errado, **PARAR** e replanejar imediatamente - não continuar empurrando
-- Usar modo planejamento para etapas de verificação, não apenas construção
-- Escrever specs detalhadas antecipadamente para reduzir ambiguidade
-
-**Exemplo:**
-```
-Antes de refatorar app.py:
-1. Analisar estrutura atual
-2. Planejar migração Session State
-3. Listar arquivos a modificar
-4. Verificar compatibilidade com páginas 2-6
-5. Só então executar
-```
-
-#### 2. Subagent Strategy 🔀
-- Usar subagentes liberalmente para manter janela de contexto limpa
-- Delegar pesquisa, exploração e análise paralela para subagentes
-- Para problemas complexos, jogar mais compute via subagentes
-- **Uma tarefa por subagent** para execução focada
-
-**Quando usar subagents:**
-- Analisar múltiplos arquivos simultaneamente
-- Pesquisar padrões em codebase grande
-- Validar compatibilidade entre componentes
-- Explorar soluções alternativas
-
-#### 3. Self-Improvement Loop 📚
-- Após **QUALQUER** correção do usuário: atualizar `tasks/lessons.md` com o padrão
-- Escrever regras para si mesmo que previnem o mesmo erro
-- Iterar implacavelmente nestas lições até taxa de erro cair
-- Revisar lições no início da sessão para projetos relevantes
-
-**Exemplo de lesson.md:**
-```markdown
-## Lição: Session State Multi-Teste
-
-### Erro:
-Tentei modificar `st.session_state.calculated_pairs` diretamente, 
-quebrando compatibilidade com páginas 2-6.
-
-### Correção:
-Criar helper `get_active_test()` que retorna os dados do teste ativo.
-Páginas continuam acessando `calculated_pairs` mas via helper.
-
-### Regra:
-Sempre manter retrocompatibilidade ao refatorar Session State.
-Usar abstração (helpers) ao invés de quebrar interfaces.
-```
-
-#### 4. Verification Before Done ✓
-- **NUNCA** marcar tarefa como completa sem provar que funciona
-- Fazer diff entre main e suas mudanças quando relevante
-- Perguntar a si mesmo: "Um engenheiro sênior aprovaria isso?"
-- Rodar testes, checar logs, demonstrar correção
-
-**Checklist antes de "Done":**
-- [ ] Código roda sem erros
-- [ ] Testes passam (ou criar se não existir)
-- [ ] Compatibilidade verificada
-- [ ] i18n implementado (PT/EN)
-- [ ] Comentários em português
-- [ ] Commit message descritivo
-
-#### 5. Demand Elegance (Balanceado) 🎨
-- Para mudanças não-triviais: pausar e perguntar "há uma forma mais elegante?"
-- Se um fix parece hacky: "Sabendo tudo que sei agora, implementar a solução elegante"
-- **Pular para fixes simples e óbvios** - não over-engineer
-- Desafiar seu próprio trabalho antes de apresentar
-
-**Critérios de elegância:**
-- Código legível e autodocumentado
-- Princípio DRY (Don't Repeat Yourself)
-- Separation of concerns
-- Mínimo de dependências
-- Fácil de testar
-
-#### 6. Autonomous Bug Fixing 🔧
-- Quando receber report de bug: apenas conserte. Não pedir hand-holding
-- Apontar para logs, errors, failing tests → então resolver
-- Zero context switching necessário do usuário
-- Ir consertar testes CI que falharem sem ser avisado
-
-**Workflow de bug:**
-```
-1. Reproduzir o bug
-2. Identificar root cause
-3. Implementar fix
-4. Adicionar teste para prevenir regressão
-5. Documentar em lessons.md se for padrão
-```
-
----
-
-### Task Management 📋
-
-#### Estrutura de Arquivos
-
-```
-tasks/
-├── todo.md          # Checklist de tarefas
-└── lessons.md       # Lições aprendidas
-```
-
-#### 1. **Plan First** ⭐⭐
-Escrever plano em `tasks/todo.md` com itens checkáveis:
-
-```markdown
-# FASE 1 - Sidebar Moderna
-
-## Tarefas
-- [ ] Analisar app.py atual
-- [ ] Criar componente TestCard
-- [ ] Implementar modal "+ Novo Teste"
-- [ ] Adaptar Session State para multi-teste
-- [ ] Testar compatibilidade com páginas 2-6
-
-## Notas
-- Manter páginas 2-6 intactas
-- Todos textos com t() para i18n
-- Seguir paleta de cores do CLAUDE.md
-```
-
-#### 2. **Verify Plan** ✓
-Checar antes de começar implementação:
-- [ ] Todos os passos estão claros?
-- [ ] Há dependências entre tarefas?
-- [ ] Algum passo precisa de research primeiro?
-
-#### 3. **Track Progress** 📊
-Marcar itens completos conforme avança:
-```markdown
-- [x] Analisar app.py atual
-- [x] Criar componente TestCard
-- [ ] Implementar modal "+ Novo Teste"  ← trabalhando aqui
-```
-
-#### 4. **Explain Changes** 💬
-Ao final de cada passo, resumo de alto nível:
-```
-✅ Componente TestCard criado
-- Visual moderno com estados (ativo/completo/erro)
-- Ações inline (editar/duplicar/remover)
-- Totalmente i18n (PT/EN)
-```
-
-#### 5. **Document Results** 📝
-Adicionar seção de review em `tasks/todo.md`:
-```markdown
-## Review - FASE 1 Concluída
-
-### O que funcionou:
-- Sidebar moderna implementada
-- Cards visuais estilo MDA
-- Multi-teste funcionando
-
-### Desafios:
-- Session State precisou de mais refatoração que esperado
-- Compatibilidade com página 3 exigiu helper adicional
-
-### Próximos passos:
-- Testar com dados reais
-- Implementar salvamento de workspace
-```
-
-#### 6. **Capture Lessons** 📚
-Atualizar `tasks/lessons.md` após correções do usuário:
-```markdown
-## 2024-03-11 - Session State Refactoring
-
-### Contexto:
-Refatoração para suportar múltiplos testes simultâneos.
-
-### Erro Original:
-Quebrei páginas 2-6 ao mudar estrutura do Session State.
-
-### Solução:
-Criar função `get_active_test()` que abstrai acesso ao teste ativo.
-Páginas continuam usando mesma interface.
-
-### Lição:
-Sempre manter retrocompatibilidade. Usar abstração via helpers.
-Testar integração ANTES de considerar tarefa completa.
-```
-
----
-
-### Core Principles 🎯
-
-#### ⭐⭐ Simplicity First
-- Fazer cada mudança o mais simples possível
-- Impacto mínimo no código existente
-- Se precisa mudar 10 arquivos, replanejar
-
-**Perguntas guia:**
-- Posso fazer isso com menos código?
-- Há uma solução mais direta?
-- Estou over-engineering?
-
-#### ⭐⭐ No Laziness
-- Encontrar root causes, não sintomas
-- Sem temporary fixes ou TODOs
-- Padrões de engenheiro sênior
-- Se não sabe como fazer direito, pesquisar primeiro
-
-**Red flags:**
-- "Vou fazer um quick fix agora e arrumar depois" ❌
-- "Funciona mas não sei por quê" ❌
-- "TODO: refatorar isso" ❌
-
-#### ⭐⭐ Minimal Impact
-- Mudanças devem tocar apenas o necessário
-- Evitar introduzir bugs em código funcionando
-- Refatoração incremental, não Big Bang
-
-**Checklist:**
-- [ ] Apenas arquivos estritamente necessários modificados?
-- [ ] Código que funciona permanece intacto?
-- [ ] Mudanças são reversíveis facilmente?
-
----
-
-### Comunicação com Usuário 💬
-
-#### Formato de Updates
-
-**Ao iniciar tarefa:**
-```
-🎯 Iniciando: Refatoração do app.py para sidebar moderna
-
-Plano:
-1. Analisar estrutura atual
-2. Criar componente TestCard
-3. Implementar gerenciador de testes
-4. Testar compatibilidade
-
-Vou começar pela análise...
-```
-
-**Durante execução:**
-```
-✅ Step 1/4 completo: Estrutura atual analisada
-- app.py tem 256 linhas
-- Session State usa estrutura simples
-- Páginas 2-6 acessam calculated_pairs diretamente
-
-Próximo: Criar componente TestCard...
-```
-
-**Ao concluir:**
-```
-✅ Tarefa concluída: Sidebar moderna implementada
-
-Mudanças:
-- app.py refatorado (sidebar + gerenciador)
-- Novo: components/test_card.py
-- Session State adaptado (retrocompatível)
-- Todas páginas testadas e funcionando
-- i18n completo (PT/EN)
-
-Pronto para testar!
-```
-
-#### Quando Pedir Ajuda
-
-**Perguntar ao usuário APENAS se:**
-- Decisão de UX/design (cor, layout, texto)
-- Regra de negócio ambígua
-- Trade-off que afeta experiência do usuário
-- Dados de teste necessários
-
-**NÃO perguntar:**
-- Como implementar algo técnico (pesquisar!)
-- Se deve seguir as regras (sempre seguir!)
-- Permissão para consertar bugs (apenas conserte!)
-
----
-
-### Exemplo de Sessão Ideal 🌟
-
-```
-👤 Usuário:
-Vamos começar a FASE 1. Preciso da sidebar moderna com 
-gerenciamento de testes.
-
-🤖 Claude Code:
-🎯 Entendido! Vou implementar a sidebar moderna conforme 
-especificado no CLAUDE.md.
-
-📋 Plano (criando tasks/todo.md):
-- [ ] Analisar app.py atual
-- [ ] Criar componente TestCard  
-- [ ] Implementar modal "+ Novo Teste"
-- [ ] Adaptar Session State
-- [ ] Verificar compatibilidade páginas 2-6
-
-Começando pela análise do app.py...
-
-[Trabalha autonomamente]
-
-✅ Análise completa! 
-- Estrutura atual identificada
-- Pontos de integração mapeados
-- Plano de refatoração validado
-
-Próximo: Implementando componente TestCard...
-
-[Continua trabalhando]
-
-✅ FASE 1 Concluída!
-
-Implementado:
-✓ Sidebar moderna com cards estilo MDA
-✓ Gerenciador de testes funcional
-✓ Modal "+ Novo Teste" com validação
-✓ Session State multi-teste (retrocompatível)
-✓ Todas páginas 2-6 testadas e funcionando
-✓ i18n completo (PT/EN)
-✓ Commits descritivos feitos
-
-Pronto para uso! Quer testar ou seguir para próxima fase?
-
-👤 Usuário:
-Perfeito! Vamos testar...
-```
-
----
-
-## 📝 Convenções de Código
-
-### Nomenclatura
-- **Variáveis:** `snake_case`
-- **Funções:** `snake_case`
-- **Constantes:** `UPPER_CASE`
-- **Classes:** `PascalCase` (se usar)
-
-### Session State
-- **SEMPRE** usar `st.session_state` para estado global
-- **NUNCA** usar variáveis globais Python
-- Inicializar no `app.py` antes de renderizar páginas
-
-### Arquivos Core
-- **NÃO MODIFICAR** `core/calculations.py` sem necessidade
-- **NÃO MODIFICAR** `core/corrections.py` sem necessidade
-- Estes arquivos são validados e funcionam corretamente no PyQt5
-
-### Tradução
-- Usar função `t()` para textos visíveis
-- Inglês como fallback
-- Adicionar novas chaves em `translations.py`
-- Ver seção completa de i18n abaixo para detalhes
-
-### Cores de Algoritmos
-- Verde `#D1FFBD` = Selecionado por Energia
-- Azul `#ADD8E6` = Selecionado por Target
-- Manter consistência em todas as páginas
-
----
-
-## 🌍 Internacionalização (i18n)
-
-### Sistema de Tradução
-
-O app utiliza um sistema baseado em dicionário Python (`translations.py`) com função helper `t()`.
-
-**Idiomas suportados:**
-- 🇧🇷 Português (pt) - Padrão
-- 🇺🇸 Inglês (en)
-
-### Como Funciona
-
-```python
-# translations.py
-TRANSLATIONS = {
-    "pt": {
-        "app_title": "Coastdown MDA - Análise Multi-Teste",
-        "save": "Salvar",
-        "cancel": "Cancelar",
-        # ... mais traduções
-    },
-    "en": {
-        "app_title": "Coastdown MDA - Multi-Test Analysis",
-        "save": "Save",
-        "cancel": "Cancel",
-        # ... more translations
-    }
-}
-
-def get_translator(language="pt"):
-    """Retorna função de tradução para o idioma."""
-    def translate(key, **kwargs):
-        translation = TRANSLATIONS.get(language, TRANSLATIONS["pt"]).get(key, key)
-        if kwargs:
-            return translation.format(**kwargs)
-        return translation
-    return translate
-```
-
-### Uso no Código
-
-**No app.py (raiz):**
 ```python
 from translations import get_translator
+t = get_translator(lang)   # lang = "pt" ou "en"
 
-# Seletor de idioma
-lang_options = {"🇧🇷 Português": "pt", "🇺🇸 English": "en"}
-selected_lang = st.sidebar.selectbox(
-    "Language / Idioma",
-    options=list(lang_options.keys())
-)
-
-# Obter tradutor
-t = get_translator(lang_options[selected_lang])
-st.title(t("app_title"))
-```
-
-**Nas páginas:**
-```python
+# Uso nas páginas:
 def render(t):
-    """t = função de tradução passada do app.py"""
     st.header(t("vehicle_data"))
     st.button(t("save"))
 ```
 
-### Regras Importantes
+**Nunca traduzir:** Coastdown, F0, F2, f'0, f'2, Standard, Split, CV,
+ABNT 10312, MDA, ΔV, Δt, Me, MAD.
 
-✅ **SEMPRE traduzir:**
-- Botões, menus, labels
-- Mensagens de erro/sucesso
-- Tooltips e ajudas
-- Títulos de páginas
+---
 
-❌ **NUNCA traduzir (termos técnicos):**
-- "Coastdown", "F0", "F2"
-- "Standard", "Split"
-- "CV" (Coefficient of Variation)
-- "ABNT 10312", "MDA"
+## Regras de Desenvolvimento
 
-### Interpolação de Valores
+### Antes de qualquer mudança não trivial
+
+1. Ler este `CLAUDE.md`
+2. Inspecionar o código atual dos arquivos envolvidos
+3. Fazer um plano curto de implementação
+4. Manter mudanças mínimas
+5. Evitar refatorações não relacionadas
+
+### Sempre
+
+- `python -m py_compile <arquivo>` após cada modificação
+- Commitar arquivos individualmente com mensagem descritiva
+- Atualizar `tasks/todo.md` e `tasks/lessons.md` ao final de cada tarefa
+- Funções puras em `core/` — sem imports de Streamlit
+
+### Nunca
+
+- `git add .`
+- Misturar lógica Standard e Split
+- Alterar fórmulas silenciosamente
+- Hardcodar intervalos de velocidade
+- Assumir formato de arquivo de entrada
+
+---
+
+## Paleta de Cores (Tema Escuro)
 
 ```python
-# No translations.py:
-"error_cv_exceeded": "CV de {percent}% excede {limit}%"
-
-# No código:
-t("error_cv_exceeded", percent=15.2, limit=10)
-# PT: "CV de 15.2% excede 10%"
-# EN: "CV of 15.2% exceeds 10%"
-```
-
-### Adicionando Nova Tradução
-
-1. Adicione a chave em PT e EN no `translations.py`
-2. Use `t("nova_chave")` no código
-3. Teste em ambos os idiomas
-4. Commit: `git commit -m "i18n: adiciona tradução X"`
-
-### Checklist i18n
-
-Ao criar nova feature:
-- [ ] Todos textos usam `t()`
-- [ ] Chaves em PT e EN
-- [ ] Termos técnicos sem tradução
-- [ ] Testado em ambos idiomas
-
----
-
-## 🧮 Conceitos de Coastdown (Referência)
-
-### Método Standard
-- **Um arquivo CSV** com múltiplas runs
-- **Pares formados:** passada ida (+) com passada volta (-)
-- **Correção climática:** Aplicada individualmente por passada ANTES de calcular médias
-- **Coeficientes:** F0 (N), F2 (N/(km/h)²)
-- **Validação:** CV ≤ 10% para Standard
-
-### Equações Principais
-
-#### Força de Resistência
-```
-F_total = F0 + F2 × v²
-
-Onde:
-F0 = Resistência constante (atrito rolamento, etc)
-F2 = Resistência aerodinâmica
-v  = Velocidade (km/h)
-```
-
-#### Energia por km
-```
-E = (F0 / 3.6) + (F2 × v_ref² / 3.6)
-
-Onde v_ref é a velocidade de referência (120 km/h normalmente)
-```
-
-#### Correção Climática
-```
-F0_corr = F0 × (ρ_ref / ρ_test)
-F2_corr = F2 × (ρ_ref / ρ_test)
-
-Onde:
-ρ_test = (P_test / (R × T_test))
-ρ_ref  = (P_ref / (R × T_ref))
-P_ref  = 101.3 kPa
-T_ref  = 293.15 K (20°C)
-R      = 287.058 J/(kg·K)
+BACKGROUND_PRIMARY   = "#0e1117"
+BACKGROUND_SECONDARY = "#1e1e1e"
+TEXT_PRIMARY         = "#ffffff"
+TEXT_SECONDARY       = "#a0a0a0"
+ACCENT_BLUE          = "#4a9eff"   # teste ativo
+ACCENT_GREEN         = "#4caf50"   # sucesso / aprovado
+ACCENT_ORANGE        = "#ff9800"   # aviso / fallback
+ACCENT_RED           = "#f44336"   # erro / reprovado
+ALGO_ENERGY          = "#D1FFBD"   # verde claro
+ALGO_TARGET          = "#ADD8E6"   # azul claro
+BORDER_DEFAULT       = "#3d3d3d"
+BORDER_ACTIVE        = "#4a9eff"
 ```
 
 ---
 
-## 🎯 Objetivos da Fase 1
+## Stack Tecnológica
 
-### Critérios de Sucesso
-
-✅ **Interface moderna e profissional**
-- Sidebar com gerenciamento de testes
-- Cards visuais estilo MDA
-- Estados claros (ativo/completo/erro)
-
-✅ **Funcionalidade multi-teste**
-- Criar múltiplos testes
-- Alternar entre testes
-- Cada teste mantém seus dados isolados
-
-✅ **Compatibilidade com código existente**
-- Páginas 2-6 funcionando sem reescrever
-- Algoritmos de seleção funcionando
-- Correção climática funcionando
-- **Páginas 2-6 já validadas e funcionando (v16)**
-
-### Fora do Escopo (Fase 2)
-❌ Comparativo multi-teste (gráficos sobrepostos)
-❌ Banco de dados SQLite
-❌ Método Split (será outro software)
-❌ Exportação PDF
+- Python 3.11+
+- Streamlit 1.55+
+- Pandas, NumPy, Plotly
+- openpyxl (exportação Excel)
 
 ---
 
-## 📚 Referências Técnicas
-
-### Normas
-- **ABNT NBR 10312:2024** - Veículos rodoviários automotores leves - Determinação das forças de resistência ao movimento de rodagem
-- Método de desaceleração (coastdown)
-
-### Software Inspiração
-- **ETAS MDA** - Measure Data Analyzer
-  - Conceito de múltiplos arquivos
-  - Instrumentos de visualização
-  - Comparação de medições
-
-### Stack Tecnológica
-- **Python 3.11+**
-- **Streamlit** (framework web)
-- **Pandas** (manipulação de dados)
-- **NumPy** (cálculos numéricos)
-- **Plotly** (gráficos - futuro)
-
----
-
-## 🚀 Como Rodar
+## Como Rodar
 
 ```bash
-# Instalar dependências
 pip install -r requirements.txt
-
-# Rodar aplicação
 streamlit run app.py
-
-# Abrir navegador em:
 # http://localhost:8501
 ```
 
 ---
 
-## 💡 Dicas para Claude Code
+## Rastreamento
 
-### Ao modificar código:
-1. **SEMPRE** ler este CLAUDE.md primeiro
-2. **NUNCA** mexer em `core/` sem motivo forte
-3. **SEMPRE** manter compatibilidade com Session State existente
-4. **TESTAR** cada mudança isoladamente
-5. **COMMITAR** com mensagens descritivas
+- `tasks/todo.md` — status operacional: pendente, em andamento, feito,
+  descoberto durante desenvolvimento
+- `tasks/lessons.md` — decisões técnicas e lições duráveis
 
-### Ao adicionar features:
-1. Verificar se já existe código similar nas páginas 2-6
-2. Reutilizar ao invés de reescrever
-3. Manter estilo visual consistente
-4. Adicionar comentários em português
-
-### Ao debugar:
-1. Usar `st.write("DEBUG:", variable)` liberalmente
-2. Verificar Session State: `st.write(st.session_state)`
-3. Testar com dados reais
-4. Verificar tipos de dados (int vs float vs str)
+Toda mudança funcional deve atualizar os dois arquivos antes do commit final.
 
 ---
 
-## 📞 Pontos de Atenção
-
-### Decisões Arquiteturais Importantes
-
-1. **Por que Session State ao invés de banco de dados?**
-   - Mais simples para v1.0
-   - Streamlit já gerencia
-   - Facilita desenvolvimento rápido
-   - Pode migrar para DB depois se necessário
-
-2. **Por que separar Standard e Split?**
-   - Métodos muito diferentes (cálculos, UI, validação)
-   - Reduz complexidade de cada software
-   - Usuário pode rodar ambos simultaneamente
-   - Manutenção mais fácil
-
-3. **Por que manter código PyQt5 em `core/`?**
-   - Código validado e testado
-   - Cálculos complexos funcionando
-   - Evita introduzir bugs
-   - Facilita migração incremental
-
----
-
-## 🎨 Paleta de Cores (Tema Escuro)
-
-```python
-# Fundo
-BACKGROUND_PRIMARY   = "#0e1117"  # Fundo principal
-BACKGROUND_SECONDARY = "#1e1e1e"  # Cards, sidebar
-
-# Texto
-TEXT_PRIMARY   = "#ffffff"  # Texto principal
-TEXT_SECONDARY = "#a0a0a0"  # Texto secundário
-
-# Destaque
-ACCENT_BLUE   = "#4a9eff"  # Teste ativo
-ACCENT_GREEN  = "#4caf50"  # Sucesso
-ACCENT_ORANGE = "#ff9800"  # Aviso
-ACCENT_RED    = "#f44336"  # Erro
-
-# Algoritmos
-ALGO_ENERGY = "#D1FFBD"  # Verde claro
-ALGO_TARGET = "#ADD8E6"  # Azul claro
-
-# Bordas
-BORDER_DEFAULT = "#3d3d3d"
-BORDER_ACTIVE  = "#4a9eff"
-```
-
----
-
-## 📌 Próximos Passos Imediatos
-
-**AÇÃO IMEDIATA** (primeira tarefa para Claude Code):
-
-```
-1. Refatorar app.py para incluir sidebar de gerenciamento de testes
-2. Criar componente de card de teste (visual moderno)
-3. Implementar modal "+ Novo Teste"
-4. Adaptar Session State para estrutura multi-teste
-5. Manter páginas 2-6 funcionando (compatibilidade)
-```
-
-**DEPOIS:**
-- Corrigir bug Página 6
-- Melhorar UX da sidebar
-- Implementar salvamento de workspace
-
----
-
-## 📝 Notas Finais
-
-Este documento é o **guia definitivo** do projeto. Sempre que houver dúvida sobre:
-- Estrutura de dados
-- Fluxo de usuário
-- Decisões arquiteturais
-- Convenções de código
-
-**Consulte este arquivo primeiro!**
-
-Qualquer mudança significativa na arquitetura deve ser **discutida** e **documentada aqui**.
-
----
-
-**Última atualização:** 2024-03-11  
-**Versão:** 1.0 - Especificação Fase 1  
-**Autor:** Felipe Eckert  
-**Status:** 🚧 Em desenvolvimento
+**Última atualização:** 2026-06-24
+**Autor:** Felipe Eckert
+**Status:** 🔧 Pré-filtro MAD em desenvolvimento
