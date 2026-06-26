@@ -30,6 +30,7 @@ HYUNDAI_LOGO_PNG_PATH = os.path.join(ASSETS_DIR, "hyundai_logo.png")
 
 sys.path.insert(0, BASE_DIR)
 
+from version import APP_NAME, APP_VERSION, APP_RELEASE_DATE
 from translations import get_translator, get_available_languages
 from data.loaders import carregar_dados_csv_robusto
 from data.weather_loader import read_weather_file
@@ -37,7 +38,7 @@ from core.split_state import clear_split_final_state, invalidate_split_input_sta
 
 # ===== CONFIGURAÇÃO DA PÁGINA =====
 st.set_page_config(
-    page_title="Coastdown MDA Split",
+    page_title=f"{APP_NAME} v{APP_VERSION}",
     page_icon="🚗",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -1495,7 +1496,7 @@ def render_sidebar_status(t):
 
 def render_welcome(t):
     """Renderiza a tela de boas-vindas quando não há testes ativos."""
-    st.title("Coastdown MDA Split")
+    st.title(f"{APP_NAME} v{APP_VERSION}")
     st.markdown("---")
 
     _, col, _ = st.columns([1, 2, 1])

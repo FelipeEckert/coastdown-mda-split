@@ -1,0 +1,3 @@
+APP_NAME = "Coastdown MDA Split"
+APP_VERSION = "1.0.0"
+APP_RELEASE_DATE = "2026-06-26"
