@@ -90,11 +90,6 @@ def extract_split_candidate_times(candidates: list[dict]) -> dict:
     return times
 
 
-def _mean(values: list[float]) -> float | None:
-    valid = _valid_values(values)
-    return statistics.mean(valid) if valid else None
-
-
 def _group_result(values: list[float], cv_limit_pct: float) -> dict:
     valid = _valid_values(values)
     cv_pct = coefficient_of_variation_percent(valid)

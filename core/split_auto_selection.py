@@ -7,9 +7,9 @@ from copy import deepcopy
 
 from core.split_candidate_generation import generate_full_split_candidates_exact
 from core.split_candidate_set_validation import (
-    evaluate_split_constraint_satisfaction,
+    evaluate_split_constraint_satisfaction,  # noqa: F401 - compatibility export
     normalize_split_time_constraints,
-    validate_split_candidate_set,
+    validate_split_candidate_set,  # noqa: F401 - compatibility export
 )
 from core.split_pair_candidate import split_candidate_signature
 from core.split_selection_algorithms import (

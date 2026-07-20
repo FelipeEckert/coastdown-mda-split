@@ -2498,3 +2498,22 @@ Conformidade, diagnostico estatistico e completude do resultado precisam
 permanecer estados separados mesmo quando aparecem no mesmo relatorio.
 
 ---
+
+## 2026-07-20 - Imports sem uso local podem ser reexports de compatibilidade
+
+### Contexto:
+O lint classificou dois validadores importados por `core/split_auto_selection.py`
+como nao usados localmente. A suite completa mostrou que testes e a pagina de
+selecao automatica importam esses nomes desse modulo intermediario.
+
+### Decisao:
+Os validadores foram mantidos como exports de compatibilidade e marcados para o
+lint. Somente helpers privados sem referencias e dependencias sem qualquer
+importacao ativa foram removidos.
+
+### Licao:
+Antes de remover um import aparentemente ocioso, procure tambem por
+`from modulo_intermediario import nome`. Lint local nao distingue import
+acidental de API reexportada.
+
+---

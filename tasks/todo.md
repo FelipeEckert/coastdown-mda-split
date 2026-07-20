@@ -457,6 +457,18 @@
 - [x] Add Windows-safe regressions for file creation, file preservation, denied writes, concurrency and expected parser outputs.
 - [x] Run focused and full regression suites.
 
+## Audit findings 6-8 - Low-risk cleanup - 2026-07-20
+
+- [x] Trace private helpers, imports, constants, dependencies, `config.py`, and
+  compatibility surfaces through runtime, tests, launchers, packaging, docs,
+  callbacks, dynamic imports, and persisted state.
+- [x] Remove the orphaned private helper cluster and its transitive imports.
+- [x] Remove unused weather constants, SciPy, Matplotlib, and `config.py`.
+- [x] Retain the public final-comparison helper and validator compatibility
+  re-exports.
+- [x] Pass the full suite, compile validation, scoped Ruff, dependency
+  resolution, Streamlit startup smoke test, and diff check.
+
 ## Fixed-condition state compatibility - 2026-07-20
 
 - [x] Trace fixed temperature and pressure through new-test creation, saved test snapshots, editing, loading and Split coefficient calculation.

@@ -20,9 +20,9 @@ finding has been documented but no cleanup or behavior change has been applied.
 | 3 | Declared Streamlit minimum is incompatible with active API use | High | High | 3 | Completed |
 | 4 | Export cache signature omits workbook-visible traceability | Medium | High | 4 | Completed |
 | 5 | Successful parsing always writes a shared debug file | Medium | High | 2 | Completed |
-| 6 | Unreferenced local functions remain in active modules | Low | High | 1 | Pending |
-| 7 | Unused imports, constants, and dependencies | Low | High | 1 | Pending |
-| 8 | Orphan desktop-GUI configuration module | Low | High | 1 | Pending |
+| 6 | Unreferenced local functions remain in active modules | Low | High | 1 | Completed |
+| 7 | Unused imports, constants, and dependencies | Low | High | 1 | Completed |
+| 8 | Orphan desktop-GUI configuration module | Low | High | 1 | Completed |
 | 9 | Duplicate corrected-pair implementation | Low | High | 6 | Pending |
 | 10 | Main and nested tabs compute hidden content eagerly | Medium | High | 3 | Pending |
 | 11 | Redundant derived session state | Low | Medium-High | 5 | Pending |
@@ -191,7 +191,8 @@ finding has been documented but no cleanup or behavior change has been applied.
   (`get_selected_split_comparison_pairs`).
 - **Evidence:** Repository-wide searches found no direct calls, callbacks,
   string-based references, test references, exports, or function-passing uses
-  for these definitions. The unused bodies total approximately 253 lines.
+  for these definitions. Tracing the private helper roots exposed seven more
+  helpers used only inside the same orphaned UI cluster.
 - **Why it is a problem:** They expand the maintenance and review surface and
   obscure the live calculation-page workflow.
 - **Risk:** Low for underscore-prefixed helpers. The non-private comparison
@@ -201,7 +202,9 @@ finding has been documented but no cleanup or behavior change has been applied.
   public-looking helper separately after checking external entry points.
 - **Validation:** Run the full suite and manually render calculation, graphs,
   automatic selection, final comparison, and results.
-- **Status:** Pending
+- **Status:** Completed. Removed 16 private helpers and their five now-unused
+  imports. Retained public-looking `get_selected_split_comparison_pairs` for
+  compatibility.
 
 ### 7. Unused imports, constants, and dependencies
 
@@ -215,7 +218,9 @@ finding has been documented but no cleanup or behavior change has been applied.
 - **Evidence:** Ruff reported the active imports as unused. Repository-wide
   searches found no references to the weather constants and no imports of
   SciPy or Matplotlib. Plotly is excluded from this finding because graph code
-  imports it dynamically.
+  imports it dynamically. Full-suite validation proved that the two validator
+  imports in `core/split_auto_selection.py` are compatibility re-exports, so
+  they were retained explicitly.
 - **Why it is a problem:** Unused dependencies increase installation size and
   failure surface; unused names create false ownership signals.
 - **Risk:** Low, subject to one clean-environment install to detect undeclared
@@ -223,7 +228,9 @@ finding has been documented but no cleanup or behavior change has been applied.
 - **Recommended action:** Remove each unused name and dependency independently.
 - **Validation:** Run Ruff, install from `requirements.txt` in a clean
   environment, run the full suite, and start the app.
-- **Status:** Pending
+- **Status:** Completed. Removed the unused release-date import, weather
+  constants, SciPy, and Matplotlib. Retained the validator compatibility
+  exports.
 
 ### 8. Orphan desktop-GUI configuration module
 
@@ -241,7 +248,8 @@ finding has been documented but no cleanup or behavior change has been applied.
   it, then delete the module.
 - **Validation:** Run application startup, package/import smoke checks, and the
   full suite after removal.
-- **Status:** Pending
+- **Status:** Completed. Deleted the orphan module after startup, dependency,
+  compile, Ruff, and full-suite validation passed.
 
 ## Safe Simplifications
 

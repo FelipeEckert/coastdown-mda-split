@@ -43,8 +43,6 @@ WIND_SPEED_ALIASES = {
     "velocidade_vento",
     "vento",
 }
-CROSSWIND_ALIASES = {"crosswind", "cross_wind"}
-HEADWIND_ALIASES = {"headwind", "head_wind"}
 WIND_DIRECTION_ALIASES = {
     "true_dir",
     "true_direction",

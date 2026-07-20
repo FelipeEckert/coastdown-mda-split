@@ -30,7 +30,7 @@ HYUNDAI_LOGO_PNG_PATH = os.path.join(ASSETS_DIR, "hyundai_logo.png")
 
 sys.path.insert(0, BASE_DIR)
 
-from version import APP_NAME, APP_VERSION, APP_RELEASE_DATE
+from version import APP_NAME, APP_VERSION
 from translations import get_translator, get_available_languages
 from data.loaders import carregar_dados_csv_robusto
 from data.weather_loader import read_weather_file
