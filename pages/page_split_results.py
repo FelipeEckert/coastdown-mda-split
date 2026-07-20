@@ -346,20 +346,24 @@ def _render_vehicle(summary, t):
     st.dataframe(pd.DataFrame(rows, columns=("Campo", "Valor")), use_container_width=True, hide_index=True)
 
 
-def _render_coefficients(summary, t):
+def _render_coefficients(summary, time_validation, t):
     st.markdown("---")
     st.subheader(t("split_results_validation"))
+    diagnostic_label = t("split_results_diagnostic_label")
     rows = [
-        ("F0 [N]", _display(summary.get("mean_f0"), 4), _display(summary.get("cv_f0"), 2), _cv_status(summary.get("cv_f0"), t)),
-        ("F2 [N/(km/h)²]", _display(summary.get("mean_f2"), 6), _display(summary.get("cv_f2"), 2), _cv_status(summary.get("cv_f2"), t)),
+        (f"F0 [N] {diagnostic_label}", _display(summary.get("mean_f0"), 4), _display(summary.get("cv_f0"), 2), _cv_status(summary.get("cv_f0"), t)),
+        (f"F2 [N/(km/h)²] {diagnostic_label}", _display(summary.get("mean_f2"), 6), _display(summary.get("cv_f2"), 2), _cv_status(summary.get("cv_f2"), t)),
         ("Energia [MJ/km]", _display(summary.get("mean_energy"), 4), _display(summary.get("cv_energy"), 2), t("split_results_status_not_evaluable")),
     ]
     st.dataframe(pd.DataFrame(rows, columns=("Coeficiente", "Valor médio", "CV [%]", "Status")), use_container_width=True, hide_index=True)
-    status = summary["conformity_status"]
+    status = _conformity_status_from_time_validation(time_validation)
     message = _status_label(status, t)
-    if status == "conforming": st.success(message)
-    elif status in ("nonconforming", "incomplete"): st.error(message)
-    else: st.warning(message) if status == "warning" else st.info(message)
+    if status == "conforming":
+        st.success(message)
+    elif status == "nonconforming":
+        st.error(message)
+    else:
+        st.warning(message)
     critical_warnings, meteo_sync_warnings = _split_warnings_by_audience(
         summary.get("warnings")
     )
@@ -494,7 +498,7 @@ def render(t):
     st.session_state.split_deviation_analysis_cache = analysis_cache
     _render_summary(summary, analysis.get("time_summary"), t)
     _render_vehicle(summary, t)
-    _render_coefficients(summary, t)
+    _render_coefficients(summary, analysis.get("time_summary"), t)
 
     st.markdown("---")
     st.subheader(f"📋 {t('split_selected_pairs')}")

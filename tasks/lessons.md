@@ -2477,3 +2477,24 @@ projecao criada para outro cache. Manter as assinaturas separadas evita tanto
 dados obsoletos no Excel quanto invalidacoes desnecessarias da analise.
 
 ---
+
+## 2026-07-20 - Status final Split usa somente a validacao normativa de tempos
+
+### Contexto:
+O card principal ja usava `analysis["time_summary"]["passed"]`, mas o banner
+secundario e o Excel ainda usavam `conformity_status`, derivado do C.V. de
+F0/F2 herdado do fluxo Standard. Isso permitia resultados finais contraditorios.
+
+### Decisao:
+Os dois banners e o campo "Status final" do Excel agora usam o mesmo mapeamento
+de tempos: aprovado, reprovado ou inconclusivo. `conformity_status` permanece
+inalterado para compatibilidade. C.V. de F0/F2, warnings e coeficientes ausentes
+continuam visiveis como diagnostico ou completude, sem alterar a conformidade
+normativa de tempos.
+
+### Licao:
+Uma metrica de compatibilidade nao deve controlar superficies normativas.
+Conformidade, diagnostico estatistico e completude do resultado precisam
+permanecer estados separados mesmo quando aparecem no mesmo relatorio.
+
+---

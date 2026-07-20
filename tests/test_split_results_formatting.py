@@ -266,6 +266,47 @@ class SplitResultsFormattingTest(unittest.TestCase):
             ["The weather date differs from the run date; synchronization used time of day only."],
         )
 
+    def test_secondary_banner_uses_time_status_not_legacy_conformity(self):
+        t = get_translator("pt")
+        cases = (
+            (True, 2.0, "conforming", "success"),
+            (True, 20.0, "nonconforming", "success"),
+            (False, 2.0, "conforming", "error"),
+            (False, 20.0, "nonconforming", "error"),
+            (None, 2.0, "conforming", "warning"),
+        )
+
+        for passed, cv_f0, legacy_status, expected_method in cases:
+            with self.subTest(
+                passed=passed,
+                cv_f0=cv_f0,
+                legacy_status=legacy_status,
+            ):
+                summary = {
+                    "mean_f0": 100.0,
+                    "mean_f2": 0.004,
+                    "mean_energy": 0.2,
+                    "cv_f0": cv_f0,
+                    "cv_f2": 3.0,
+                    "cv_energy": None,
+                    "conformity_status": legacy_status,
+                    "warnings": [],
+                }
+                fake_st = Mock()
+                with patch("pages.page_split_results.st", fake_st):
+                    _render_coefficients(summary, {"passed": passed}, t)
+
+                expected_status = {True: "conforming", False: "nonconforming"}.get(passed, "inconclusive")
+                getattr(fake_st, expected_method).assert_called_once_with(
+                    t(f"split_results_status_{expected_status}")
+                )
+                frame = fake_st.dataframe.call_args.args[0]
+                self.assertTrue(all(
+                    t("split_results_diagnostic_label") in value
+                    for value in frame["Coeficiente"].iloc[:2]
+                ))
+                self.assertEqual(summary["conformity_status"], legacy_status)
+
     def test_coefficients_section_groups_meteo_sync_warnings_into_expander(self):
         summary = {
             "mean_f0": 100.0, "mean_f2": 0.004, "mean_energy": 0.2,
@@ -284,7 +325,7 @@ class SplitResultsFormattingTest(unittest.TestCase):
         t = get_translator("pt")
 
         with patch("pages.page_split_results.st", fake_st):
-            _render_coefficients(summary, t)
+            _render_coefficients(summary, {"passed": True}, t)
 
         warning_texts = [str(call.args[0]) for call in fake_st.warning.call_args_list]
         self.assertIn("Pair excluded due to missing F0.", warning_texts)
@@ -305,7 +346,7 @@ class SplitResultsFormattingTest(unittest.TestCase):
         t = get_translator("pt")
 
         with patch("pages.page_split_results.st", fake_st):
-            _render_coefficients(summary, t)
+            _render_coefficients(summary, {"passed": True}, t)
 
         fake_st.expander.assert_not_called()
 

@@ -15,7 +15,7 @@ finding has been documented but no cleanup or behavior change has been applied.
 
 | # | Title | Severity | Confidence | Recommended phase | Current status |
 |---:|---|---|---|---|---|
-| 1 | Split final status still uses non-normative coefficient variation | High | High | 4 | Pending |
+| 1 | Split final status still uses non-normative coefficient variation | High | High | 4 | Completed |
 | 2 | Fixed-condition inputs are ignored for new tests | High | High | 3 | Pending |
 | 3 | Declared Streamlit minimum is incompatible with active API use | High | High | 3 | Completed |
 | 4 | Export cache signature omits workbook-visible traceability | Medium | High | 4 | Completed |
@@ -71,7 +71,11 @@ finding has been documented but no cleanup or behavior change has been applied.
 - **Validation:** Add two regressions: time validation passes with F0/F2 CV above
   10%, and time validation fails with F0/F2 CV below 10%. Verify both the UI
   status and workbook status.
-- **Status:** Pending
+- **Resolution (2026-07-20):** Both Results-page conformity banners and the
+  Excel "Status final" now map `analysis["time_summary"]["passed"]` to
+  conforming, nonconforming, or inconclusive. F0/F2 CV values and pass/fail
+  statuses remain visible with explicit diagnostic labels.
+- **Status:** Completed
 
 ### 2. Fixed-condition inputs are ignored for new tests
 

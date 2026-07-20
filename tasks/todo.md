@@ -429,6 +429,17 @@
 - [x] Add structured dependency validation for the lower bound.
 - [x] Run the complete validation matrix and update audit finding 3.
 
+## Audit finding 1 - Split final conformity source - 2026-07-20
+
+- [x] Trace the primary card, secondary banner, Excel status and compatibility
+  field to their status sources.
+- [x] Make both UI banners and Excel use `time_summary.passed`.
+- [x] Preserve coefficient CV values/statuses with explicit diagnostic labels.
+- [x] Keep legacy `conformity_status`, warnings and incomplete coefficient
+  states separate from normative time conformity.
+- [x] Cover all four time/coefficient outcomes and inconclusive time validation.
+- [x] Run focused/full tests, workbook regression, Ruff, compile and diff checks.
+
 ## Audit finding 4 - Split export cache signature - 2026-07-20
 
 - [x] Trace selected-pair fields through cache creation and workbook generation.

@@ -268,7 +268,9 @@ def _weather_summary(pairs):
     )
 
 
-def _write_summary(wb, final_results, generated_at, vehicle_data, pairs):
+def _write_summary(
+    wb, final_results, time_passed, generated_at, vehicle_data, pairs,
+):
     ws = wb.active
     ws.title = "Resumo Final"
     title_rows = [1]
@@ -276,14 +278,14 @@ def _write_summary(wb, final_results, generated_at, vehicle_data, pairs):
         ("Método", "Split"),
         ("Data de geração", generated_at.strftime("%d/%m/%Y %H:%M:%S")),
         ("Quantidade de pares selecionados", final_results.get("num_pairs")),
-        ("Status final", _status(final_results.get("conformity_status"))),
+        ("Status final", _status(time_passed)),
     ])
     title_rows.append(row)
     row = _append_table(ws, row, "RESULTADO FINAL", ("Campo", "Valor"), [
         ("F0 final [N]", final_results.get("mean_f0")),
         ("F2 final [N/(km/h)²]", final_results.get("mean_f2")),
-        ("CV F0 [%]", final_results.get("cv_f0")),
-        ("CV F2 [%]", final_results.get("cv_f2")),
+        ("CV F0 diagnóstico [%]", final_results.get("cv_f0")),
+        ("CV F2 diagnóstico [%]", final_results.get("cv_f2")),
         ("Energia média [MJ/km]", final_results.get("mean_energy")),
     ])
     title_rows.append(row)
@@ -299,7 +301,9 @@ def _write_summary(wb, final_results, generated_at, vehicle_data, pairs):
     ])
     formats = {
         "F0 final [N]": "0.0000", "F2 final [N/(km/h)²]": "0.000000",
-        "CV F0 [%]": "0.00", "CV F2 [%]": "0.00", "Energia média [MJ/km]": "0.0000",
+        "CV F0 diagnóstico [%]": "0.00",
+        "CV F2 diagnóstico [%]": "0.00",
+        "Energia média [MJ/km]": "0.0000",
     }
     for row_index in range(1, ws.max_row + 1):
         if ws.cell(row_index, 1).value in formats:
@@ -317,7 +321,7 @@ def _write_summary(wb, final_results, generated_at, vehicle_data, pairs):
 
 def _write_pairs(wb, pairs):
     ws = wb.create_sheet("Pares Selecionados")
-    headers = ("Par", "Origem", "High [+]", "Low [+]", "High [-]", "Low [-]", "DeltaT high+ [s]", "DeltaT low+ [s]", "DeltaT high- [s]", "DeltaT low- [s]", "F0 [N]", "F2 [N/(km/h)²]", "CV F0 [%]", "CV F2 [%]", "Energia [MJ/km]", "Temperatura [°C]", "Pressão [kPa]", "Vento [m/s]", "Alertas meteorológicos")
+    headers = ("Par", "Origem", "High [+]", "Low [+]", "High [-]", "Low [-]", "DeltaT high+ [s]", "DeltaT low+ [s]", "DeltaT high- [s]", "DeltaT low- [s]", "F0 [N]", "F2 [N/(km/h)²]", "CV F0 diagnóstico [%]", "CV F2 diagnóstico [%]", "Energia [MJ/km]", "Temperatura [°C]", "Pressão [kPa]", "Vento [m/s]", "Alertas meteorológicos")
     rows = []
     for pair in pairs:
         temperature, pressure, wind, alerts = _weather_for_pair(pair)
@@ -332,7 +336,7 @@ def _write_pairs(wb, pairs):
 def _write_deviations(wb, analysis, pairs):
     ws = wb.create_sheet("Análise de Desvios e Tempos")
     coefficients = analysis.get("coefficient_summary") or {}
-    row = _append_table(ws, 1, "RESUMO CV F0/F2", ("Coeficiente", "Média", "CV [%]", "Limite [%]", "Status"), [
+    row = _append_table(ws, 1, "RESUMO CV F0/F2 (DIAGNÓSTICO)", ("Coeficiente", "Média", "CV [%]", "Limite [%]", "Status diagnóstico"), [
         ("F0", coefficients.get("mean_f0"), coefficients.get("cv_f0_pct"), coefficients.get("limit_pct"), _status(coefficients.get("status"))),
         ("F2", coefficients.get("mean_f2"), coefficients.get("cv_f2_pct"), coefficients.get("limit_pct"), _status(coefficients.get("status"))),
     ])
@@ -360,7 +364,14 @@ def export_split_final_results_to_excel(*, final_results: dict | None, selected_
         consolidated["warnings"] = list(dict.fromkeys([*(consolidated.get("warnings") or []), *((final_results or {}).get("warnings") or [])]))
     analysis = deepcopy(deviation_analysis) if deviation_analysis is not None else analyze_split_selected_deviations(pairs)
     wb = Workbook()
-    _write_summary(wb, consolidated, generated_at or datetime.now(), vehicle_data, pairs)
+    _write_summary(
+        wb,
+        consolidated,
+        (analysis.get("time_summary") or {}).get("passed"),
+        generated_at or datetime.now(),
+        vehicle_data,
+        pairs,
+    )
     _write_pairs(wb, pairs)
     _write_deviations(wb, analysis, pairs)
     output = io.BytesIO()

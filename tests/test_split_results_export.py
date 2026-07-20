@@ -8,6 +8,7 @@ import unittest
 from openpyxl import load_workbook
 
 from core.split_display import get_split_pair_public_label
+from core.split_results import consolidate_split_final_results
 from data.split_exporters import export_split_final_results_to_excel
 
 
@@ -115,29 +116,79 @@ class SplitResultsExportTests(unittest.TestCase):
         }
         self.assertEqual(merged_titles, expected_titles)
 
-    def test_summary_status_colors_cover_approved_warning_and_failed(self):
-        cases = []
+    def test_excel_final_status_matches_time_based_ui_outcomes(self):
+        cases = (
+            (True, False, "Aprovado", "0EE427", "conforming"),
+            (True, True, "Aprovado", "0EE427", "nonconforming"),
+            (False, False, "Reprovado", "FF5757", "conforming"),
+            (False, True, "Reprovado", "FF5757", "nonconforming"),
+        )
 
-        approved = [_pair("one"), _pair("two")]
-        cases.append((approved, "0EE427"))
-
-        warning = [_pair("one"), _pair("two")]
-        warning[0]["warnings"] = ["Aviso de validação"]
-        cases.append((warning, "E6F200"))
-
-        failed = [_pair("one"), _pair("two")]
-        failed[1]["F0_mean"] = 200.0
-        failed[1]["F2_mean"] = 0.02
-        cases.append((failed, "FF5757"))
-
-        for pairs, expected_color in cases:
-            with self.subTest(expected_color=expected_color):
-                ws = self._workbook(pairs)["Resumo Final"]
+        for time_passed, coefficient_fails, expected, color, legacy in cases:
+            with self.subTest(
+                time_passed=time_passed,
+                coefficient_fails=coefficient_fails,
+            ):
+                pairs = [_pair("one"), _pair("two")]
+                if coefficient_fails:
+                    pairs[1]["F0_mean"] = 200.0
+                    pairs[1]["F2_mean"] = 0.02
+                self.assertEqual(
+                    consolidate_split_final_results(pairs)["conformity_status"],
+                    legacy,
+                )
+                ws = self._workbook(
+                    pairs,
+                    analysis={"time_summary": {"passed": time_passed}},
+                )["Resumo Final"]
                 status_row = next(
                     row for row in range(1, ws.max_row + 1)
                     if ws.cell(row, 1).value == "Status final"
                 )
-                self.assertEqual(ws.cell(status_row, 2).fill.fgColor.rgb[-6:], expected_color)
+                self.assertEqual(ws.cell(status_row, 2).value, expected)
+                self.assertEqual(ws.cell(status_row, 2).fill.fgColor.rgb[-6:], color)
+
+    def test_excel_final_status_is_inconclusive_without_evaluable_time(self):
+        pairs = [_pair("one"), _pair("two")]
+        for analysis in ({}, {"time_summary": {"passed": None}}):
+            with self.subTest(analysis=analysis):
+                ws = self._workbook(
+                    pairs,
+                    analysis=analysis,
+                )["Resumo Final"]
+                rows = dict(ws.iter_rows(values_only=True))
+                self.assertEqual(rows["Status final"], "Inconclusivo")
+
+    def test_legacy_warning_and_incomplete_states_do_not_override_time_status(self):
+        cases = (
+            ("warning", {"warnings": ["Aviso de validação"]}),
+            ("incomplete", {"F0_mean": None}),
+        )
+
+        for legacy_status, changes in cases:
+            with self.subTest(legacy_status=legacy_status):
+                pairs = [_pair("one"), _pair("two")]
+                pairs[0].update(changes)
+                summary = consolidate_split_final_results(pairs)
+                self.assertEqual(summary["conformity_status"], legacy_status)
+                ws = self._workbook(
+                    pairs,
+                    analysis={"time_summary": {"passed": True}},
+                )["Resumo Final"]
+                rows = dict(ws.iter_rows(values_only=True))
+                self.assertEqual(rows["Status final"], "Aprovado")
+
+    def test_workbook_labels_coefficient_cv_as_diagnostic(self):
+        wb = self._workbook([_pair("one"), _pair("two")])
+        self.assertIn(
+            "CV F0 diagnóstico [%]",
+            _flat(wb["Resumo Final"]),
+        )
+        pair_headers = [cell.value for cell in wb["Pares Selecionados"][2]]
+        self.assertIn("CV F0 diagnóstico [%]", pair_headers)
+        deviation_values = _flat(wb["Análise de Desvios e Tempos"])
+        self.assertIn("RESUMO CV F0/F2 (DIAGNÓSTICO)", deviation_values)
+        self.assertIn("Status diagnóstico", deviation_values)
 
     def test_summary_contains_vehicle_results_and_weather_blocks(self):
         wb = self._workbook([_pair("one"), _pair("two")])
@@ -227,7 +278,7 @@ class SplitResultsExportTests(unittest.TestCase):
             "warnings": [],
         }
         values = _flat(self._workbook(pairs, analysis=analysis)["Análise de Desvios e Tempos"])
-        for expected in ("RESUMO CV F0/F2", "DESVIOS POR PAR", "TEMPOS Δt", "DIFERENÇA ENTRE MÉDIAS Δt DE SENTIDOS OPOSTOS"):
+        for expected in ("RESUMO CV F0/F2 (DIAGNÓSTICO)", "DESVIOS POR PAR", "TEMPOS Δt", "DIFERENÇA ENTRE MÉDIAS Δt DE SENTIDOS OPOSTOS"):
             self.assertIn(expected, values)
         for expected in (
             "C.V. Δt — Vel. ref. alta 82.5 km/h [+]",
