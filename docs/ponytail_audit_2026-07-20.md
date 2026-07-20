@@ -19,7 +19,7 @@ finding has been documented but no cleanup or behavior change has been applied.
 | 2 | Fixed-condition inputs are ignored for new tests | High | High | 3 | Pending |
 | 3 | Declared Streamlit minimum is incompatible with active API use | High | High | 3 | Pending |
 | 4 | Export cache signature omits workbook-visible traceability | Medium | High | 4 | Pending |
-| 5 | Successful parsing always writes a shared debug file | Medium | High | 2 | Pending |
+| 5 | Successful parsing always writes a shared debug file | Medium | High | 2 | Completed |
 | 6 | Unreferenced local functions remain in active modules | Low | High | 1 | Pending |
 | 7 | Unused imports, constants, and dependencies | Low | High | 1 | Pending |
 | 8 | Orphan desktop-GUI configuration module | Low | High | 1 | Pending |
@@ -156,7 +156,10 @@ finding has been documented but no cleanup or behavior change has been applied.
   needed, use opt-in logging that cannot change the parser result.
 - **Validation:** Parse successfully from a read-only working directory and run
   two parses concurrently. Confirm no shared artifact is created.
-- **Status:** Pending
+- **Resolution (2026-07-20):** Removed the unconditional successful-path write
+  while preserving existing error-path diagnostics and parser behavior. Focused
+  tests cover absent/existing files, denied writes, concurrency, and outputs.
+- **Status:** Completed
 
 ## High-Confidence Low-Risk Removals
 

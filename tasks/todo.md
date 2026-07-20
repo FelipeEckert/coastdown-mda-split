@@ -421,6 +421,13 @@
 - [x] Add regression coverage: realistic cartesian pool finds disjoint sets, final set never repeats a run, `avoid_repeated_runs=False` still bypasses uniqueness, MAD-prefiltered pipeline still finds disjoint sets, and the rescue pass activates/recovers only when DFS evaluates zero sets.
 - [ ] Complete real-browser validation with a real ~12-run-per-group dataset and K=5 to confirm the previously reported timeout no longer occurs.
 
+## Audit finding 5 - Shared VBOX debug file - 2026-07-20
+
+- [x] Remove the unconditional `debug_vbox_date.txt` write from successful VBOX parsing.
+- [x] Preserve date parsing, warnings, return values and existing error-path exception handling.
+- [x] Add Windows-safe regressions for file creation, file preservation, denied writes, concurrency and expected parser outputs.
+- [x] Run focused and full regression suites.
+
 ## Fixed-condition state compatibility - 2026-07-20
 
 - [x] Trace fixed temperature and pressure through new-test creation, saved test snapshots, editing, loading and Split coefficient calculation.

@@ -2350,6 +2350,25 @@ deterministicos.
 
 ---
 
+## 2026-07-20 - Diagnostico de parser nao pode controlar o retorno de sucesso
+
+### Contexto:
+`carregar_dados_csv_robusto()` retornava dados validos dentro de um `try`, mas
+um `finally` sempre sobrescrevia `debug_vbox_date.txt` no diretorio corrente.
+Falha de permissao nessa escrita descartava o retorno valido.
+
+### Decisao:
+Foi removida somente a escrita incondicional do `finally`. As escritas de
+diagnostico nos caminhos de erro, mensagens, interpretacao de data, warnings e
+resultados do parser foram preservados.
+
+### Licao:
+Efeitos auxiliares em `finally` executam antes da conclusao de um `return` e
+podem transformar sucesso em falha. Diagnostico opcional nao deve participar do
+caminho obrigatorio de sucesso nem usar estado gravavel compartilhado.
+
+---
+
 ## 2026-07-20 - Condicoes fixas Split usam chaves canonicas com fallback legado
 
 ### Contexto:

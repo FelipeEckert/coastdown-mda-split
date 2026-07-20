@@ -532,10 +532,6 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
              raise ValueError(f"Erro de chave/coluna não encontrada: Verifique se as colunas esperadas existem. Detalhe: {e}")
         else:
              raise ValueError(f"Erro inesperado ao processar o arquivo CSV. Verifique o formato e conteúdo. Detalhe: {e}")
-    finally:
-        # This block ensures debug_output is always written before exiting the function
-        with open("debug_vbox_date.txt", "w", encoding="utf-8") as debug_f:
-            debug_f.write("\n".join(debug_output))
 
 
 def read_weather_station_csv(file_path):
