@@ -421,6 +421,14 @@
 - [x] Add regression coverage: realistic cartesian pool finds disjoint sets, final set never repeats a run, `avoid_repeated_runs=False` still bypasses uniqueness, MAD-prefiltered pipeline still finds disjoint sets, and the rescue pass activates/recovers only when DFS evaluates zero sets.
 - [ ] Complete real-browser validation with a real ~12-run-per-group dataset and K=5 to confirm the previously reported timeout no longer occurs.
 
+## Audit finding 3 - Streamlit minimum version - 2026-07-20
+
+- [x] Trace active Split Streamlit APIs and their version floors.
+- [x] Confirm launcher and validated environment versions remain compatible.
+- [x] Raise the declared minimum to Streamlit 1.55.0.
+- [x] Add structured dependency validation for the lower bound.
+- [x] Run the complete validation matrix and update audit finding 3.
+
 ## Audit finding 5 - Shared VBOX debug file - 2026-07-20
 
 - [x] Remove the unconditional `debug_vbox_date.txt` write from successful VBOX parsing.

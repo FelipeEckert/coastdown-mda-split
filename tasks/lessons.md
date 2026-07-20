@@ -2350,6 +2350,25 @@ deterministicos.
 
 ---
 
+## 2026-07-20 - Versao minima deve seguir a API Streamlit mais recente em uso
+
+### Contexto:
+O aplicativo declarava `streamlit>=1.31.0`, mas as abas principais usam
+`default`, `key` e `on_change`. O suporte completo a esse contrato de abas
+dinamicas existe somente a partir do Streamlit 1.55.0.
+
+### Decisao:
+O limite minimo foi elevado para 1.55.0, sem fixar uma versao maxima. A
+validacao de dependencia interpreta `requirements.txt` como requisitos
+estruturados e exige que o menor Streamlit aceito continue sendo 1.55.0.
+
+### Licao:
+O limite de uma dependencia de UI deve acompanhar parametros efetivamente
+usados, nao apenas a versao em que a funcao apareceu. Validar o requisito
+estruturado evita acoplar o teste a espacos ou a ordem textual do arquivo.
+
+---
+
 ## 2026-07-20 - Diagnostico de parser nao pode controlar o retorno de sucesso
 
 ### Contexto:

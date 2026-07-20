@@ -17,7 +17,7 @@ finding has been documented but no cleanup or behavior change has been applied.
 |---:|---|---|---|---|---|
 | 1 | Split final status still uses non-normative coefficient variation | High | High | 4 | Pending |
 | 2 | Fixed-condition inputs are ignored for new tests | High | High | 3 | Pending |
-| 3 | Declared Streamlit minimum is incompatible with active API use | High | High | 3 | Pending |
+| 3 | Declared Streamlit minimum is incompatible with active API use | High | High | 3 | Completed |
 | 4 | Export cache signature omits workbook-visible traceability | Medium | High | 4 | Pending |
 | 5 | Successful parsing always writes a shared debug file | Medium | High | 2 | Completed |
 | 6 | Unreferenced local functions remain in active modules | Low | High | 1 | Pending |
@@ -111,7 +111,10 @@ finding has been documented but no cleanup or behavior change has been applied.
 - **Recommended action:** Change the lower bound to `streamlit>=1.55.0`.
 - **Validation:** Install dependencies into a clean environment and start the
   application using the minimum declared version.
-- **Status:** Pending
+- **Resolution (2026-07-20):** Raised the declared minimum to Streamlit 1.55.0
+  and added structured dependency validation. The complete dependency set
+  resolved with Streamlit 1.55.0, and both AppTest and headless startup passed.
+- **Status:** Completed
 
 ### 4. Export cache signature omits workbook-visible traceability
 
