@@ -5,6 +5,26 @@ from copy import deepcopy
 from datetime import datetime, timezone
 
 
+def build_split_fixed_conditions(temperature: float, pressure: float) -> dict:
+    """Store fixed inputs under legacy and canonical Split keys."""
+    return {
+        "fixed_temperature": temperature,
+        "fixed_pressure": pressure,
+        "split_fixed_temperature": temperature,
+        "split_fixed_pressure": pressure,
+    }
+
+
+def migrate_split_fixed_conditions(test_data: dict) -> None:
+    """Populate missing canonical Split keys from legacy saved state in place."""
+    for canonical_key, legacy_key in (
+        ("split_fixed_temperature", "fixed_temperature"),
+        ("split_fixed_pressure", "fixed_pressure"),
+    ):
+        if canonical_key not in test_data and legacy_key in test_data:
+            test_data[canonical_key] = test_data[legacy_key]
+
+
 def ensure_split_comparison_pairs(test_data: dict) -> list[dict]:
     """Initialize comparison pairs only when the state key is absent."""
     if "split_comparison_pairs" not in test_data:

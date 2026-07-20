@@ -2350,6 +2350,28 @@ deterministicos.
 
 ---
 
+## 2026-07-20 - Condicoes fixas Split usam chaves canonicas com fallback legado
+
+### Contexto:
+O modal de novo teste salvava temperatura e pressao somente nas chaves
+herdadas `fixed_temperature` e `fixed_pressure`. A pagina de calculo Split le
+`split_fixed_temperature` e `split_fixed_pressure`, portanto um valor informado
+no modal era substituido pelos defaults Split ao carregar o teste.
+
+### Decisao:
+Novos testes sem arquivo meteorologico salvam o mesmo valor nas chaves legadas
+e canonicas. No carregamento, uma chave canonica ausente e preenchida pela
+equivalente legada antes da aplicacao dos defaults. Quando ambas existem, a
+chave canonica sempre prevalece. Nenhuma chave ou default foi removido.
+
+### Licao:
+Compatibilidade de estado deve ser resolvida no limite comum de carregamento,
+antes dos defaults, para que criacao, troca de teste e reabertura usem a mesma
+regra. A migracao deve testar ausencia da chave, nao falsidade do valor, para
+preservar explicitamente qualquer valor canonico existente.
+
+---
+
 ## 2026-06-24 - Resultados Split: conformidade vem de time_summary, nao de conformity_status
 
 ### Contexto:

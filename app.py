@@ -34,7 +34,12 @@ from version import APP_NAME, APP_VERSION, APP_RELEASE_DATE
 from translations import get_translator, get_available_languages
 from data.loaders import carregar_dados_csv_robusto
 from data.weather_loader import read_weather_file
-from core.split_state import clear_split_final_state, invalidate_split_input_state
+from core.split_state import (
+    build_split_fixed_conditions,
+    clear_split_final_state,
+    invalidate_split_input_state,
+    migrate_split_fixed_conditions,
+)
 
 # ===== CONFIGURAÇÃO DA PÁGINA =====
 st.set_page_config(
@@ -591,6 +596,8 @@ def save_active_test_state():
 def load_test_state(test_id):
     """Restaura o estado de um teste nas flat keys."""
     test_data = st.session_state.tests.get(test_id, {})
+    migrate_split_fixed_conditions(test_data)
+
     for key in TEST_STATE_KEYS:
         if key in test_data:
             val = test_data[key]
@@ -1670,6 +1677,11 @@ def _process_new_test(name, uploaded_csv, uploaded_low_csv, split_input_mode, up
             })
 
             # Registra o teste no dicionário de testes
+            if uploaded_meteo is None:
+                new_test_data.update(
+                    build_split_fixed_conditions(fixed_temp, fixed_pressure)
+                )
+
             st.session_state.tests[test_id] = new_test_data
 
             # Ativa o novo teste (carrega seus dados nas flat keys)

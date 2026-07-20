@@ -421,6 +421,14 @@
 - [x] Add regression coverage: realistic cartesian pool finds disjoint sets, final set never repeats a run, `avoid_repeated_runs=False` still bypasses uniqueness, MAD-prefiltered pipeline still finds disjoint sets, and the rescue pass activates/recovers only when DFS evaluates zero sets.
 - [ ] Complete real-browser validation with a real ~12-run-per-group dataset and K=5 to confirm the previously reported timeout no longer occurs.
 
+## Fixed-condition state compatibility - 2026-07-20
+
+- [x] Trace fixed temperature and pressure through new-test creation, saved test snapshots, editing, loading and Split coefficient calculation.
+- [x] Store new fixed-condition inputs in the canonical `split_fixed_temperature` and `split_fixed_pressure` keys while retaining legacy keys.
+- [x] Migrate legacy-only saved tests at load time without overriding canonical Split values.
+- [x] Add focused regression coverage for creation, legacy loading, canonical loading and canonical precedence.
+- [ ] Manually create and reopen one fixed-condition test in the running Streamlit app.
+
 ## Results page visual fixes - 2026-06-24
 - [x] Replace the `st.columns`/`st.metric` consolidated summary in `pages/page_split_results.py` with a single HTML card (`split-summary-card`), matching the requested 3-row layout: pairs + conformity, F0/F2/energy grid, CV F0/F2 diagnostic row.
 - [x] Drive the card's conformity icon (✅/❌/⚠️) from `analysis["time_summary"]["passed"]` (the real Split normative time validation), not from `core/split_results.py`'s CV-F0/F2-based `conformity_status`.
