@@ -18,7 +18,7 @@ finding has been documented but no cleanup or behavior change has been applied.
 | 1 | Split final status still uses non-normative coefficient variation | High | High | 4 | Pending |
 | 2 | Fixed-condition inputs are ignored for new tests | High | High | 3 | Pending |
 | 3 | Declared Streamlit minimum is incompatible with active API use | High | High | 3 | Completed |
-| 4 | Export cache signature omits workbook-visible traceability | Medium | High | 4 | Pending |
+| 4 | Export cache signature omits workbook-visible traceability | Medium | High | 4 | Completed |
 | 5 | Successful parsing always writes a shared debug file | Medium | High | 2 | Completed |
 | 6 | Unreferenced local functions remain in active modules | Low | High | 1 | Pending |
 | 7 | Unused imports, constants, and dependencies | Low | High | 1 | Pending |
@@ -137,7 +137,12 @@ finding has been documented but no cleanup or behavior change has been applied.
 - **Validation:** Mutate a filename, run label, and subinterval independently
   without changing coefficients; each mutation must produce a cache miss and an
   updated workbook.
-- **Status:** Pending
+- **Resolution (2026-07-20):** The export signature now freezes complete copies
+  of explicitly selected pair records instead of reusing the narrower deviation
+  analysis signature. This covers filenames, run labels, subintervals, selection
+  origin, corrected values, weather details, and future selected-pair
+  traceability while leaving unselected records outside the cache key.
+- **Status:** Completed
 
 ### 5. Successful parsing always writes a shared debug file
 

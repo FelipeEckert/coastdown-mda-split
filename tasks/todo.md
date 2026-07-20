@@ -429,6 +429,16 @@
 - [x] Add structured dependency validation for the lower bound.
 - [x] Run the complete validation matrix and update audit finding 3.
 
+## Audit finding 4 - Split export cache signature - 2026-07-20
+
+- [x] Trace selected-pair fields through cache creation and workbook generation.
+- [x] Replace the partial deviation signature with a deterministic snapshot of
+  complete selected-pair export inputs.
+- [x] Cover filename, run, subinterval, origin, correction, weather, missing
+  values, NumPy scalars and dictionary ordering with focused regressions.
+- [x] Confirm unchanged inputs preserve workbook bytes, layout and values.
+- [x] Run focused and full regression suites, Ruff, compile and diff checks.
+
 ## Audit finding 5 - Shared VBOX debug file - 2026-07-20
 
 - [x] Remove the unconditional `debug_vbox_date.txt` write from successful VBOX parsing.

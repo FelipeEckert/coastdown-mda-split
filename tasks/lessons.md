@@ -2456,3 +2456,24 @@ esse status nem aparecer como `st.warning` individual; ficam agrupados em um
 expander fechado, mantendo rastreabilidade sem poluir a tela principal.
 
 ---
+
+## 2026-07-20 - Cache de exportacao assina o registro Split selecionado completo
+
+### Contexto:
+A exportacao Excel reutilizava a assinatura reduzida da analise de desvios.
+Essa assinatura cobria coeficientes, tempos e ambiente agregado, mas ignorava
+metadados de rastreabilidade mantidos nos pares selecionados.
+
+### Decisao:
+A assinatura da exportacao agora congela uma copia completa somente dos pares
+explicitamente selecionados, alem das demais entradas ja assinadas. O
+congelamento normaliza estruturas aninhadas, datetimes, escalares NumPy e
+valores ausentes de forma deterministica. A assinatura menor da analise de
+desvios permanece inalterada.
+
+### Licao:
+Caches de artefatos devem representar a entrada completa do artefato, nao uma
+projecao criada para outro cache. Manter as assinaturas separadas evita tanto
+dados obsoletos no Excel quanto invalidacoes desnecessarias da analise.
+
+---

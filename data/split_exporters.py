@@ -8,14 +8,12 @@ from datetime import datetime
 import io
 import math
 
+import numpy as np
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
-from core.split_deviation_analysis import (
-    analyze_split_selected_deviations,
-    build_selected_pairs_signature,
-)
+from core.split_deviation_analysis import analyze_split_selected_deviations
 from core.split_display import (
     format_split_opposite_time_label,
     format_split_time_group_label,
@@ -40,13 +38,20 @@ STATUS_FILLS = {
 
 
 def _freeze_signature_value(value):
+    if isinstance(value, np.generic):
+        return _freeze_signature_value(value.item())
     if isinstance(value, dict):
         return tuple(
             (str(key), _freeze_signature_value(item))
             for key, item in sorted(value.items(), key=lambda entry: str(entry[0]))
         )
-    if isinstance(value, (list, tuple, set)):
+    if isinstance(value, (list, tuple)):
         return tuple(_freeze_signature_value(item) for item in value)
+    if isinstance(value, set):
+        return tuple(sorted(
+            (_freeze_signature_value(item) for item in value),
+            key=repr,
+        ))
     if isinstance(value, datetime):
         return value.isoformat()
     if isinstance(value, float) and not math.isfinite(value):
@@ -60,7 +65,7 @@ def build_split_export_signature(
 ) -> tuple:
     """Return a stable signature for the complete Split workbook inputs."""
     return (
-        build_selected_pairs_signature(selected_pairs),
+        _freeze_signature_value(_selected_pairs(selected_pairs)),
         _freeze_signature_value(final_results or {}),
         _freeze_signature_value(vehicle_data or {}),
         _freeze_signature_value(deviation_analysis or {}),
