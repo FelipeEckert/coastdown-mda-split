@@ -2594,3 +2594,27 @@ fase exibida e resultado renderizado. Nomes de chaves, percentuais intermediario
 e a cadeia de helpers privados nao precisam fazer parte do contrato.
 
 ---
+
+## 2026-07-21 - APIs duplicadas exigem caracterizacao por contrato
+
+### Contexto:
+As duas funcoes herdadas de correcao de pares tinham corpos repetidos em
+`core.calculations` e `core.corrections`, mas assinaturas e dicionarios de
+retorno diferentes entre os dois nomes publicos.
+
+### Decisao:
+`core.corrections.calculate_single_pair_corrected_data` continua sendo a API
+canonica; a unica implementacao da formula fica em um helper privado que recebe
+o calculo de energia. A variante de valores brutos adapta entradas e projeta
+seu schema legado; os nomes de `core.calculations` usam imports locais e passam
+`calcular_energia` corrente para preservar monkeypatches sem criar ciclo de
+importacao. Chamadas diretas de `core.corrections` continuam usando a
+dependencia do proprio modulo.
+
+### Licao:
+Antes de consolidar APIs nominalmente equivalentes, caracterize cada contrato
+publico separadamente. Wrappers devem preservar schema, erros e precisao, e um
+import local e a menor solucao quando o modulo canonico ja depende do modulo de
+compatibilidade para outra funcao.
+
+---

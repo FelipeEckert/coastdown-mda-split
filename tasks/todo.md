@@ -469,6 +469,21 @@
 - [x] Pass the full suite, compile validation, scoped Ruff, dependency
   resolution, Streamlit startup smoke test, and diff check.
 
+## Audit finding 9 - Corrected-pair consolidation - 2026-07-21
+
+- [x] Inventory all four definitions, active callers, unused imports and
+  package exports before editing.
+- [x] Characterize the rich and raw-value contracts across correction,
+  calculation and package import paths.
+- [x] Preserve exact keys, types, numeric results, missing-value defaults and
+  invalid-input exceptions.
+- [x] Preserve module-specific runtime lookup of `calcular_energia` for both
+  calculation compatibility paths without changing direct correction calls.
+- [x] Keep the rich correction function canonical and replace the other three
+  formula bodies with schema or compatibility adapters.
+- [x] Pass focused/existing correction tests, the 370-test full suite, scoped
+  Ruff, compile validation and diff checks.
+
 ## Audit finding 16 - Streamlit orchestration coverage - 2026-07-20
 
 - [x] Cover new Split test creation with canonical fixed-condition keys.

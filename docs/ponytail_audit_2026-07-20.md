@@ -23,7 +23,7 @@ finding has been documented but no cleanup or behavior change has been applied.
 | 6 | Unreferenced local functions remain in active modules | Low | High | 1 | Completed |
 | 7 | Unused imports, constants, and dependencies | Low | High | 1 | Completed |
 | 8 | Orphan desktop-GUI configuration module | Low | High | 1 | Completed |
-| 9 | Duplicate corrected-pair implementation | Low | High | 6 | Pending |
+| 9 | Duplicate corrected-pair implementation | Low | High | 6 | Completed |
 | 10 | Main and nested tabs compute hidden content eagerly | Medium | High | 3 | Pending |
 | 11 | Redundant derived session state | Low | Medium-High | 5 | Pending |
 | 12 | Eager package initializers couple Split imports to legacy modules | Medium | High | 6 | Pending |
@@ -257,21 +257,29 @@ finding has been documented but no cleanup or behavior change has been applied.
 
 - **Severity:** Low
 - **Confidence:** High
-- **Locations:** `core/calculations.py`
-  (`calculate_single_pair_corrected_data`);
-  `core/corrections.py` (`calculate_single_pair_corrected_data2`).
-- **Evidence:** The functions contain duplicate corrected-pair behavior under
-  different names and modules. Legacy callers still reference the older
-  calculation surface.
+- **Locations:** Both corrected-pair names were implemented in
+  `core/calculations.py` and `core/corrections.py`; `core/__init__.py` exports
+  the correction-module names, while inherited page callers import the
+  calculation-module names.
+- **Evidence:** Before consolidation, the same-name definitions had identical
+  executable bodies in both modules. Characterization tests now preserve the
+  distinct rich and raw-value contracts, every import path, missing-value
+  behavior, exception types/messages, return schemas/types, and exact numeric
+  results. The compatibility wrappers also preserve their historical runtime
+  lookup of `core.calculations.calcular_energia` without affecting direct
+  correction-module calls.
 - **Why it is a problem:** Fixes can diverge between two nominally equivalent
   paths, and the names do not establish which implementation owns the behavior.
 - **Risk:** Medium because the legacy path and possible external imports may
   depend on the current symbols.
-- **Recommended action:** Keep one implementation and make the other symbol a
-  thin, documented compatibility alias during a migration period.
-- **Validation:** Before consolidation, characterize both functions with the
-  same representative inputs and assert identical outputs and errors.
-- **Status:** Pending
+- **Recommended action:** Completed. Keep
+  `core.corrections.calculate_single_pair_corrected_data` canonical; retain the
+  raw-value schema adapter and both local-import calculation-module wrappers.
+- **Validation:** Five focused characterization tests, all existing correction
+  and calculation tests, 370 full-suite tests, scoped Ruff, compile validation,
+  and `git diff --check` passed.
+- **Status:** Completed. One corrected-pair formula remains, with all four
+  module-level paths and both package exports preserved.
 
 ### 10. Main and nested tabs compute hidden content eagerly
 
