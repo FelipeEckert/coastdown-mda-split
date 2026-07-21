@@ -469,6 +469,15 @@
 - [x] Pass the full suite, compile validation, scoped Ruff, dependency
   resolution, Streamlit startup smoke test, and diff check.
 
+## Audit finding 16 - Streamlit orchestration coverage - 2026-07-20
+
+- [x] Cover new Split test creation with canonical fixed-condition keys.
+- [x] Cover legacy reopening and canonical-key precedence through the active
+  app load path.
+- [x] Cover save/switch isolation and rename-only editing.
+- [x] Run an incomplete active snapshot through `AppTest` and Results routing.
+- [x] Pass focused/full tests, Ruff, compile, and diff checks.
+
 ## Fixed-condition state compatibility - 2026-07-20
 
 - [x] Trace fixed temperature and pressure through new-test creation, saved test snapshots, editing, loading and Split coefficient calculation.

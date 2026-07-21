@@ -2517,3 +2517,21 @@ Antes de remover um import aparentemente ocioso, procure tambem por
 acidental de API reexportada.
 
 ---
+
+## 2026-07-20 - Testes de orquestracao sem acoplar ao layout Streamlit
+
+### Contexto:
+O ciclo multi-teste estava concentrado em `app.py`, sem cobertura de criacao,
+edicao, troca, persistencia ou snapshots legados.
+
+### Decisao:
+As funcoes existentes sao exercitadas com um session state em memoria e mocks
+somente para parsing, spinner e rerun. Um unico `AppTest` valida a execucao real
+com estado incompleto e roteamento para Resultados.
+
+### Licao:
+Teste transicoes de estado diretamente e reserve `AppTest` para integrar o
+script completo. Isso evita depender de texto, ordem de widgets e estilo sem
+perder cobertura do fluxo ativo.
+
+---

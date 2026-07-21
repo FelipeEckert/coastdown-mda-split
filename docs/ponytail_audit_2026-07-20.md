@@ -30,7 +30,7 @@ finding has been documented but no cleanup or behavior change has been applied.
 | 13 | Loader has mixed Standard/Split responsibility and extreme complexity | Medium | High | 7 | Pending |
 | 14 | Stale state keys obscure the canonical Split model | Low | Medium-High | 5 | Pending |
 | 15 | Project documentation no longer matches ownership | Low | High | 1 | Pending |
-| 16 | Critical Streamlit orchestration is untested | High | High | 3 | Pending |
+| 16 | Critical Streamlit orchestration is untested | High | High | 3 | Completed |
 | 17 | Several tests enforce source text rather than behavior | Low | High | 5 | Pending |
 | 18 | Large inherited Standard surface is isolated but route-discoverable | Medium | High | 8 | Pending |
 | 19 | Split coefficient sign convention conflicts across repository guidance | High | High conflict / Low resolution | 8 | Pending |
@@ -413,12 +413,11 @@ finding has been documented but no cleanup or behavior change has been applied.
 - **Severity:** High
 - **Confidence:** High
 - **Locations:** `app.py`; `tests/`.
-- **Evidence:** No test imports or executes the top-level app workflow. New,
-  edit, save, load, reset, and multi-test state flows are not exercised.
-  Canonical fixed-weather keys, lazy tab routing, hidden-page behavior, and the
-  declared minimum Streamlit version also lack tests. The existing 354 tests
-  strongly cover Split parsing and pure domain functions but do not cover this
-  orchestration layer.
+- **Evidence:** The audit found no test importing or executing the top-level
+  app workflow. New, edit, save, load, reset, and multi-test state flows were
+  not exercised. Focused orchestration tests now cover creation, rename-only
+  editing, legacy and canonical reopening, active-test switching, state
+  isolation, incomplete snapshots, and results routing through `AppTest`.
 - **Why it is a problem:** Findings 2, 3, 10, 11, and 14 can regress without any
   current test failure.
 - **Risk:** Low to add focused tests; high if state cleanup proceeds first.
@@ -427,7 +426,8 @@ finding has been documented but no cleanup or behavior change has been applied.
   before changing session keys or tab execution.
 - **Validation:** Run the workflow checks against both clean state and a legacy
   persisted snapshot.
-- **Status:** Pending
+- **Status:** Completed. Added behavioral helper-level coverage plus one real
+  `AppTest` workflow without refactoring application code.
 
 ### 17. Several tests enforce source text rather than behavior
 
