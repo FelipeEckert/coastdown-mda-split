@@ -31,7 +31,7 @@ finding has been documented but no cleanup or behavior change has been applied.
 | 14 | Stale state keys obscure the canonical Split model | Low | Medium-High | 5 | Pending |
 | 15 | Project documentation no longer matches ownership | Low | High | 1 | Pending |
 | 16 | Critical Streamlit orchestration is untested | High | High | 3 | Completed |
-| 17 | Several tests enforce source text rather than behavior | Low | High | 5 | Pending |
+| 17 | Several tests enforce source text rather than behavior | Low | High | 5 | In Progress |
 | 18 | Large inherited Standard surface is isolated but route-discoverable | Medium | High | 8 | Pending |
 | 19 | Split coefficient sign convention conflicts across repository guidance | High | High conflict / Low resolution | 8 | Pending |
 | 20 | Translation and compatibility cleanup cannot rely on static counts | Low | High | 8 | Pending |
@@ -437,10 +437,11 @@ finding has been documented but no cleanup or behavior change has been applied.
   `inspect.getsource`; duplicated candidate-set validation cases in
   `test_split_auto_selection.py` and the dedicated candidate-set validation
   test module.
-- **Evidence:** Eighteen tests inspect source code. Ten enforce that pure modules
-  do not import Streamlit, while eight assert literal page strings, widget keys,
-  or progress constants. Some validator scenarios are covered both through the
-  orchestrator file and its dedicated unit tests.
+- **Evidence:** The initial inventory found eighteen source-inspection tests:
+  ten repeated Streamlit-independence checks and eight page tests asserting
+  literal source fragments, widget keys, or progress constants. The first batch
+  converted three page tests to rendered-output checks. Fifteen
+  source-inspection tests and the duplicated validator cases remain.
 - **Why it is a problem:** Safe refactors fail tests despite unchanged behavior,
   while orchestration bugs can pass because the page is never executed.
 - **Risk:** Medium if assertions are deleted before equivalent behavioral or
@@ -451,7 +452,48 @@ finding has been documented but no cleanup or behavior change has been applied.
 - **Validation:** Deliberately rename an internal helper or reformat a page and
   confirm behavioral tests remain stable while an actual workflow regression
   still fails.
-- **Status:** Pending
+- **Status:** In Progress. The first low-risk batch is complete; the remaining
+  architecture and page-rendering cases stay explicit below rather than being
+  deleted without equivalent coverage.
+
+#### Inventory and classification (2026-07-21)
+
+| Test | Brittle dependency | Class | Decision |
+|---|---|---:|---|
+| `test_split_auto_selection.py::test_module_does_not_import_streamlit` | `inspect.getsource` for two modules | 4 | Consolidate later into one runtime import-boundary test. |
+| `test_split_candidate_generation.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
+| `test_split_candidate_set_validation.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
+| `test_split_comparison_merge.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
+| `test_split_deviation_analysis.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
+| `test_split_pair_candidate.py::test_module_does_not_depend_on_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
+| `test_split_selection_algorithms.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
+| `test_split_time_validation.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
+| `test_split_vehicle_mass.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
+| `test_split_weather_context.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
+| `test_render_has_only_two_default_enabled_time_constraint_checkboxes` | widget-key fragments and nearby `value=True` text | 2 | Keep until the page has a practical interaction fixture. |
+| `test_render_exposes_advanced_v2_search_controls` | widget keys and call-argument fragments | 2 | Keep until AppTest can execute this state safely. |
+| `test_search_diagnostic_exposes_v2_strategy_and_counts` | renderer translation-key fragments | 1 | Replaced now with emitted metric values and limit-warning behavior. |
+| `test_progress_reserves_completion_for_after_constrained_search` | exact progress constants and statement order | 2 | Keep until the full run action can be driven behaviorally. |
+| `test_normative_constraint_diagnostic_omits_coefficient_cv` | absence of coefficient field names in source | 1 | Replaced now with the rendered six-row time diagnostic. |
+| `test_generation_diagnostics_show_counts_and_prefilter_per_group` | metadata and translation-key fragments | 1 | Replaced now with emitted counts, status, and table values. |
+| `test_selection_diagnostics_wraps_generation_and_search_in_one_expander` | helper names and expander source | 2 | Keep until observable wrapper behavior replaces call structure. |
+| `test_execution_result_and_fallback_offer_use_selection_diagnostics` | helper-name fragments | 2 | Keep until both rendering paths have stable behavioral fixtures. |
+| `test_candidate_set_validation_keeps_f0_cv_as_diagnostic` | duplicated validator case | 3 | Remove later after strengthening the dedicated case. |
+| `test_candidate_set_validation_keeps_f2_cv_as_diagnostic` | duplicated validator case | 3 | Remove later after strengthening the dedicated case. |
+| `test_candidate_set_validation_fails_time_group_cv` | duplicated validator case | 3 | Remove later; the dedicated test covers the same check. |
+| `test_high_coefficient_cv_is_diagnostic_when_times_pass` | duplicate destination | 4 | Consolidate the separate F0/F2 assertions here later. |
+| `test_time_group_cv_remains_normative_failure` | duplicate destination | 4 | Keep as the dedicated time-group failure case after consolidation. |
+
+Classifications: 1 = replace now; 2 = keep temporarily; 3 = remove because
+equivalent behavioral coverage exists; 4 = consolidate duplicated coverage.
+
+#### First-batch behavioral replacements
+
+| Converted test | Old assertion | New behavior | Equivalence |
+|---|---|---|---|
+| Search diagnostics | Renderer source contained five translation keys. | Calling the renderer emits all V2 counts/status values and the limit warning. | Stronger: it verifies actual Streamlit output without depending on labels or widget order. |
+| Normative constraint diagnostic | Renderer source omitted `cv_f0_pct` and `cv_f2_pct`. | Coefficient data is supplied, but the rendered table contains exactly the six normative time values. | Stronger: it proves coefficient diagnostics do not leak into the visible normative table. |
+| Generation diagnostics | Renderer source contained count, prefilter, and table field names. | Calling the renderer emits generated/failed totals, enabled status, and per-group input/output/filtered counts. | Stronger: it verifies the user-visible projection rather than implementation spelling. |
 
 ## Risky Findings Requiring Manual Validation
 

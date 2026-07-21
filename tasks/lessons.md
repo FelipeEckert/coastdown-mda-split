@@ -2535,3 +2535,21 @@ script completo. Isso evita depender de texto, ordem de widgets e estilo sem
 perder cobertura do fluxo ativo.
 
 ---
+
+## 2026-07-21 - Testes de UI devem validar a projecao renderizada
+
+### Contexto:
+Testes da selecao automatica procuravam nomes de campos, chaves de traducao e
+constantes diretamente no codigo-fonte das funcoes de pagina.
+
+### Decisao:
+O primeiro lote passou a executar os renderizadores existentes e validar os
+valores enviados ao Streamlit. Casos normativos duplicados e casos sem fixture
+comportamental simples permanecem inventariados para lotes posteriores.
+
+### Licao:
+Substitua inspecao de fonte somente quando a nova prova observa o mesmo contrato
+ou um contrato mais forte. Regras de arquitetura repetidas devem virar um unico
+teste de fronteira executavel, nao simplesmente desaparecer.
+
+---

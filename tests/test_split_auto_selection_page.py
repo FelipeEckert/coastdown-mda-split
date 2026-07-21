@@ -4,6 +4,8 @@
 import inspect
 import unittest
 from copy import deepcopy
+from contextlib import nullcontext
+from unittest.mock import Mock, patch
 
 from pages.page_split_auto_selection import (
     _candidate_run_time_label,
@@ -17,6 +19,7 @@ from pages.page_split_auto_selection import (
     _render_execution_result,
     _render_fallback_offer,
     _render_generation_diagnostics,
+    _render_constraint_validation,
     _render_selection_diagnostics,
     _replace_dialog_state_is_valid,
     _replacement_constraint_preview,
@@ -107,36 +110,48 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
         self.assertEqual(_default_constraint_search_pool_size(5), 100)
 
     def test_search_diagnostic_exposes_v2_strategy_and_counts(self):
-        diagnostic = _search_diagnostic_values(
-            {
-                "selection": {
-                    "strategy": "constraint_first_v2",
-                    "evaluated_sets_count": 123,
-                    "valid_sets_found": 4,
-                    "search_pool_size": 250,
-                    "max_set_evaluations_reached": True,
-                    "elapsed_seconds": 30.4,
-                    "max_search_seconds": 30.0,
-                    "timeout_reached": True,
-                }
+        metadata = {
+            "selection": {
+                "strategy": "constraint_first_v2",
+                "evaluated_sets_count": 123,
+                "valid_sets_found": 4,
+                "search_pool_size": 250,
+                "max_set_evaluations_reached": True,
+                "elapsed_seconds": 30.4,
+                "max_search_seconds": 30.0,
+                "timeout_reached": True,
             }
+        }
+        columns = [Mock() for _ in range(8)]
+        with patch("pages.page_split_auto_selection.st") as streamlit:
+            streamlit.columns.side_effect = (columns[:4], columns[4:])
+            _render_search_diagnostics(metadata, self.t)
+
+        self.assertCountEqual(
+            [column.metric.call_args.args for column in columns],
+            [
+                (self.t("split_auto_search_evaluated_sets"), "123"),
+                (self.t("split_auto_search_valid_sets"), "4"),
+                (self.t("split_auto_search_pool"), "250"),
+                (
+                    self.t("split_auto_search_strategy"),
+                    self.t("split_auto_search_strategy_constraint_first"),
+                ),
+                (self.t("split_auto_search_elapsed_seconds"), "30.40"),
+                (self.t("split_auto_search_time_limit"), "30.0"),
+                (
+                    self.t("split_auto_search_timeout_status"),
+                    self.t("split_auto_yes"),
+                ),
+                (
+                    self.t("split_auto_search_evaluation_limit_status"),
+                    self.t("split_auto_yes"),
+                ),
+            ],
         )
-
-        self.assertEqual(diagnostic["strategy"], "constraint_first_v2")
-        self.assertEqual(diagnostic["evaluated_sets_count"], 123)
-        self.assertEqual(diagnostic["valid_sets_found"], 4)
-        self.assertEqual(diagnostic["search_pool_size"], 250)
-        self.assertTrue(diagnostic["max_set_evaluations_reached"])
-        self.assertEqual(diagnostic["elapsed_seconds"], 30.4)
-        self.assertEqual(diagnostic["max_search_seconds"], 30.0)
-        self.assertTrue(diagnostic["timeout_reached"])
-
-        source = inspect.getsource(_render_search_diagnostics)
-        self.assertIn("split_auto_search_evaluated_sets", source)
-        self.assertIn("split_auto_search_valid_sets", source)
-        self.assertIn("split_auto_search_pool", source)
-        self.assertIn("split_auto_search_strategy", source)
-        self.assertIn("split_auto_search_limited_warning", source)
+        streamlit.warning.assert_called_once_with(
+            self.t("split_auto_search_limited_warning")
+        )
 
     def test_search_diagnostic_is_absent_for_legacy_top_k(self):
         self.assertIsNone(
@@ -277,11 +292,30 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
         )
 
     def test_normative_constraint_diagnostic_omits_coefficient_cv(self):
-        from pages.page_split_auto_selection import _render_constraint_validation
+        validation = {
+            "cv_f0_pct": 97.0,
+            "cv_f2_pct": 98.0,
+            "time_group_results": {
+                "high_plus": {"cv_pct": 1.0},
+                "high_minus": {"cv_pct": 2.0},
+                "low_plus": {"cv_pct": 3.0},
+                "low_minus": {"cv_pct": 4.0},
+            },
+            "opposite_time_results": {
+                "high": {"diff_pct": 5.0},
+                "low": {"diff_pct": 6.0},
+            },
+        }
+        with patch("pages.page_split_auto_selection.st") as streamlit:
+            streamlit.expander.return_value = nullcontext()
+            _render_constraint_validation(validation, self.t)
 
-        source = inspect.getsource(_render_constraint_validation)
-        self.assertNotIn("cv_f0_pct", source)
-        self.assertNotIn("cv_f2_pct", source)
+        table = streamlit.dataframe.call_args.args[0]
+        self.assertCountEqual(
+            table[self.t("split_auto_time_value")].tolist(),
+            ["1.00", "2.00", "3.00", "4.00", "5.00", "6.00"],
+        )
+        self.assertEqual(len(table), 6)
 
     def test_disabled_constraints_keep_legacy_pending_flow(self):
         candidate = self._norm_candidate("a")
@@ -473,18 +507,76 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
             )
         )
 
-    def test_generation_diagnostics_show_counts_and_prefilter_per_group(self):
-        source = inspect.getsource(_render_generation_diagnostics)
+    def test_generation_diagnostics_render_counts_and_prefilter_per_group(self):
+        metadata = {
+            "generated_count": 12,
+            "failed_count": 3,
+            "prefilter_applied": True,
+            "prefilter": {
+                "high_plus": {
+                    "input_count": 10,
+                    "output_count": 8,
+                    "filtered_count": 2,
+                },
+                "low_minus": {
+                    "input_count": 9,
+                    "output_count": 7,
+                    "filtered_count": 2,
+                },
+            },
+        }
+        columns = [Mock(), Mock()]
+        with patch("pages.page_split_auto_selection.st") as streamlit:
+            streamlit.columns.return_value = columns
+            _render_generation_diagnostics(metadata, self.t)
 
-        self.assertIn("generated_count", source)
-        self.assertIn("failed_count", source)
-        self.assertIn("split_auto_diagnostics_failed_count", source)
-        self.assertIn("prefilter_applied", source)
-        self.assertIn("split_auto_diagnostics_prefilter_enabled", source)
-        self.assertIn("split_auto_diagnostics_prefilter_disabled", source)
-        self.assertIn("input_count", source)
-        self.assertIn("output_count", source)
-        self.assertIn("filtered_count", source)
+        self.assertCountEqual(
+            [column.metric.call_args.args for column in columns],
+            [
+                (self.t("split_auto_generated_count"), "12"),
+                (self.t("split_auto_diagnostics_failed_count"), "3"),
+            ],
+        )
+        self.assertIn(
+            self.t("split_auto_diagnostics_prefilter_enabled"),
+            streamlit.write.call_args.args[0],
+        )
+        table = streamlit.dataframe.call_args.args[0]
+        count_columns = [
+            self.t("split_auto_prefilter_input"),
+            self.t("split_auto_prefilter_output"),
+            self.t("split_auto_prefilter_filtered"),
+        ]
+        self.assertCountEqual(
+            list(table[count_columns].itertuples(index=False, name=None)),
+            [(10, 8, 2), (9, 7, 2)],
+        )
+
+    def test_generation_diagnostics_render_disabled_prefilter(self):
+        columns = [Mock(), Mock()]
+        with patch("pages.page_split_auto_selection.st") as streamlit:
+            streamlit.columns.return_value = columns
+            _render_generation_diagnostics(
+                {
+                    "generated_count": 12,
+                    "failed_count": 3,
+                    "prefilter_applied": False,
+                },
+                self.t,
+            )
+
+        self.assertCountEqual(
+            [column.metric.call_args.args for column in columns],
+            [
+                (self.t("split_auto_generated_count"), "12"),
+                (self.t("split_auto_diagnostics_failed_count"), "3"),
+            ],
+        )
+        self.assertIn(
+            self.t("split_auto_diagnostics_prefilter_disabled"),
+            streamlit.write.call_args.args[0],
+        )
+        streamlit.dataframe.assert_not_called()
 
     def test_selection_diagnostics_wraps_generation_and_search_in_one_expander(self):
         source = inspect.getsource(_render_selection_diagnostics)
