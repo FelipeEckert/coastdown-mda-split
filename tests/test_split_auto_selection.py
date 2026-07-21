@@ -1,7 +1,6 @@
 # coding: utf-8
 """Tests for exact automatic Split selection orchestration."""
 
-import inspect
 import unittest
 from copy import deepcopy
 
@@ -342,7 +341,6 @@ class SplitAutoSelectionTest(unittest.TestCase):
 
     def test_replacement_finds_valid_candidate_after_visible_k(self):
         current = [_candidate(f"visible-{index}", index) for index in range(1, 6)]
-        old = current[2]
         replacement = _candidate("reserve", 3, 99)
         pool = current + [replacement]
 
@@ -738,20 +736,6 @@ class SplitAutoSelectionTest(unittest.TestCase):
 
         self.assertIsNotNone(metadata["time_validation"])
         self.assertIn("passed", metadata["time_validation"])
-
-    def test_module_does_not_import_streamlit(self):
-        import core.split_auto_selection as module
-        import core.split_candidate_set_validation as validation_module
-
-        for source in (
-            inspect.getsource(module),
-            inspect.getsource(validation_module),
-        ):
-            self.assertNotIn("import streamlit", source.lower())
-            self.assertNotIn("from streamlit", source.lower())
-        self.assertFalse(hasattr(module, "st"))
-        self.assertFalse(hasattr(validation_module, "st"))
-
 
 if __name__ == "__main__":
     unittest.main()

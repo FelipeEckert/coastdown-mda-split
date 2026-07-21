@@ -1,7 +1,6 @@
 # coding: utf-8
 """Tests for UI-neutral formatting helpers used by Split auto-selection."""
 
-import inspect
 import unittest
 from copy import deepcopy
 from contextlib import nullcontext
@@ -20,7 +19,6 @@ from pages.page_split_auto_selection import (
     _render_fallback_offer,
     _render_generation_diagnostics,
     _render_constraint_validation,
-    _render_selection_diagnostics,
     _replace_dialog_state_is_valid,
     _replacement_constraint_preview,
     _render_search_diagnostics,
@@ -80,29 +78,178 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
             },
         }
 
-    def test_render_has_only_two_default_enabled_time_constraint_checkboxes(self):
-        source = inspect.getsource(render)
-        for key in (
-            "split_auto_require_time_cv",
-            "split_auto_require_opposite_difference",
-        ):
-            self.assertIn(f'key="{key}"', source)
-            key_position = source.index(f'key="{key}"')
-            self.assertIn("value=True", source[key_position - 100:key_position])
-        self.assertNotIn("split_auto_require_coefficient_cv", source)
+    def test_render_submits_default_constraints_and_advanced_search_settings(self):
+        number_values = {
+            self.t("split_auto_k"): 5,
+            self.t("split_auto_max_combinations"): 200_000,
+            self.t("split_auto_search_pool_size"): 137,
+            self.t("split_auto_search_max_set_evaluations"): 4_321,
+            self.t("split_auto_search_max_seconds"): 12.5,
+            self.t("split_auto_fixed_temperature_c"): 20.0,
+            self.t("split_auto_fixed_pressure_kpa"): 101.325,
+        }
+        checkbox_values = {
+            self.t("split_auto_avoid_repeated"): True,
+            self.t("split_auto_require_time_cv"): True,
+            self.t("split_auto_require_opposite_difference"): True,
+        }
+        widget_calls = []
 
-    def test_render_exposes_advanced_v2_search_controls(self):
-        source = inspect.getsource(render)
+        def record_widget(kind, values, label, **kwargs):
+            widget_calls.append(
+                {
+                    "kind": kind,
+                    "label": label,
+                    "value": kwargs.get("value"),
+                    "disabled": bool(kwargs.get("disabled", False)),
+                }
+            )
+            return values.get(label, kwargs.get("value"))
 
-        for key in (
-            "split_auto_search_pool_size",
-            "split_auto_search_max_set_evaluations",
-            "split_auto_search_max_seconds",
+        def make_layout():
+            layout = Mock()
+            layout.checkbox.side_effect = lambda label, **kwargs: record_widget(
+                "checkbox", checkbox_values, label, **kwargs
+            )
+            layout.number_input.side_effect = lambda label, **kwargs: record_widget(
+                "number_input", number_values, label, **kwargs
+            )
+            return layout
+
+        def make_columns(spec):
+            count = len(spec) if isinstance(spec, list) else spec
+            return [make_layout() for _ in range(count)]
+
+        progress = Mock()
+        phase_placeholder = Mock()
+
+        def run_selection(*_args, **kwargs):
+            kwargs["phase_callback"]("generating")
+            kwargs["progress_callback"](1.0)
+            kwargs["phase_callback"]("ranking")
+            kwargs["phase_callback"]("searching")
+            kwargs["phase_callback"]("finalizing")
+            self.assertTrue(
+                all(
+                    call.args[0] < 1.0
+                    for call in progress.progress.call_args_list
+                )
+            )
+            return [], {
+                "replacement_pool": [],
+                "selection": {},
+                "constraints_enabled": {
+                    "time_cv": True,
+                    "opposite_time_difference": True,
+                },
+                "constraints_satisfied": False,
+            }
+
+        class SessionState(dict):
+            __getattr__ = dict.__getitem__
+            __setattr__ = dict.__setitem__
+
+        with (
+            patch("pages.page_split_auto_selection.st") as streamlit,
+            patch(
+                "pages.page_split_auto_selection.run_split_auto_selection_exact",
+                side_effect=run_selection,
+            ) as run_exact,
         ):
-            self.assertIn(f'key="{key}"', source)
-        self.assertIn("search_pool_size=search_pool_size", source)
-        self.assertIn("max_set_evaluations=max_set_evaluations", source)
-        self.assertIn("max_search_seconds=max_search_seconds", source)
+            streamlit.session_state = SessionState(
+                {
+                    "data_loaded": True,
+                    "split_parse_dirty": False,
+                    "split_parsed_runs": {
+                        "high": [{"heading": "+"}, {"heading": "-"}],
+                        "low": [{"heading": "+"}, {"heading": "-"}],
+                    },
+                    "total_mass": 1_500.0,
+                    "active_test_id": "isolated-test",
+                }
+            )
+            streamlit.columns.side_effect = make_columns
+            streamlit.checkbox.side_effect = lambda label, **kwargs: record_widget(
+                "checkbox", checkbox_values, label, **kwargs
+            )
+            streamlit.number_input.side_effect = lambda label, **kwargs: record_widget(
+                "number_input", number_values, label, **kwargs
+            )
+            streamlit.container.side_effect = lambda **_kwargs: make_layout()
+            streamlit.radio.side_effect = lambda label, **_kwargs: {
+                self.t("split_auto_algorithm"): self.t(
+                    "split_auto_algorithm_energy"
+                ),
+                self.t("split_ambient_mode_label"): self.t(
+                    "split_ambient_mode_fixed"
+                ),
+            }[label]
+            streamlit.expander.side_effect = lambda *args, **kwargs: nullcontext(
+                make_layout()
+            )
+            streamlit.spinner.return_value = nullcontext()
+            streamlit.button.return_value = True
+            streamlit.progress.return_value = progress
+            streamlit.empty.return_value = phase_placeholder
+
+            render(self.t)
+
+        constraint_labels = {
+            self.t("split_auto_require_time_cv"),
+            self.t("split_auto_require_opposite_difference"),
+        }
+        constraint_calls = [
+            call
+            for call in widget_calls
+            if call["kind"] == "checkbox"
+            and call["label"] in constraint_labels
+        ]
+        self.assertCountEqual(
+            [
+                call["label"]
+                for call in widget_calls
+                if call["kind"] == "checkbox"
+            ],
+            constraint_labels | {self.t("split_auto_avoid_repeated")},
+        )
+        self.assertCountEqual(
+            [call["label"] for call in constraint_calls],
+            constraint_labels,
+        )
+        self.assertTrue(all(call["value"] is True for call in constraint_calls))
+        self.assertTrue(all(not call["disabled"] for call in constraint_calls))
+
+        advanced_labels = {
+            self.t("split_auto_search_pool_size"),
+            self.t("split_auto_search_max_set_evaluations"),
+            self.t("split_auto_search_max_seconds"),
+        }
+        advanced_calls = {
+            call["label"]: call
+            for call in widget_calls
+            if call["kind"] == "number_input"
+            and call["label"] in advanced_labels
+        }
+        self.assertEqual(set(advanced_calls), advanced_labels)
+        self.assertTrue(
+            all(not call["disabled"] for call in advanced_calls.values())
+        )
+        submitted = run_exact.call_args.kwargs
+        self.assertTrue(submitted["require_time_cv"])
+        self.assertTrue(submitted["require_opposite_time_difference"])
+        self.assertEqual(submitted["search_pool_size"], 137)
+        self.assertEqual(submitted["max_set_evaluations"], 4_321)
+        self.assertEqual(submitted["max_search_seconds"], 12.5)
+
+        progress_values = [call.args[0] for call in progress.progress.call_args_list]
+        self.assertEqual(progress_values[-1], 1.0)
+        self.assertTrue(all(value < 1.0 for value in progress_values[:-1]))
+        phase_labels = [
+            call.args[0] for call in phase_placeholder.caption.call_args_list
+        ]
+        self.assertIn(self.t("split_auto_phase_searching"), phase_labels)
+        self.assertIn(self.t("split_auto_phase_finalizing"), phase_labels)
+        self.assertEqual(phase_labels[-1], self.t("split_auto_phase_completed"))
 
     def test_v2_search_defaults_follow_k(self):
         self.assertEqual(_default_constraint_search_pool_size(1), 80)
@@ -165,17 +312,6 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
 
         self.assertIn("dentro dos limites de busca configurados", no_valid)
         self.assertIn("pode haver combinações válidas", limited.lower())
-
-    def test_progress_reserves_completion_for_after_constrained_search(self):
-        source = inspect.getsource(render)
-
-        self.assertIn("generation_progress * 0.50", source)
-        self.assertIn('"searching": (0.65', source)
-        self.assertIn('"finalizing": (0.95', source)
-        self.assertLess(
-            source.index("progress.progress(1.0)"),
-            source.index("ranked_pool = list"),
-        )
 
     def test_approved_set_builds_pending_with_constraint_validation(self):
         candidates = [self._norm_candidate("a"), self._norm_candidate("b")]
@@ -578,19 +714,61 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
         )
         streamlit.dataframe.assert_not_called()
 
-    def test_selection_diagnostics_wraps_generation_and_search_in_one_expander(self):
-        source = inspect.getsource(_render_selection_diagnostics)
+    def test_result_and_fallback_render_localized_selection_diagnostics(self):
+        metadata = {
+            "generation": {
+                "generated_count": 12,
+                "failed_count": 3,
+                "prefilter_applied": False,
+            }
+        }
+        cases = (
+            (
+                _render_execution_result,
+                {"metadata": metadata, "candidates": []},
+            ),
+            (
+                _render_fallback_offer,
+                {"metadata": metadata, "candidates": []},
+            ),
+        )
 
-        self.assertIn('st.expander(t("split_auto_diagnostics_title")', source)
-        self.assertIn("expanded=False", source)
-        self.assertIn("_render_generation_diagnostics", source)
-        self.assertIn("_render_search_diagnostics", source)
-        self.assertIn("split_auto_diagnostics_search_not_applicable", source)
+        for renderer, payload in cases:
+            with self.subTest(renderer=renderer.__name__):
+                columns = []
 
-    def test_execution_result_and_fallback_offer_use_selection_diagnostics(self):
-        for func in (_render_execution_result, _render_fallback_offer):
-            source = inspect.getsource(func)
-            self.assertIn("_render_selection_diagnostics", source)
+                def make_columns(spec):
+                    count = len(spec) if isinstance(spec, list) else spec
+                    group = [Mock() for _ in range(count)]
+                    columns.extend(group)
+                    return group
+
+                with patch("pages.page_split_auto_selection.st") as streamlit:
+                    streamlit.expander.return_value = nullcontext()
+                    streamlit.columns.side_effect = make_columns
+
+                    renderer(payload, self.t)
+
+                metrics = [
+                    call.args
+                    for column in columns
+                    for call in column.metric.call_args_list
+                ]
+                self.assertIn(
+                    (self.t("split_auto_generated_count"), "12"),
+                    metrics,
+                )
+                self.assertIn(
+                    (self.t("split_auto_diagnostics_failed_count"), "3"),
+                    metrics,
+                )
+                streamlit.caption.assert_called_once_with(
+                    self.t("split_auto_diagnostics_search_not_applicable")
+                )
+                self.assertIn(
+                    self.t("split_auto_diagnostics_prefilter_disabled"),
+                    streamlit.write.call_args.args[0],
+                )
 
     def test_time_status_labels_cover_three_states(self):
         self.assertEqual(

@@ -3,7 +3,6 @@
 
 from copy import deepcopy
 from datetime import datetime
-import inspect
 import unittest
 
 from core.split_weather_context import (
@@ -85,13 +84,6 @@ class SplitWeatherContextTest(unittest.TestCase):
         self.assertTrue(any("Temperatura acima" in warning for warning in sync["warnings"]))
         self.assertFalse(any("Press" in warning for warning in sync["invalid_reasons"]))
         self.assertEqual(metadata["wind_above_limit_count"], 2)
-
-    def test_module_does_not_import_streamlit(self):
-        import core.split_weather_context as module
-        source = inspect.getsource(module).lower()
-        self.assertNotIn("import streamlit", source)
-        self.assertNotIn("from streamlit", source)
-
 
 if __name__ == "__main__":
     unittest.main()

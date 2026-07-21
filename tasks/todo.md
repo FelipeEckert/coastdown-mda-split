@@ -485,10 +485,12 @@
 - [x] Pass focused/full tests, Ruff, compile validation, and diff checks.
 - [x] Consolidate five pure-module source checks into one runtime import-boundary test.
 - [x] Pass second-batch focused/full tests, Ruff, compile validation, and diff checks.
-- [ ] Consolidate duplicate coefficient-CV and time-group validator cases.
-- [ ] Replace five remaining page source checks with practical interaction coverage.
-- [ ] Add the five remaining architecture modules to the runtime boundary test.
-- [ ] Mark finding 17 complete only after no `inspect.getsource` cases remain.
+- [ ] Optional follow-up: consolidate duplicate coefficient-CV and time-group behavioral validator cases.
+- [x] Replace the five remaining page source checks with practical interaction coverage.
+- [x] Add the five remaining architecture modules to the runtime boundary test.
+- [x] Confirm zero `inspect.getsource` tests remain.
+- [ ] Confirm the behavioral missing-coefficient guarantee before marking finding 17 complete.
+- [x] Re-run final-batch focused/full tests, Ruff, compile validation, and diff checks.
 
 ## Fixed-condition state compatibility - 2026-07-20
 

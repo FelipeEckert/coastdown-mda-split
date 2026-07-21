@@ -1,7 +1,6 @@
 # coding: utf-8
 """Tests for the pure Split selected-pair deviation diagnostics."""
 
-import inspect
 import statistics
 import unittest
 
@@ -151,14 +150,6 @@ class SplitDeviationAnalysisTest(unittest.TestCase):
         self.assertLess(outlier["new_cv_f0_pct"], outlier["current_cv_f0_pct"])
         self.assertTrue(outlier["largest_f0_improvement"])
         self.assertTrue(outlier["largest_f2_improvement"])
-
-    def test_module_does_not_import_streamlit(self):
-        import core.split_deviation_analysis as module
-        source = inspect.getsource(module).lower()
-        self.assertNotIn("import streamlit", source)
-        self.assertNotIn("from streamlit", source)
-        self.assertFalse(hasattr(module, "st"))
-
 
 if __name__ == "__main__":
     unittest.main()

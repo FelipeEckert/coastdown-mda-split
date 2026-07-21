@@ -442,7 +442,9 @@ finding has been documented but no cleanup or behavior change has been applied.
   literal source fragments, widget keys, or progress constants. The first batch
   converted three page tests to rendered-output checks. The second batch
   consolidated five architecture checks into one runtime import-boundary test.
-  Ten source-inspection tests and the duplicated validator cases remain.
+  The final batch converted or consolidated the remaining ten cases. A test
+  search now finds zero `inspect.getsource` cases, but the missing-coefficient
+  guarantee still needs confirmed behavioral proof before completion.
 - **Why it is a problem:** Safe refactors fail tests despite unchanged behavior,
   while orchestration bugs can pass because the page is never executed.
 - **Risk:** Medium if assertions are deleted before equivalent behavioral or
@@ -453,32 +455,32 @@ finding has been documented but no cleanup or behavior change has been applied.
 - **Validation:** Deliberately rename an internal helper or reformat a page and
   confirm behavioral tests remain stable while an actual workflow regression
   still fails.
-- **Status:** In Progress. Two low-risk batches are complete; the remaining
-  architecture and page-rendering cases stay explicit below rather than being
-  deleted without equivalent coverage.
+- **Status:** In Progress. The final review found that the initial behavioral
+  replacement did not prove the absence of a coefficient-based constraint.
+  An exact localized constraint-group assertion is staged for confirmation.
 
 #### Inventory and classification (2026-07-21)
 
 | Test | Brittle dependency | Class | Decision |
 |---|---|---:|---|
-| `test_split_auto_selection.py::test_module_does_not_import_streamlit` | `inspect.getsource` for two modules | 4 | Consolidate later into one runtime import-boundary test. |
+| `test_split_auto_selection.py::test_module_does_not_import_streamlit` | `inspect.getsource` for two modules | 4 | Consolidated in the final batch into the runtime import-boundary test. |
 | `test_split_candidate_generation.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidated in batch two into the runtime import-boundary test. |
 | `test_split_candidate_set_validation.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidated in batch two into the runtime import-boundary test. |
 | `test_split_comparison_merge.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidated in batch two into the runtime import-boundary test. |
-| `test_split_deviation_analysis.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
-| `test_split_pair_candidate.py::test_module_does_not_depend_on_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
-| `test_split_selection_algorithms.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
+| `test_split_deviation_analysis.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidated in the final batch into the same import-boundary test. |
+| `test_split_pair_candidate.py::test_module_does_not_depend_on_streamlit` | `inspect.getsource` | 4 | Consolidated in the final batch into the same import-boundary test. |
+| `test_split_selection_algorithms.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidated in the final batch into the same import-boundary test. |
 | `test_split_time_validation.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidated in batch two into the runtime import-boundary test. |
 | `test_split_vehicle_mass.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidated in batch two into the runtime import-boundary test. |
-| `test_split_weather_context.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
-| `test_render_has_only_two_default_enabled_time_constraint_checkboxes` | widget-key fragments and nearby `value=True` text | 2 | Keep until the page has a practical interaction fixture. |
-| `test_render_exposes_advanced_v2_search_controls` | widget keys and call-argument fragments | 2 | Keep until AppTest can execute this state safely. |
+| `test_split_weather_context.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidated in the final batch into the same import-boundary test. |
+| `test_render_has_only_two_default_enabled_time_constraint_checkboxes` | widget-key fragments and nearby `value=True` text | 2 | Replaced in the final batch with an isolated render-path test. |
+| `test_render_exposes_advanced_v2_search_controls` | widget keys and call-argument fragments | 2 | Consolidated into the same render-path test. |
 | `test_search_diagnostic_exposes_v2_strategy_and_counts` | renderer translation-key fragments | 1 | Replaced now with emitted metric values and limit-warning behavior. |
-| `test_progress_reserves_completion_for_after_constrained_search` | exact progress constants and statement order | 2 | Keep until the full run action can be driven behaviorally. |
+| `test_progress_reserves_completion_for_after_constrained_search` | exact progress constants and statement order | 2 | Consolidated into the final render-path test. |
 | `test_normative_constraint_diagnostic_omits_coefficient_cv` | absence of coefficient field names in source | 1 | Replaced now with the rendered six-row time diagnostic. |
 | `test_generation_diagnostics_show_counts_and_prefilter_per_group` | metadata and translation-key fragments | 1 | Replaced now with emitted counts, status, and table values. |
-| `test_selection_diagnostics_wraps_generation_and_search_in_one_expander` | helper names and expander source | 2 | Keep until observable wrapper behavior replaces call structure. |
-| `test_execution_result_and_fallback_offer_use_selection_diagnostics` | helper-name fragments | 2 | Keep until both rendering paths have stable behavioral fixtures. |
+| `test_selection_diagnostics_wraps_generation_and_search_in_one_expander` | helper names and expander source | 2 | Removed after both parent rendering paths gained semantic output coverage. |
+| `test_execution_result_and_fallback_offer_use_selection_diagnostics` | helper-name fragments | 2 | Replaced with direct behavioral coverage of both rendering paths. |
 | `test_candidate_set_validation_keeps_f0_cv_as_diagnostic` | duplicated validator case | 3 | Remove later after strengthening the dedicated case. |
 | `test_candidate_set_validation_keeps_f2_cv_as_diagnostic` | duplicated validator case | 3 | Remove later after strengthening the dedicated case. |
 | `test_candidate_set_validation_fails_time_group_cv` | duplicated validator case | 3 | Remove later; the dedicated test covers the same check. |
@@ -505,6 +507,21 @@ equivalent behavioral coverage exists; 4 = consolidate duplicated coverage.
 | Comparison-merge module boundary | Source omitted Streamlit imports and `st`. | A fresh process imports the module while `streamlit` is unavailable. | Stronger: aliases and indirect imports are covered. | Yes; folded into the shared boundary test. |
 | Time-validation module boundary | Source omitted Streamlit imports and `st`. | A fresh process imports the module while `streamlit` is unavailable. | Stronger: harmless formatting no longer matters, but a real dependency fails. | Yes; folded into the shared boundary test. |
 | Vehicle-mass module boundary | Source omitted the word `streamlit`. | A fresh process imports the module while `streamlit` is unavailable. | Stronger: comments and identifiers no longer fail the test; runtime coupling does. | Yes; folded into the shared boundary test. |
+
+#### Final-batch replacements (remaining ten cases)
+
+| Test or guarantee | Previous source-level assertion | Replacement behavior | Why equivalent or stronger | Duplicate removed |
+|---|---|---|---|---|
+| Auto-selection and candidate-set module boundary | Both module sources omitted Streamlit imports and `st`. | Each named module imports in its own fresh process while Streamlit is unavailable. | Direct and indirect runtime coupling now fails; candidate-set remains independently covered without a second source scan. | Yes; consolidated into the shared boundary test. |
+| Default time constraints | Two widget-key fragments had nearby `value=True`, and a coefficient key was absent. | The rendered constraint group is asserted to contain exactly the two translated time constraints, both enabled, and both values reach the orchestrator. | Behavioral proof is staged; completion remains pending review. | Consolidated with the advanced-settings render test. |
+| Advanced V2 search controls | Three widget keys and three argument fragments appeared in source. | The rendered translated controls accept distinct values and the orchestrator receives those exact values. | It proves user input reaches execution, which source presence could not establish. | Consolidated with the default-constraints render test. |
+| Progress completion | Source contained exact progress constants and placed `1.0` before a later statement. | During an executed render, all phase updates stay incomplete and completion is emitted only after the orchestrator returns; translated phase captions are observed. | It preserves the visible completion contract without locking internal percentages or statement order. | Consolidated with the render execution test. |
+| Diagnostics wrapper | Source named one expander and two private helpers. | Both parent rendering paths emit translated generation metrics, prefilter status, and the search-not-applicable caption. | Semantic output remains covered; expander state, Markdown styling, and private call structure are not contracts. | Yes; the standalone wrapper-layout test was removed. |
+| Execution-result and fallback diagnostics | Both function sources named the private diagnostics helper. | Direct invocation of each renderer emits the same translated diagnostic semantics. | It proves both paths expose diagnostics rather than merely containing a call fragment. | Consolidated into one subtested behavioral case. |
+| Deviation-analysis module boundary | Source omitted Streamlit imports and `st`. | The named module imports in a fresh process while Streamlit is unavailable. | Runtime dependency isolation is stronger and formatting-independent. | Yes; consolidated into the shared boundary test. |
+| Pair-candidate module boundary | Source omitted Streamlit imports and `st`. | The named module imports in a fresh process while Streamlit is unavailable. | Runtime dependency isolation is stronger and formatting-independent. | Yes; consolidated into the shared boundary test. |
+| Selection-algorithms module boundary | Source omitted Streamlit imports and `st`. | The named module imports in a fresh process while Streamlit is unavailable. | Runtime dependency isolation is stronger and formatting-independent. | Yes; consolidated into the shared boundary test. |
+| Weather-context module boundary | Source omitted Streamlit imports. | The named module imports in a fresh process while Streamlit is unavailable. | Runtime dependency isolation is stronger and also catches indirect imports. | Yes; consolidated into the shared boundary test. |
 
 ## Risky Findings Requiring Manual Validation
 

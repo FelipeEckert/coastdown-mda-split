@@ -1,7 +1,6 @@
 # coding: utf-8
 """Tests for automatic Split pair candidate helpers."""
 
-import inspect
 import unittest
 
 from core.split_comparison import (
@@ -215,15 +214,6 @@ class SplitPairCandidateTest(unittest.TestCase):
         self.assertAlmostEqual(candidate["weather_summary"]["wind_speed_mps_max"], 1.3)
         self.assertEqual(candidate["weather_summary"]["status"], "ok")
         self.assertTrue(candidate["correction_available"])
-
-    def test_module_does_not_depend_on_streamlit(self):
-        import core.split_pair_candidate as module
-
-        source = inspect.getsource(module)
-
-        self.assertNotIn("import streamlit", source.lower())
-        self.assertNotIn("from streamlit", source.lower())
-        self.assertFalse(hasattr(module, "st"))
 
     def test_missing_identity_values_are_controlled(self):
         runs = self._runs()

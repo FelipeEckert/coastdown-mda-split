@@ -1,7 +1,6 @@
 # coding: utf-8
 """Tests for pure Split automatic selection ranking helpers."""
 
-import inspect
 import math
 import unittest
 from unittest.mock import patch
@@ -528,16 +527,6 @@ class SplitSelectionAlgorithmsTest(unittest.TestCase):
         self.assertEqual(marked[0]["algorithm_source"], "target")
         self.assertFalse(marked[0]["selected_by_energy_algo"])
         self.assertTrue(marked[0]["selected_by_target_algo"])
-
-    def test_module_does_not_import_streamlit(self):
-        import core.split_selection_algorithms as module
-
-        source = inspect.getsource(module)
-
-        self.assertNotIn("import streamlit", source.lower())
-        self.assertNotIn("from streamlit", source.lower())
-        self.assertFalse(hasattr(module, "st"))
-
 
 def _cartesian_pool_candidates(n=12, seed=42, use_mad_prefilter=False):
     """Build a realistic high+/low+/high-/low- cartesian candidate pool.

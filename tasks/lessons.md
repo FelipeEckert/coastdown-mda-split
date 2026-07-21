@@ -2571,3 +2571,24 @@ essa dependencia. A prova cobre imports diretos e indiretos e nao quebra por
 comentarios, aliases ou formatacao.
 
 ---
+
+## 2026-07-21 - Fluxos renderizados devem provar valores enviados e conclusao
+
+### Contexto:
+Os ultimos testes de fonte da selecao automatica verificavam chaves de widgets,
+argumentos escritos no codigo, constantes de progresso e chamadas entre helpers.
+
+### Decisao:
+O teste passou a executar `render` com estado isolado, entradas traduzidas e
+valores distintos, confirmando os argumentos recebidos pelo orquestrador e que
+100% so aparece apos seu retorno. O grupo de restricoes deve conter exatamente
+as duas restricoes temporais traduzidas. Resultado e fallback sao chamados
+diretamente e precisam emitir a mesma semantica diagnostica localizada, sem
+fixar estado de expander ou formatacao Markdown.
+
+### Licao:
+Em paginas Streamlit, prove a fronteira observavel: valor escolhido, dado enviado,
+fase exibida e resultado renderizado. Nomes de chaves, percentuais intermediarios
+e a cadeia de helpers privados nao precisam fazer parte do contrato.
+
+---

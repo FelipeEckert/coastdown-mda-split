@@ -8,11 +8,16 @@ import unittest
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 STREAMLIT_FREE_MODULES = (
+    "core.split_auto_selection",
     "core.split_candidate_generation",
     "core.split_candidate_set_validation",
     "core.split_comparison_merge",
+    "core.split_deviation_analysis",
+    "core.split_pair_candidate",
+    "core.split_selection_algorithms",
     "core.split_time_validation",
     "core.split_vehicle_mass",
+    "core.split_weather_context",
 )
 
 
