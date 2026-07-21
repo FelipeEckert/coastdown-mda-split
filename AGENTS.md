@@ -4,7 +4,7 @@
 
 This repository is the **Coastdown MDA Split** project.
 
-It was created from the existing `cd-streamlit` / Coastdown MDA Standard codebase, but it must evolve into a separate application dedicated to the **Split method** for coastdown analysis according to ABNT NBR 10312.
+It was created from the existing `cd-streamlit` / Coastdown MDA Standard codebase and now has a separate active application workflow dedicated to the **Split method** for coastdown analysis according to ABNT NBR 10312.
 
 The Standard and Split methods must remain separated. This project may reuse neutral infrastructure from the Standard application, but the Split parser, workflow, calculations, validation rules and reports must be reviewed and implemented specifically for the Split method.
 
@@ -27,7 +27,7 @@ Reusable areas may include:
 - Excel export infrastructure;
 - general utility functions.
 
-Areas expected to change:
+Split-specific areas must remain owned and validated by Split modules:
 
 - parser;
 - data model;
@@ -35,6 +35,21 @@ Areas expected to change:
 - coefficient calculations;
 - validation rules;
 - final report content.
+
+---
+
+## Current Ownership
+
+- Active navigation: `page_2_dados_veiculo.py`, `page_split_workflow.py`,
+  `page_split_coefficient_calculation.py`, `page_split_final_comparison.py`, and
+  `page_split_results.py`.
+- Automatic Selection is a sub-tab rendered by `page_split_auto_selection.py`.
+- `data/split_parser.py` owns Split parsing; `data/split_exporters.py` owns the
+  Split workbook; `data/weather_loader.py` owns weather-file loading.
+- `core/split_*.py` modules own Split calculations, correction, validation,
+  automatic selection, state, comparison, and results.
+- Inherited pages 3-6 and `data/exporters.py` are legacy Standard surfaces, not
+  active Split owners. Preserve compatibility until their separate audit is done.
 
 ---
 
@@ -189,7 +204,7 @@ low_start > low_reference > low_end
 
 ---
 
-## Project Structure (Target)
+## Current Project Structure
 
 ```text
 coastdown-mda-split/
@@ -200,6 +215,8 @@ coastdown-mda-split/
 ├── pages/
 ├── core/
 ├── data/
+├── docs/
+├── tests/
 ├── utils/
 └── tasks/
 ```
@@ -224,13 +241,11 @@ Track everything in:
 
 ---
 
-## First Development Phase
+## Initial Development Phase (Completed)
 
-- rename app to Split
-- hide Standard pages
-- create Split modules
-- implement parser base
-- implement coefficient function
+The app identity, active Split navigation, Split parser base, Split modules, and
+coefficient function are implemented. Current pending work belongs in
+`tasks/todo.md`; detailed implementation history belongs in `tasks/lessons.md`.
 
 ---
 

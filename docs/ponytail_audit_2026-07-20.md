@@ -412,7 +412,19 @@ finding has been documented but no cleanup or behavior change has been applied.
   sections as historical. Preserve durable lessons.
 - **Validation:** Check every documented path and owner against the current
   import graph.
-- **Status:** Pending
+- **Resolution (2026-07-21):** `AGENTS.md` and `CLAUDE.md` now name the active
+  Split pages and current parser, weather, result, and workbook owners.
+  Implemented export and automatic-selection tracker items are closed; obsolete
+  milestones and round-local limitations remain available but are explicitly
+  historical or superseded. The automatic-selection plan now separates current
+  behavior, deferred work, and its implementation history. The independent
+  coefficient-sign conflict remains assigned to finding 19 and was not changed.
+- **Validation result:** Repository-wide stale-name and ownership searches found
+  only explicitly historical, legacy, removed, or intentionally nonexistent
+  references. Documented active paths were checked against the import graph;
+  Markdown fences and local links are balanced/valid, non-document hashes are
+  unchanged, and `git diff --check` passes.
+- **Status:** Completed
 
 ## Test Coverage Gaps
 

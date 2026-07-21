@@ -75,7 +75,7 @@
 - [x] Include parser traceability
 - [x] Include calculation inputs and outputs
 - [x] Include validation warnings
-- [ ] Add weather/meteo inputs and sync audit to Split Excel when calculation integration is finalized
+- [x] Include weather/meteo inputs and synchronization audit in the Split workbook owned by `data/split_exporters.py`.
 - [ ] Decide final normative report layout and units wording
 - [ ] Manually validate the complete mass workflow in the running Streamlit app, including manual calculation, automatic selection, Results and downloaded Excel.
 
@@ -128,7 +128,7 @@
 - [x] Move the complete comparison table/cards out of Coefficient Calculation into `page_split_final_comparison.py`.
 - [x] Final Comparison uses the Standard page as a visual template: batch actions, compact column rows, per-row selection/removal and source colors.
 - [x] Comparison table includes four runs, corrected F0/F2, energy, directional ambient conditions and warning status.
-- [x] Manual pairs store `selection_source="manual"`; the table contract already supports future `selection_source="algorithm"`.
+- [x] Manual pairs store `selection_source="manual"`; automatic suggestions use the same table contract with `selection_source="algorithm"`.
 - [x] Add persistent pair selection and compact remove/clear controls without Standard selection state.
 - [x] Comparison cards show directional meteo sync data and identify the conditions used by climatic correction.
 - [x] Split Results consolidates only pairs marked `selected` in `split_comparison_pairs`.
@@ -153,7 +153,7 @@
 - [x] Add Final Comparison visual legend and selected-row highlighting for corrected Split pairs.
 - [x] Align Final Comparison table cells with fixed 50px height, full-width flex cells and centered row controls.
 - [x] Stack Split Final Comparison ambient ida/volta values and standardize table coefficients to F0 `.2f` and F2 `.4f`.
-- [ ] Adapt the Split Excel exporter to the new selected-pair consolidation contract; the UI keeps export disabled until then.
+- [x] Adapt `data/split_exporters.py` to the selected-pair consolidation contract and restore explicit export generation in Split Results.
 - [ ] Run manual regression in the app before first commit: create test, replace high, replace low, remove low, replace meteo, remove meteo.
 - [ ] Run manual regression with one high-only CSV and confirm calculation remains blocked with friendly warning.
 - [ ] Run manual regression with one low-only CSV and confirm calculation remains blocked with friendly warning.
@@ -180,7 +180,7 @@
 - [ ] Decide how declared coastdown timezone should be mapped when the weather file has no timezone metadata.
 - [x] Apply isolated climatic correction from f'0/f'2 to F0/F2 using fixed or synchronized conditions.
 - [ ] Complete normative validation of `Kt`, `Kp`, reference conditions and F2 unit conversion for Split.
-- [ ] Add all four `ambient_by_component` records to Split results export/report.
+- [x] Add all four `ambient_by_component` records to Split Results and the Split workbook.
 
 ## Energy status
 - [x] Energy is calculated from corrected `F0_mean/F2_mean` and shown in Split results and comparison surfaces.
@@ -209,7 +209,7 @@
 - [x] Reuse `consolidate_split_final_results()` and `analyze_split_selected_deviations()` without UI formula duplication.
 - [x] Show vehicle data, final F0/F2, CVs, energy, validation, selected-pair table, weather and traceability.
 - [x] Create pure `data/split_exporters.py` without Streamlit imports.
-- [x] Export Resumo Final, Dados do Veículo, Pares Selecionados, Análise de Desvios, Tempos deltaT, Meteorologia and Rastreabilidade sheets.
+- [x] Historical milestone (superseded): exported seven dedicated sheets before the workbook was consolidated into three sheets.
 - [x] Add export tests for valid XLSX, sheets, selected-only filtering, missing values, weather alerts, immutability and Streamlit independence.
 - [ ] Complete real-browser validation of selection refresh, page layout, download and Excel/UI value comparison.
 
@@ -225,19 +225,19 @@
 - [x] Record `split_processed_at` when a draft is explicitly promoted to processed configuration.
 - [ ] Run manual regression for edit, stale-preview, processing-error and successful-reprocessing states.
 - [ ] Review date/timezone policy for files with ambiguous dates or missing timezone metadata.
-- [ ] Add meteo synchronization details to Split Excel export without applying climatic correction implicitly.
+- [x] Add meteo synchronization details to the Split workbook without applying climatic correction implicitly.
 - [ ] Continue visual polish after functional validation; keep technical meteo warnings collapsed by default.
 - [ ] Validate the Final Comparison table manually with a larger number of pairs and narrow desktop widths.
 - [ ] Manually recheck Final Comparison checkbox/batch/remove/results navigation with real browser state after the Streamlit session-state fix.
 - [x] Add Split-specific Delta T conformity diagnostics for selected Final Comparison pairs by reusing `core/split_time_validation.py`.
-- [ ] Connect future automatic Split selection to `selection_source="algorithm"` without importing the Standard algorithm workflow.
+- [x] Connect automatic Split selection to `selection_source="algorithm"` without importing the Standard algorithm workflow.
 - [x] Audit the current manual Split pair calculation and comparison contracts before implementing automatic selection algorithms.
 - [x] Extract a pure Split candidate-builder helper that reuses `calculate_complete_split_pair`, `apply_split_pair_correction` and `build_split_comparison_pair`.
-- [x] Ensure future automatic Split candidates enter `split_comparison_pairs` with `selection_source="algorithm"` and `selected=False`.
+- [x] Ensure automatic Split candidates enter `split_comparison_pairs` with `selection_source="algorithm"` and `selected=False`.
 - [x] Add pure ranking and top-k selection helpers for automatic Split candidates.
 - [x] Add pure normative time diagnostics for selected automatic Split candidates.
 - [x] Add pure automatic-candidate enumeration from grouped Split runs without UI state.
-- [ ] Implement normative time/direction validation for generated automatic candidates before UI integration.
+- [x] Implement normative time/direction validation and constraint-first selection for generated automatic candidates.
 - [x] Implement exact complete-candidate generation from grouped high+/low+/high-/low- Split runs.
 - [x] Create a pure automatic-selection orchestrator combining exact generation, ranking, top-k and time diagnostics.
 - [x] Create a pure merge helper for adding automatic candidates to `split_comparison_pairs` without selecting final results.
@@ -268,10 +268,10 @@
 - [x] Confirm the main app navigation imports only Vehicle Data and Split pages.
 - [x] Confirm active Split modules do not read `calculated_pairs`, `pares_finais_selecionados`, `algorithm_results`, `f0_corr` or `f2_corr`.
 - [x] Confirm Standard pages 3-6 are outside the active Split navigation.
-- [x] Confirm Split Excel is generated by `page_split_results.generate_split_excel`, not `data/exporters.py`.
+- [x] Historical checkpoint (superseded): Split Excel was generated by the Results page rather than the Standard `data/exporters.py`.
 - [ ] Stop eager Standard imports from `core/__init__.py` and `data/__init__.py` while preserving public compatibility where required.
 - [ ] Split `data/loaders.py` into a neutral VBOX reader plus explicit Split and Standard adapters.
-- [ ] Move `generate_split_excel` from the Streamlit page into a dedicated Split export module.
+- [x] Move Split workbook generation into `data/split_exporters.py` as `export_split_final_results_to_excel`; keep `page_split_results.py` as the UI caller.
 - [ ] Move the pure `calcular_energia(f0, f2)` kernel to a neutral module, keeping a compatibility wrapper in `core/calculations.py`.
 - [ ] Mark old Split attempts in `core/calculations.py` as quarantined/deprecated and remove them only after confirming no external consumer imports them.
 - [ ] Keep `core/corrections.py`, `data/exporters.py`, `utils/pair_time_analysis.py` and pages 3-6 isolated as Standard legacy.
@@ -483,6 +483,16 @@
   formula bodies with schema or compatibility adapters.
 - [x] Pass focused/existing correction tests, the 370-test full suite, scoped
   Ruff, compile validation and diff checks.
+
+## Audit finding 15 - Documentation ownership and workflow - 2026-07-21
+
+- [x] Inventory current guidance, trackers, the automatic-selection plan, and
+  directly referenced documentation against active navigation and imports.
+- [x] Correct active page names and parser, weather, results, and exporter ownership.
+- [x] Mark superseded milestones and round-local design limitations as historical.
+- [x] Separate implemented automatic-selection behavior from deferred work.
+- [x] Preserve the coefficient sign ambiguity for the dedicated finding 19 decision.
+- [x] Verify paths, ownership statements, Markdown links, non-document scope, and diff hygiene.
 
 ## Audit finding 16 - Streamlit orchestration coverage - 2026-07-20
 

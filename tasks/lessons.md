@@ -36,6 +36,10 @@ git commit -m "Add Split graphical analysis sections"# Lições Aprendidas - Coa
 ## Split-specific lessons
 
 Registrar aqui decisoes e aprendizados especificos do metodo Split.
+Entradas datadas registram o estado da respectiva rodada. Termos como "futuro",
+"ainda nao" e nomes de paginas herdadas nao descrevem ownership atual quando uma
+entrada posterior os substitui; consulte `CLAUDE.md` e `tasks/todo.md` para o
+estado operacional corrente.
 
 ## 2026-06-12 - Split: Graficos Devem Projetar O Estado Parseado
 
@@ -386,6 +390,10 @@ DataFrame carregado.
 
 ## 2026-06-08 - Split: Meteo Neutro Ainda Nao E Calculo Split
 
+**Status atual: superseded.** A sincronizacao meteorologica por componente, a
+correcao Split e sua rastreabilidade no workbook foram implementadas depois desta
+decisao inicial. A licao sobre nao presumir equivalencia metodologica permanece.
+
 ### Contexto:
 O loader meteorologico herdado e util e aparentemente neutro, mas o metodo Split
 ainda precisa decidir como aplicar meteo/correcao/auditoria no calculo e export.
@@ -405,6 +413,8 @@ esta implementada.
 
 As lições abaixo foram herdadas do projeto Standard e devem ser usadas apenas quando forem metodologicamente neutras.
 Não aplicar diretamente regras específicas do método Standard ao método Split.
+Referencias a `page_3`, `page_4`, `calculated_pairs` e outros estados Standard
+sao contexto historico, nao ownership do fluxo Split ativo.
 
 ## 2026-04-24 - Correção Climática Muda Unidades, Não Só Valores
 
@@ -1302,8 +1312,8 @@ acoes discretas. A implementacao permanece sobre `split_comparison_pairs` e help
 puros de `core/split_comparison.py`.
 
 Cada par guarda `selection_source` (`manual`, `algorithm` ou `unknown`) e `selected`.
-Pares adicionados pela UI atual sao sempre `manual`. A futura selecao automatica
-devera apenas produzir o mesmo contrato Split com origem `algorithm`, sem importar
+Naquela rodada, pares adicionados pela UI eram sempre `manual`. A selecao automatica
+implementada depois usa o mesmo contrato Split com origem `algorithm`, sem importar
 `calculated_pairs`, `algorithm_results`, `pares_finais_selecionados`,
 `f0_corr/f2_corr` ou regras de selecao Standard.
 
@@ -1559,10 +1569,10 @@ padrao visual compacto do Standard como referencia, com borda suave,
 arredondamento, `display:flex` e conteudo centralizado.
 
 ### Licao:
-Referencia visual nao autoriza criar significado operacional inexistente. Se o
-Split ainda nao possui selecao automatica por energia/target, a legenda deve
-explicar apenas os estados persistidos em `split_comparison_pairs` e os limites
-visuais aplicados na propria tela.
+Referencia visual nao autoriza criar significado operacional inexistente. Naquela
+rodada, antes da selecao automatica por energia/target, a legenda explicava apenas
+os estados persistidos em `split_comparison_pairs`. A regra duravel continua sendo
+renderizar somente origens e estados realmente persistidos.
 
 ---
 
@@ -1602,11 +1612,12 @@ o contrato numerico.
 ## 2026-06-19 - Split: Algoritmo Automatico Deve Reusar O Motor Manual
 
 ### Decisao:
-A auditoria para a futura selecao automatica confirmou que o fluxo manual ativo ja
-possui a cadeia de calculo que deve ser reutilizada: `calculate_complete_split_pair`,
-`apply_split_pair_correction` e `build_split_comparison_pair`. A proxima etapa deve
-extrair um helper puro de candidato automatico sobre essa cadeia, sem duplicar
-formulas e sem importar o workflow legado de `page_4_selecao_algoritmo.py`.
+A auditoria anterior a selecao automatica confirmou que o fluxo manual ativo ja
+possuia a cadeia de calculo que deveria ser reutilizada: `calculate_complete_split_pair`,
+`apply_split_pair_correction` e `build_split_comparison_pair`. A etapa seguinte,
+depois implementada, extraiu um helper puro de candidato automatico sobre essa
+cadeia, sem duplicar formulas nem importar o workflow legado de
+`page_4_selecao_algoritmo.py`.
 
 Pares sugeridos por algoritmo devem entrar em `split_comparison_pairs` com
 `selection_source="algorithm"` e `selected=False`. A selecao final continua sendo
@@ -1616,8 +1627,9 @@ uma decisao manual do usuario no Comparativo Final.
 No Split, "sugerir candidato" e "selecionar para o resultado final" sao estados
 diferentes. O algoritmo pode preencher o comparativo, mas nao deve marcar o par
 como selecionado. Flags visuais de energia/target devem ser adicionadas ao contrato
-Split de forma explicita, porque hoje a tela ativa reconhece origem generica
-`algorithm`, par selecionado, par sem correcao e CV alto.
+Split de forma explicita. Naquela rodada, a tela ativa reconhecia apenas origem
+generica `algorithm`, par selecionado, par sem correcao e CV alto; as origens de
+energia/target foram implementadas depois.
 
 ---
 
@@ -2616,5 +2628,20 @@ Antes de consolidar APIs nominalmente equivalentes, caracterize cada contrato
 publico separadamente. Wrappers devem preservar schema, erros e precisao, e um
 import local e a menor solucao quando o modulo canonico ja depende do modulo de
 compatibilidade para outra funcao.
+
+---
+
+## 2026-07-21 - Ownership Atual Fica Nos Guias; Historico Fica Nas Licoes
+
+### Decisao:
+
+`AGENTS.md` e `CLAUDE.md` mantem apenas a navegacao e o ownership atuais. Planos e
+entradas datadas preservam decisoes de cada rodada, mas identificam explicitamente
+quando uma limitacao foi superseded. `tasks/todo.md` e a fonte de status corrente.
+
+### Licao:
+
+Um registro historico nao deve ser apagado quando o sistema evolui, mas precisa de
+um limite temporal claro para nao competir com a documentacao operacional.
 
 ---

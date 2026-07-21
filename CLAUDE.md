@@ -11,7 +11,8 @@
 veicular pelo **método Split**, conforme ABNT NBR 10312.
 
 Repositório: https://github.com/FelipeEckert/coastdown-mda-split
-Branch ativo: `setup/split-project`
+Branch de trabalho: confirme com `git branch --show-current`; não fixe orientação
+do projeto a uma branch temporária.
 
 O projeto foi criado a partir do codebase Standard (`cd-streamlit`), mas toda
 lógica de método é Split pura. Standard e Split **nunca** se misturam.
@@ -54,12 +55,13 @@ coastdown-mda-split/
 ├── .streamlit/
 │   └── config.toml
 │
-├── pages/                          # Páginas do fluxo Split
+├── pages/                          # Páginas do fluxo Split ativo
 │   ├── page_2_dados_veiculo.py     # Dados do veículo e massa efetiva
-│   ├── page_3_intervalo.py         # Seleção de intervalo (Interval Selection)
-│   ├── page_4_analise_pares.py     # Análise de pares (Coefficient Calculation)
-│   ├── page_5_comparativo.py       # Comparativo final e seleção
-│   └── page_6_resultados.py        # Resultados e exportação Excel
+│   ├── page_split_workflow.py      # Entrada, intervalos e parser Split
+│   ├── page_split_coefficient_calculation.py  # Cálculo, gráficos e seleção automática
+│   ├── page_split_auto_selection.py           # Subaba de seleção automática
+│   ├── page_split_final_comparison.py         # Comparativo final e seleção
+│   └── page_split_results.py       # Resultados e acionamento da exportação
 │
 ├── core/                           # ⚠️ Módulos puros — sem Streamlit
 │   ├── split_calculations.py       # f'0, f'2, ΔV, fórmulas normativas
@@ -71,11 +73,15 @@ coastdown-mda-split/
 │   ├── split_auto_selection.py     # Orquestrador de seleção automática
 │   ├── split_time_validation.py    # CV e diferença entre sentidos
 │   ├── split_comparison_merge.py   # Merge de candidatos no comparativo
+│   ├── split_results.py            # Consolidação final Split
+│   ├── split_state.py              # Estado e invalidação do fluxo Split
 │   └── split_energy.py             # Cálculo de energia (Split)
 │
 ├── data/
-│   ├── loaders.py                  # Carrega CSV e meteo
-│   └── exporters.py                # Exporta Excel
+│   ├── loaders.py                  # Leitor VBOX herdado e neutro
+│   ├── weather_loader.py           # Carregamento meteorológico
+│   ├── split_parser.py             # Parser e rastreabilidade Split
+│   └── split_exporters.py          # Workbook Excel Split
 │
 ├── utils/
 │   └── file_utils.py
@@ -93,7 +99,7 @@ coastdown-mda-split/
 
 | Aspecto | Standard | Split |
 |---|---|---|
-| Entrada | Curva contínua de desaceleração | Dois intervalos de velocidade fixos |
+| Entrada | Curva contínua de desaceleração | Dois intervalos de velocidade configurados |
 | Saída | F0, F2 por regressão | f'0, f'2 por sistema de 2 equações |
 | "Par" | Uma passada + (ida) + uma passada − (volta) | high+, high−, low+, low− (4 componentes) |
 | Validação principal | CV F0/F2 ≤ 10% | CV Δt ≤ 2,5% por grupo; \|Δmédias\| ≤ 10% entre sentidos |
@@ -199,19 +205,20 @@ select_top_k_candidates_with_constraints_v2()   ← constraint-first
 Resultado aprovado  ou  Fallback explícito (confirmação do usuário)
 ```
 
-### Por que trava
+### Diagnóstico histórico de desempenho
 
-O custo está na **geração**, não na busca constrained. Com 12 runs por grupo,
+Antes da implementação do pré-filtro MAD, o custo principal estava na
+**geração**, não na busca constrained. Com 12 runs por grupo,
 `build_algorithm_split_pair_candidate` é chamado 12⁴ = 20.736 vezes, cada
 chamada fazendo cálculo completo (f'0/f'2 + correção climática + energia).
-O ranking e a busca constrained, que já têm budgets configurados, são rápidos
-em comparação.
+O pré-filtro atual reduz os grupos antes desse produto; o limite explícito de
+combinações continua protegendo conjuntos grandes.
 
 ---
 
-## Algoritmo de Seleção Automática — Pré-filtro Proposto
+## Algoritmo de Seleção Automática — Pré-filtro Implementado
 
-### Objetivo
+### Comportamento atual
 
 Reduzir o pool de cada grupo (high+, high−, low+, low−) **antes** do produto
 cartesiano, usando apenas os Δt brutos dos runs — sem cálculo de coeficientes.
@@ -242,7 +249,8 @@ Uma run é marcada como outlier se seu Δt ultrapassar o threshold.
 ### Regras de segurança
 
 1. **Pool mínimo garantido:** o pré-filtro nunca reduz um grupo abaixo de
-   `min(len(group), min_pool_size)` runs. Default `min_pool_size = k + 2`.
+   `min(len(group), min_pool_size)` runs. O orquestrador usa
+   `min_pool_size = max(k + 2, 4)`.
    Se o filtro removeria demais, relaxa o threshold até preservar o mínimo.
 
 2. **Grupo pequeno (< 3 runs):** pré-filtro é pulado — sem runs suficientes
@@ -254,13 +262,13 @@ Uma run é marcada como outlier se seu Δt ultrapassar o threshold.
    por grupo e qual threshold foi usado.
 
 5. **Parâmetros configuráveis:** `mad_multiplier` (default 2.5) e
-   `min_pool_size` (default k + 2) passados pelo orquestrador.
+   `min_pool_size`, calculado pelo orquestrador.
 
-### Onde implementar
+### Ownership
 
 **Arquivo:** `core/split_candidate_generation.py`
 
-**Nova função pura:**
+**Função pura:**
 ```python
 def filter_group_by_mad(
     records: list[dict],
@@ -275,11 +283,10 @@ def filter_group_by_mad(
     """
 ```
 
-**Ponto de chamada:** dentro de `split_runs_by_role_and_heading()` ou como
-etapa separada em `generate_full_split_candidates_exact()`, antes de
-`iter_full_candidate_run_groups()`.
+`generate_full_split_candidates_exact()` aplica o filtro antes de enumerar o
+produto cartesiano e registra diagnósticos por grupo.
 
-**Assinatura recomendada para o orquestrador:**
+**Parâmetros da geração:**
 ```python
 def generate_full_split_candidates_exact(
     split_parsed_runs: dict,
@@ -289,9 +296,9 @@ def generate_full_split_candidates_exact(
     candidate_builder=None,
     max_combinations: int | None = None,
     progress_callback=None,
-    use_mad_prefilter: bool = True,       # novo
-    mad_multiplier: float = 2.5,          # novo
-    mad_min_pool_size: int | None = None, # novo — default: k+2 via orquestrador
+    use_mad_prefilter: bool = True,
+    mad_multiplier: float = 2.5,
+    mad_min_pool_size: int = 4,
 ) -> tuple[list[dict], dict]:
 ```
 
@@ -300,14 +307,14 @@ def generate_full_split_candidates_exact(
 `run_split_auto_selection_exact()` em `split_auto_selection.py` passa k para
 o gerador e calcula `mad_min_pool_size = max(requested_k + 2, 4)`.
 
-### O que NÃO mudar
+### Limites de ownership
 
 - A busca constrained (`select_top_k_candidates_with_constraints_v2`) não muda.
 - O validador de conjuntos (`validate_split_candidate_set`) não muda.
 - O ranking (energia ou target) não muda.
 - O fallback explícito não muda.
-- Nenhum arquivo de `core/` fora de `split_candidate_generation.py` e
-  `split_auto_selection.py` precisa ser tocado.
+- O filtro pertence a `split_candidate_generation.py`; a configuração pertence
+  ao orquestrador `split_auto_selection.py`.
 
 ---
 
@@ -326,16 +333,19 @@ st.session_state.tests = {
         "split_input_version": 1,       # incrementa ao trocar arquivo
 
         # Dados do veículo
-        "vehicle_model": "...",
-        "test_date": "...",
-        "running_order_mass_kg": 1300.0,
-        "inertia_mass_kg": 50.0,
-        "effective_mass_kg": 1486.0,    # Me = M + me
+        "vehicle_info": {
+            "model": "...",
+            "test_date": "...",
+            "running_order_mass_kg": 1300.0,
+            "rotational_equivalent_mass_kg": 50.0,
+            "effective_mass_kg": 1350.0,
+        },
+        "total_mass": 1300.0,
 
         # Resultados Split
         "split_parsed_runs": {...},     # saída do parser
         "split_comparison_pairs": [...],# pares calculados
-        "split_auto_selection_pending": [...],
+        "split_auto_selection_pending": {...}, # ou None
         "split_final_results": {...},
         "excel_buffer": None,
     }
@@ -375,7 +385,7 @@ ABNT 10312, MDA, ΔV, Δt, Me, MAD.
 ### Sempre
 
 - `python -m py_compile <arquivo>` após cada modificação
-- Commitar arquivos individualmente com mensagem descritiva
+- Adicionar arquivos ao stage individualmente
 - Atualizar `tasks/todo.md` e `tasks/lessons.md` ao final de cada tarefa
 - Funções puras em `core/` — sem imports de Streamlit
 
@@ -437,6 +447,6 @@ Toda mudança funcional deve atualizar os dois arquivos antes do commit final.
 
 ---
 
-**Última atualização:** 2026-06-24
+**Última atualização:** 2026-07-21
 **Autor:** Felipe Eckert
-**Status:** 🔧 Pré-filtro MAD em desenvolvimento
+**Status:** fluxo Split ativo, incluindo seleção automática com pré-filtro MAD

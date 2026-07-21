@@ -1,10 +1,45 @@
-# Split Automatic Pair Selection - Technical Audit
+# Split Automatic Pair Selection - Audit and Implementation History
 
 Date: 2026-06-19
+Status reconciled: 2026-07-21
 
-This document maps the current Split manual calculation contract before adding
-automatic pair-selection algorithms. No algorithm, UI flow, or calculation
-behavior was changed in this audit.
+This document began as an audit of the manual Split contract and then accumulated
+implementation rounds. It is a historical design record, not the sole source of
+current ownership.
+
+## Current Status
+
+### Implemented behavior
+
+- Automatic Selection is the third sub-tab of
+  `pages/page_split_coefficient_calculation.py`, rendered by
+  `pages/page_split_auto_selection.py`.
+- `core/split_candidate_generation.py` owns exact four-component generation and
+  the optional MAD prefilter; `core/split_auto_selection.py` owns orchestration.
+- Energy and target ranking feed constraint-first time validation with bounded
+  search and an explicit user-confirmed fallback when no conforming set is found.
+- Fixed ambient conditions and per-run weather synchronization are supported.
+- Suggestions remain pending, support bounded replacements, and reach
+  `split_comparison_pairs` only through an explicit user action.
+
+### Deferred work
+
+- Directional preselection or another optimized generation path for sets that
+  exceed the exact `max_combinations` guard.
+- The manual and real-data validations still listed in `tasks/todo.md`.
+
+### Superseded design text
+
+Sections 1-12 below preserve the pre-implementation audit and proposal. Their
+future-tense ownership, missing-UI, fixed-weather-only, and diagnostic-only
+statements are historical. The later round sections describe what was true at the
+end of each round; statements beginning "this round" are not current limitations.
+
+## Historical Baseline and Proposal
+
+The following audit mapped the manual contract before automatic selection was
+implemented. No algorithm, UI flow, or calculation behavior was changed during
+that initial audit.
 
 ## 1. Files Inspected
 
@@ -476,7 +511,7 @@ same calculation path.
   but Final Comparison prevents uncorrected selection. Automatic insertion should
   still avoid marking uncorrected candidates selected.
 
-## 12. Proposed Next Step
+## 12. Proposed Next Step (Superseded)
 
 1. Add focused pure tests for a candidate-builder helper that proves automatic
    candidates match manual calculation output for the same four records and
@@ -489,6 +524,11 @@ same calculation path.
    candidate contract.
 5. Only after the pure layer is covered, connect a small Split UI action that adds
    candidates to `split_comparison_pairs` without selecting them for final results.
+
+## Implementation History
+
+The following rounds are retained for traceability. Scope exclusions record what
+was absent at that round, even when a later round implemented it.
 
 ## Round 2 - Automatic Candidate Helper
 
@@ -1082,7 +1122,7 @@ The merge metadata has this shape:
 This round still has no UI, no button, no automatic-selection sub-tab and no
 write to `st.session_state`.
 
-## Round 8 - Controlled Exact-mode UI Integration
+## Round 8 - Controlled Exact-mode UI Integration (Historical Snapshot)
 
 Implemented Streamlit module:
 
@@ -1135,7 +1175,7 @@ explains that directional preselection and optimized mode remain future work.
 
 ### Ambient Context
 
-This first UI integration supports the existing fixed Split ambient values:
+This first UI integration supported only the fixed Split ambient values:
 
 ```python
 split_fixed_temperature
@@ -1146,7 +1186,7 @@ split_interval_config
 These values are passed through `correction_context`; the page does not duplicate
 climatic-correction formulas.
 
-Per-candidate weather synchronization is not enabled in this round. The current
+Per-candidate weather synchronization was not enabled in this round. The then-current
 manual synchronization resolves weather for one explicitly selected four-run
 pair, while automatic generation evaluates many different pairs. If the active
 ambient mode is weather sync, the automatic-selection action is disabled with an
@@ -1197,16 +1237,16 @@ st.session_state["split_auto_selection_last_result"]
 This is auxiliary UI state, not a final-result source of truth. It includes the
 orchestration metadata, merge metadata, and suggested candidates.
 
-The UI displays generation/ranking/selection/merge counts, repeated-run skips,
+The UI displayed generation/ranking/selection/merge counts, repeated-run skips,
 warnings, a simple public-label candidate table, and the normative time
-diagnostic. Time conformity remains diagnostic and does not automatically filter
-or select candidates.
+diagnostic. At this round, time conformity did not automatically filter or select
+candidates.
 
 This round does not implement optimized mode, directional preselection,
 per-candidate weather sync, normative blocking, or automatic final-result
 selection.
 
-## Round 9A.2 - Pending Suggestions
+## Round 9A.2 - Pending Suggestions (Implemented)
 
 Automatic execution no longer merges candidates immediately. The UI stores a
 temporary per-test state in `split_auto_selection_pending` containing the current
