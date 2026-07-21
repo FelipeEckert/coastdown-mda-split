@@ -2553,3 +2553,21 @@ ou um contrato mais forte. Regras de arquitetura repetidas devem virar um unico
 teste de fronteira executavel, nao simplesmente desaparecer.
 
 ---
+
+## 2026-07-21 - Fronteiras de dependencia devem ser executadas
+
+### Contexto:
+Cinco modulos puros tinham testes repetidos que procuravam imports de Streamlit
+no texto-fonte.
+
+### Decisao:
+Os testes foram consolidados em uma importacao por subprocesso novo, com
+`streamlit` explicitamente indisponivel. Cada modulo continua isolado por
+`subTest`, sem alterar codigo de producao.
+
+### Licao:
+Para provar independencia de uma dependencia opcional, execute a importacao sem
+essa dependencia. A prova cobre imports diretos e indiretos e nao quebra por
+comentarios, aliases ou formatacao.
+
+---

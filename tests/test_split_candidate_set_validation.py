@@ -1,7 +1,6 @@
 # coding: utf-8
 """Tests for normative time-only automatic Split set validation."""
 
-import inspect
 import unittest
 
 from core.split_candidate_set_validation import (
@@ -69,14 +68,6 @@ class SplitCandidateSetValidationTest(unittest.TestCase):
         self.assertTrue(
             evaluate_split_constraint_satisfaction(validation, legacy)
         )
-
-    def test_module_does_not_import_streamlit(self):
-        import core.split_candidate_set_validation as module
-
-        source = inspect.getsource(module).lower()
-        self.assertNotIn("import streamlit", source)
-        self.assertNotIn("from streamlit", source)
-
 
 if __name__ == "__main__":
     unittest.main()

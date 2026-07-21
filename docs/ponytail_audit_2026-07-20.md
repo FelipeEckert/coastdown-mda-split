@@ -440,8 +440,9 @@ finding has been documented but no cleanup or behavior change has been applied.
 - **Evidence:** The initial inventory found eighteen source-inspection tests:
   ten repeated Streamlit-independence checks and eight page tests asserting
   literal source fragments, widget keys, or progress constants. The first batch
-  converted three page tests to rendered-output checks. Fifteen
-  source-inspection tests and the duplicated validator cases remain.
+  converted three page tests to rendered-output checks. The second batch
+  consolidated five architecture checks into one runtime import-boundary test.
+  Ten source-inspection tests and the duplicated validator cases remain.
 - **Why it is a problem:** Safe refactors fail tests despite unchanged behavior,
   while orchestration bugs can pass because the page is never executed.
 - **Risk:** Medium if assertions are deleted before equivalent behavioral or
@@ -452,7 +453,7 @@ finding has been documented but no cleanup or behavior change has been applied.
 - **Validation:** Deliberately rename an internal helper or reformat a page and
   confirm behavioral tests remain stable while an actual workflow regression
   still fails.
-- **Status:** In Progress. The first low-risk batch is complete; the remaining
+- **Status:** In Progress. Two low-risk batches are complete; the remaining
   architecture and page-rendering cases stay explicit below rather than being
   deleted without equivalent coverage.
 
@@ -461,14 +462,14 @@ finding has been documented but no cleanup or behavior change has been applied.
 | Test | Brittle dependency | Class | Decision |
 |---|---|---:|---|
 | `test_split_auto_selection.py::test_module_does_not_import_streamlit` | `inspect.getsource` for two modules | 4 | Consolidate later into one runtime import-boundary test. |
-| `test_split_candidate_generation.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
-| `test_split_candidate_set_validation.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
-| `test_split_comparison_merge.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
+| `test_split_candidate_generation.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidated in batch two into the runtime import-boundary test. |
+| `test_split_candidate_set_validation.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidated in batch two into the runtime import-boundary test. |
+| `test_split_comparison_merge.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidated in batch two into the runtime import-boundary test. |
 | `test_split_deviation_analysis.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
 | `test_split_pair_candidate.py::test_module_does_not_depend_on_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
 | `test_split_selection_algorithms.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
-| `test_split_time_validation.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
-| `test_split_vehicle_mass.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
+| `test_split_time_validation.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidated in batch two into the runtime import-boundary test. |
+| `test_split_vehicle_mass.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidated in batch two into the runtime import-boundary test. |
 | `test_split_weather_context.py::test_module_does_not_import_streamlit` | `inspect.getsource` | 4 | Consolidate later into the same import-boundary test. |
 | `test_render_has_only_two_default_enabled_time_constraint_checkboxes` | widget-key fragments and nearby `value=True` text | 2 | Keep until the page has a practical interaction fixture. |
 | `test_render_exposes_advanced_v2_search_controls` | widget keys and call-argument fragments | 2 | Keep until AppTest can execute this state safely. |
@@ -494,6 +495,16 @@ equivalent behavioral coverage exists; 4 = consolidate duplicated coverage.
 | Search diagnostics | Renderer source contained five translation keys. | Calling the renderer emits all V2 counts/status values and the limit warning. | Stronger: it verifies actual Streamlit output without depending on labels or widget order. |
 | Normative constraint diagnostic | Renderer source omitted `cv_f0_pct` and `cv_f2_pct`. | Coefficient data is supplied, but the rendered table contains exactly the six normative time values. | Stronger: it proves coefficient diagnostics do not leak into the visible normative table. |
 | Generation diagnostics | Renderer source contained count, prefilter, and table field names. | Calling the renderer emits generated/failed totals, enabled status, and per-group input/output/filtered counts. | Stronger: it verifies the user-visible projection rather than implementation spelling. |
+
+#### Second-batch architecture replacements
+
+| Selected test | Old source-level assertion | New observable behavior | Equivalence or strength | Duplicate removed |
+|---|---|---|---|---|
+| Candidate generation module boundary | Source omitted Streamlit imports and `st`. | A fresh process imports the module while `streamlit` is unavailable. | Stronger: direct and indirect runtime dependencies fail without depending on source spelling. | Yes; folded into the shared boundary test. |
+| Candidate-set validation module boundary | Source omitted Streamlit imports. | A fresh process imports the module while `streamlit` is unavailable. | Stronger: it validates the executable dependency boundary. | Yes; folded into the shared boundary test. |
+| Comparison-merge module boundary | Source omitted Streamlit imports and `st`. | A fresh process imports the module while `streamlit` is unavailable. | Stronger: aliases and indirect imports are covered. | Yes; folded into the shared boundary test. |
+| Time-validation module boundary | Source omitted Streamlit imports and `st`. | A fresh process imports the module while `streamlit` is unavailable. | Stronger: harmless formatting no longer matters, but a real dependency fails. | Yes; folded into the shared boundary test. |
+| Vehicle-mass module boundary | Source omitted the word `streamlit`. | A fresh process imports the module while `streamlit` is unavailable. | Stronger: comments and identifiers no longer fail the test; runtime coupling does. | Yes; folded into the shared boundary test. |
 
 ## Risky Findings Requiring Manual Validation
 

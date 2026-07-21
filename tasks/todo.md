@@ -483,9 +483,11 @@
 - [x] Inventory and classify all 18 source-inspection tests and duplicated validator cases.
 - [x] Replace three low-risk diagnostic source checks with rendered-output tests.
 - [x] Pass focused/full tests, Ruff, compile validation, and diff checks.
+- [x] Consolidate five pure-module source checks into one runtime import-boundary test.
+- [x] Pass second-batch focused/full tests, Ruff, compile validation, and diff checks.
 - [ ] Consolidate duplicate coefficient-CV and time-group validator cases.
 - [ ] Replace five remaining page source checks with practical interaction coverage.
-- [ ] Consolidate ten repeated architecture checks into one runtime dependency-boundary test.
+- [ ] Add the five remaining architecture modules to the runtime boundary test.
 - [ ] Mark finding 17 complete only after no `inspect.getsource` cases remain.
 
 ## Fixed-condition state compatibility - 2026-07-20

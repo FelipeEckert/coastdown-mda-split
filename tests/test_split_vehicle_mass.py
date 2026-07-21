@@ -1,7 +1,6 @@
 # coding: utf-8
 """Protection tests for the normative Split effective-mass chain."""
 
-import inspect
 import unittest
 
 from core.split_vehicle_mass import (
@@ -61,12 +60,6 @@ class SplitVehicleMassTests(unittest.TestCase):
         self.assertEqual(result["effective_mass_kg"], 1545.0)
         self.assertIsNone(result["test_mass_kg"])
         self.assertTrue(result["warnings"])
-
-    def test_module_does_not_import_streamlit(self):
-        import core.split_vehicle_mass as module
-
-        self.assertNotIn("streamlit", inspect.getsource(module).lower())
-
 
 if __name__ == "__main__":
     unittest.main()

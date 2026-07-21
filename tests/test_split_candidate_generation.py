@@ -1,7 +1,6 @@
 # coding: utf-8
 """Tests for exact Split candidate generation helpers."""
 
-import inspect
 import unittest
 
 from core.split_candidate_generation import (
@@ -219,15 +218,6 @@ class SplitCandidateGenerationTest(unittest.TestCase):
         self.assertEqual(candidates, [])
         self.assertEqual(metadata["estimated_total"], 0)
         self.assertTrue(metadata["warnings"])
-
-    def test_module_does_not_import_streamlit(self):
-        import core.split_candidate_generation as module
-
-        source = inspect.getsource(module)
-
-        self.assertNotIn("import streamlit", source.lower())
-        self.assertNotIn("from streamlit", source.lower())
-        self.assertFalse(hasattr(module, "st"))
 
 
 class FilterGroupByMadTest(unittest.TestCase):

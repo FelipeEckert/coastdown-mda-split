@@ -1,7 +1,6 @@
 # coding: utf-8
 """Tests for pure Split normative time diagnostics."""
 
-import inspect
 import statistics
 import unittest
 
@@ -169,16 +168,6 @@ class SplitTimeValidationTest(unittest.TestCase):
         self.assertTrue(
             any("low_minus" in warning for warning in result["warnings"])
         )
-
-    def test_module_does_not_import_streamlit(self):
-        import core.split_time_validation as module
-
-        source = inspect.getsource(module)
-
-        self.assertNotIn("import streamlit", source.lower())
-        self.assertNotIn("from streamlit", source.lower())
-        self.assertFalse(hasattr(module, "st"))
-
 
 if __name__ == "__main__":
     unittest.main()

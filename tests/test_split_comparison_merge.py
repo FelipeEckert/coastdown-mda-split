@@ -1,7 +1,6 @@
 # coding: utf-8
 """Tests for pure Split comparison merge helpers."""
 
-import inspect
 import unittest
 
 from core.split_comparison_merge import (
@@ -231,16 +230,6 @@ class SplitComparisonMergeTest(unittest.TestCase):
             comparison_pair_signature(first),
             comparison_pair_signature(second),
         )
-
-    def test_module_does_not_import_streamlit(self):
-        import core.split_comparison_merge as module
-
-        source = inspect.getsource(module)
-
-        self.assertNotIn("import streamlit", source.lower())
-        self.assertNotIn("from streamlit", source.lower())
-        self.assertFalse(hasattr(module, "st"))
-
 
 if __name__ == "__main__":
     unittest.main()
