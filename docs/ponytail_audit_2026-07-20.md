@@ -31,7 +31,7 @@ finding has been documented but no cleanup or behavior change has been applied.
 | 14 | Stale state keys obscure the canonical Split model | Low | Medium-High | 5 | Pending |
 | 15 | Project documentation no longer matches ownership | Low | High | 1 | Pending |
 | 16 | Critical Streamlit orchestration is untested | High | High | 3 | Completed |
-| 17 | Several tests enforce source text rather than behavior | Low | High | 5 | In Progress |
+| 17 | Several tests enforce source text rather than behavior | Low | High | 5 | Completed |
 | 18 | Large inherited Standard surface is isolated but route-discoverable | Medium | High | 8 | Pending |
 | 19 | Split coefficient sign convention conflicts across repository guidance | High | High conflict / Low resolution | 8 | Pending |
 | 20 | Translation and compatibility cleanup cannot rely on static counts | Low | High | 8 | Pending |
@@ -442,9 +442,10 @@ finding has been documented but no cleanup or behavior change has been applied.
   literal source fragments, widget keys, or progress constants. The first batch
   converted three page tests to rendered-output checks. The second batch
   consolidated five architecture checks into one runtime import-boundary test.
-  The final batch converted or consolidated the remaining ten cases. A test
-  search now finds zero `inspect.getsource` cases, but the missing-coefficient
-  guarantee still needs confirmed behavioral proof before completion.
+  The final batch converted or consolidated the remaining ten cases. A
+  repository-wide search now finds zero `inspect.getsource` cases. The final
+  public-validator regression reports missing F0/F2 as diagnostic-only while
+  the render-path test limits the UI to the two normative time constraints.
 - **Why it is a problem:** Safe refactors fail tests despite unchanged behavior,
   while orchestration bugs can pass because the page is never executed.
 - **Risk:** Medium if assertions are deleted before equivalent behavioral or
@@ -455,9 +456,9 @@ finding has been documented but no cleanup or behavior change has been applied.
 - **Validation:** Deliberately rename an internal helper or reformat a page and
   confirm behavioral tests remain stable while an actual workflow regression
   still fails.
-- **Status:** In Progress. The final review found that the initial behavioral
-  replacement did not prove the absence of a coefficient-based constraint.
-  An exact localized constraint-group assertion is staged for confirmation.
+- **Status:** Completed. Missing coefficients are behaviorally reported without
+  becoming normative failures, and the localized render path exposes no
+  coefficient-based constraint.
 
 #### Inventory and classification (2026-07-21)
 
@@ -513,7 +514,7 @@ equivalent behavioral coverage exists; 4 = consolidate duplicated coverage.
 | Test or guarantee | Previous source-level assertion | Replacement behavior | Why equivalent or stronger | Duplicate removed |
 |---|---|---|---|---|
 | Auto-selection and candidate-set module boundary | Both module sources omitted Streamlit imports and `st`. | Each named module imports in its own fresh process while Streamlit is unavailable. | Direct and indirect runtime coupling now fails; candidate-set remains independently covered without a second source scan. | Yes; consolidated into the shared boundary test. |
-| Default time constraints | Two widget-key fragments had nearby `value=True`, and a coefficient key was absent. | The rendered constraint group is asserted to contain exactly the two translated time constraints, both enabled, and both values reach the orchestrator. | Behavioral proof is staged; completion remains pending review. | Consolidated with the advanced-settings render test. |
+| Default time constraints | Two widget-key fragments had nearby `value=True`, and a coefficient key was absent. | The rendered constraint group is asserted to contain exactly the two translated time constraints, both enabled, and both values reach the orchestrator. | Stronger: missing coefficients are separately reported by the public validator without adding a normative UI constraint. | Consolidated with the advanced-settings render test. |
 | Advanced V2 search controls | Three widget keys and three argument fragments appeared in source. | The rendered translated controls accept distinct values and the orchestrator receives those exact values. | It proves user input reaches execution, which source presence could not establish. | Consolidated with the default-constraints render test. |
 | Progress completion | Source contained exact progress constants and placed `1.0` before a later statement. | During an executed render, all phase updates stay incomplete and completion is emitted only after the orchestrator returns; translated phase captions are observed. | It preserves the visible completion contract without locking internal percentages or statement order. | Consolidated with the render execution test. |
 | Diagnostics wrapper | Source named one expander and two private helpers. | Both parent rendering paths emit translated generation metrics, prefilter status, and the search-not-applicable caption. | Semantic output remains covered; expander state, Markdown styling, and private call structure are not contracts. | Yes; the standalone wrapper-layout test was removed. |

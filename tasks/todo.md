@@ -489,7 +489,7 @@
 - [x] Replace the five remaining page source checks with practical interaction coverage.
 - [x] Add the five remaining architecture modules to the runtime boundary test.
 - [x] Confirm zero `inspect.getsource` tests remain.
-- [ ] Confirm the behavioral missing-coefficient guarantee before marking finding 17 complete.
+- [x] Confirm the behavioral missing-coefficient guarantee and mark finding 17 complete.
 - [x] Re-run final-batch focused/full tests, Ruff, compile validation, and diff checks.
 
 ## Fixed-condition state compatibility - 2026-07-20

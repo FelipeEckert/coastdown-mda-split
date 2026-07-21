@@ -23,6 +23,37 @@ def _candidate(identifier, *, f0, f2, high_plus=20.0, high_minus=20.2):
 
 
 class SplitCandidateSetValidationTest(unittest.TestCase):
+    def test_missing_coefficients_are_reported_but_not_normative(self):
+        result = validate_split_candidate_set(
+            [
+                _candidate("a", f0=None, f2=None),
+                _candidate("b", f0=None, f2=None),
+            ]
+        )
+
+        self.assertTrue(result["passed"])
+        self.assertEqual(result["coefficient_status"], "insufficient_data")
+        self.assertTrue(result["coefficient_diagnostic_only"])
+        self.assertEqual(result["failed_checks"], [])
+        self.assertIn(
+            "One or more candidates are missing corrected F0_mean/F0.",
+            result["coefficient_warnings"],
+        )
+        self.assertIn(
+            "One or more candidates are missing corrected F2_mean/F2.",
+            result["coefficient_warnings"],
+        )
+        self.assertTrue(
+            evaluate_split_constraint_satisfaction(
+                result,
+                {
+                    "time_cv": True,
+                    "opposite_time_difference": True,
+                    "coefficient_cv": True,
+                },
+            )
+        )
+
     def test_high_coefficient_cv_is_diagnostic_when_times_pass(self):
         result = validate_split_candidate_set(
             [

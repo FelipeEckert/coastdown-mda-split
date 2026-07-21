@@ -2584,7 +2584,9 @@ valores distintos, confirmando os argumentos recebidos pelo orquestrador e que
 100% so aparece apos seu retorno. O grupo de restricoes deve conter exatamente
 as duas restricoes temporais traduzidas. Resultado e fallback sao chamados
 diretamente e precisam emitir a mesma semantica diagnostica localizada, sem
-fixar estado de expander ou formatacao Markdown.
+fixar estado de expander ou formatacao Markdown. O validador publico tambem deve
+reportar F0/F2 ausentes como dados insuficientes de diagnostico, sem transformar
+essa ausencia em falha normativa quando os tempos sao validos.
 
 ### Licao:
 Em paginas Streamlit, prove a fronteira observavel: valor escolhido, dado enviado,
