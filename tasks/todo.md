@@ -537,8 +537,14 @@
   mutation records version 1; preserve valid version increments.
 - [x] Pass retention-batch focused/AppTest coverage, the 402-test full suite,
   scoped Ruff, compile validation, Streamlit startup, and diff checks.
-- [ ] Resolve `using_split_method` and `test_method` in a later
-  legacy-navigation and persistence review.
+- [x] Remove `using_split_method` and `test_method` from active initialization,
+  persistence, new-test creation, and routing dependencies.
+- [x] Preserve valid old snapshot fields through a page-private resolver for
+  direct legacy pages without restoring them into active flat state.
+- [x] Cover single-key, dual-key, malformed, switching, round-trip,
+  canonical-routing, direct-page, and idempotent-load behavior.
+- [x] Pass final-batch focused/AppTest coverage, the 407-test full suite,
+  scoped Ruff, compile validation, Streamlit startup, and diff checks.
 
 ## Audit finding 15 - Documentation ownership and workflow - 2026-07-21
 

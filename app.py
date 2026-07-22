@@ -454,7 +454,6 @@ TEST_STATE_KEYS = [
     "split_auto_selection_last_result", "split_auto_selection_pending",
     "split_auto_replace_request", "split_auto_replace_dialog_open",
     # Flags de controle
-    "using_split_method", "test_method",
     "data_loaded", "vehicle_data_complete",
     # Velocidades de referência
     # Navegação interna do teste
@@ -515,8 +514,6 @@ TEST_DEFAULTS = {
     "split_auto_selection_pending": None,
     "split_auto_replace_request": None,
     "split_auto_replace_dialog_open": False,
-    "using_split_method": False,
-    "test_method": "traditional",
     "data_loaded": False,
     "vehicle_data_complete": False,
     "current_page": "2_dados_veiculo",
@@ -604,7 +601,13 @@ def load_test_state(test_id):
     migrated_legacy_pairs = migrate_legacy_split_final_results(test_data)
 
     # Old snapshots keep these fields, but they no longer belong to live state.
-    for key in ("data_info", "mass_input_mode", "split_source_files"):
+    for key in (
+        "data_info",
+        "mass_input_mode",
+        "split_source_files",
+        "test_method",
+        "using_split_method",
+    ):
         st.session_state.pop(key, None)
 
     for key in TEST_STATE_KEYS:
@@ -1669,8 +1672,6 @@ def _process_new_test(name, uploaded_csv, uploaded_low_csv, split_input_mode, up
                 "split_meteo_csv_path": meteo_name,
                 "fixed_temperature": fixed_temp,
                 "fixed_pressure": fixed_pressure,
-                "using_split_method": True,
-                "test_method": "split",
                 # Alerta de data incompatível (None se datas coincidem)
                 "date_mismatch_warning": date_mismatch_warning,
                 # Começa pela página de dados do veículo

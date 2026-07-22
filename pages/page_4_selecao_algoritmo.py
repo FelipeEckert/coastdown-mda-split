@@ -34,6 +34,7 @@ from core.calculations import (
 )
 from core.corrections import apply_climate_correction
 from data.loaders import find_closest_weather_record
+from pages._legacy_method_state import legacy_uses_split_method
 
 
 # ===== FUNÇÕES AUXILIARES (idênticas ao PyQt5 original) =====
@@ -109,7 +110,7 @@ def _run_has_weather_sync_time(run_data, time_only):
 
 def _has_algorithm_weather_sync_times(time_only):
     """Confirma que ha passadas com horario valido para o algoritmo atual."""
-    if st.session_state.using_split_method:
+    if legacy_uses_split_method(st.session_state):
         all_run_data_alta = st.session_state.get("all_run_data_alta", {})
         all_run_data_baixa = st.session_state.get("all_run_data_baixa", {})
 
@@ -220,7 +221,7 @@ def _weather_sync_delta_seconds(run_data, weather_record, time_only):
 
 def _algorithm_weather_sync_run_items():
     """Monta a lista de passadas auditadas na sincronizacao meteo do algoritmo."""
-    if st.session_state.using_split_method:
+    if legacy_uses_split_method(st.session_state):
         items = []
         for prefix, all_run_data in (
             ("Alta", st.session_state.get("all_run_data_alta", {})),
@@ -885,7 +886,10 @@ def render(t):
         st.warning("⚠️ Dados do veículo incompletos. Vá para **Dados do Veículo** primeiro.")
         return
 
-    if not st.session_state.individual_coeffs and not st.session_state.using_split_method:
+    if (
+        not st.session_state.individual_coeffs
+        and not legacy_uses_split_method(st.session_state)
+    ):
         st.warning("⚠️ Coeficientes individuais não calculados. Vá para **Análise de Pares** primeiro.")
         return
 
@@ -928,7 +932,7 @@ def render(t):
         )
 
     with col3:
-        default_cv = 2.5 if st.session_state.using_split_method else 10.0
+        default_cv = 2.5 if legacy_uses_split_method(st.session_state) else 10.0
         cv_max = st.number_input(
             "CV máximo (%):",
             min_value=0.1,
@@ -972,7 +976,7 @@ def render(t):
     st.subheader("🌡️ Dados Meteorológicos")
 
     weather_data = None
-    if st.session_state.using_split_method:
+    if legacy_uses_split_method(st.session_state):
         weather_data = st.session_state.get("weather_data_split")
     else:
         weather_data = st.session_state.get("weather_data")
@@ -1059,7 +1063,7 @@ def run_algorithm(algorithm_mode, k, cv_max, weather_data, temp_fixed, press_fix
             progress_bar.progress(pct, text=f"Analisando combinações... {pct * 100:.0f}%")
 
         # Gera TODOS os pares candidatos
-        if st.session_state.using_split_method:
+        if legacy_uses_split_method(st.session_state):
             valid_pairs = generate_all_candidate_pairs_split(
                 weather_data, temp_fixed, press_fixed, cv_max, update_progress
             )

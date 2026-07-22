@@ -82,7 +82,10 @@ class AppStateOrchestrationTests(unittest.TestCase):
 
         created = self.state.tests["test_12345678"]
         self.assertEqual(self.state.active_test_id, "test_12345678")
-        self.assertEqual(created["test_method"], "split")
+        self.assertNotIn("using_split_method", created)
+        self.assertNotIn("test_method", created)
+        self.assertNotIn("using_split_method", self.state)
+        self.assertNotIn("test_method", self.state)
         self.assertNotIn("mass_input_mode", created)
         self.assertNotIn("split_source_files", created)
         self.assertNotIn("data_info", created)
@@ -102,6 +105,80 @@ class AppStateOrchestrationTests(unittest.TestCase):
         self.assertNotIn("mass_input_mode", created)
         self.assertNotIn("split_source_files", created)
         self.assertNotIn("data_info", created)
+        self.assertNotIn("using_split_method", created)
+        self.assertNotIn("test_method", created)
+
+    def test_legacy_method_flags_remain_stored_but_never_enter_active_state(self):
+        snapshots = {
+            "using-only": {"using_split_method": False},
+            "method-only": {"test_method": "traditional"},
+            "both": {
+                "using_split_method": True,
+                "test_method": "split",
+            },
+            "string": {
+                "using_split_method": "false",
+                "test_method": "unknown",
+            },
+            "number": {"using_split_method": 1, "test_method": 0},
+            "list": {"using_split_method": [], "test_method": ["split"]},
+            "none": {"using_split_method": None, "test_method": None},
+        }
+
+        for test_id, legacy_fields in snapshots.items():
+            with self.subTest(snapshot=test_id):
+                self.state.clear()
+                app.init_session_state()
+                self.state.tests = {
+                    test_id: {
+                        "name": test_id,
+                        **copy.deepcopy(legacy_fields),
+                    }
+                }
+                original = copy.deepcopy(self.state.tests[test_id])
+                self.state.using_split_method = "leaked"
+                self.state.test_method = ["leaked"]
+
+                app.activate_test(test_id)
+                after_first_load = copy.deepcopy(self.state.tests[test_id])
+                app.load_test_state(test_id)
+                self.assertEqual(self.state.tests[test_id], after_first_load)
+                app.save_active_test_state()
+
+                self.assertNotIn("using_split_method", self.state)
+                self.assertNotIn("test_method", self.state)
+                for key, value in original.items():
+                    self.assertEqual(self.state.tests[test_id][key], value)
+
+    def test_switching_isolates_legacy_method_page_state_without_persisting_it(self):
+        from pages._legacy_method_state import (
+            legacy_test_method,
+            legacy_test_method_key,
+        )
+
+        self.state.tests = {
+            "legacy": {
+                "name": "Legacy Standard",
+                "using_split_method": False,
+                "test_method": "traditional",
+            },
+            "split": self._snapshot("Current Split"),
+        }
+
+        app.activate_test("legacy")
+        self.state[legacy_test_method_key(self.state)] = "traditional"
+        self.state.using_split_method = False
+        self.state.test_method = "traditional"
+        app.activate_test("split")
+        app.save_active_test_state()
+
+        self.assertEqual(legacy_test_method(self.state), "split")
+        self.assertNotIn("using_split_method", self.state)
+        self.assertNotIn("test_method", self.state)
+        self.assertNotIn("using_split_method", self.state.tests["split"])
+        self.assertNotIn("test_method", self.state.tests["split"])
+        self.assertFalse(self.state.tests["legacy"]["using_split_method"])
+        self.assertEqual(self.state.tests["legacy"]["test_method"], "traditional")
 
     def test_active_split_builders_do_not_write_stale_state(self):
         high_file = SimpleNamespace(name="high.csv")
@@ -414,6 +491,25 @@ class AppStateOrchestrationTests(unittest.TestCase):
 
 
 class AppWorkflowAppTestTests(unittest.TestCase):
+    def test_legacy_flags_cannot_override_active_split_routing(self):
+        app_test = AppTest.from_file(ROOT_DIR / "app.py", default_timeout=20)
+        app_test.session_state["tests"] = {
+            "legacy": {
+                "name": "Legacy Standard",
+                "using_split_method": False,
+                "test_method": "traditional",
+                "current_page": "1_abrir_teste",
+            }
+        }
+        app_test.session_state["active_test_id"] = "legacy"
+
+        app_test.run()
+
+        self.assertEqual(len(app_test.exception), 0)
+        self.assertEqual(app_test.session_state["current_page"], "2_dados_veiculo")
+        self.assertNotIn("using_split_method", app_test.session_state)
+        self.assertNotIn("test_method", app_test.session_state)
+
     def test_incomplete_active_snapshot_renders_and_routes_to_results(self):
         app_test = AppTest.from_file(ROOT_DIR / "app.py", default_timeout=20)
         app_test.session_state["tests"] = {
@@ -468,6 +564,84 @@ class AppWorkflowAppTestTests(unittest.TestCase):
             app_test.session_state[nested_key],
             app.get_translator("pt")("split_graphical_analysis"),
         )
+
+
+class LegacyPageMethodCompatibilityTests(unittest.TestCase):
+    def test_legacy_method_resolution_accepts_only_historical_valid_values(self):
+        from pages._legacy_method_state import legacy_test_method
+
+        cases = (
+            ({}, "split"),
+            ({"using_split_method": False}, "traditional"),
+            ({"test_method": "traditional"}, "traditional"),
+            (
+                {"using_split_method": True, "test_method": "split"},
+                "split",
+            ),
+            (
+                {"using_split_method": False, "test_method": "split"},
+                "traditional",
+            ),
+            ({"using_split_method": "false", "test_method": "unknown"}, "split"),
+            ({"using_split_method": 0, "test_method": 1}, "split"),
+            ({"using_split_method": [], "test_method": ["traditional"]}, "split"),
+            ({"using_split_method": None, "test_method": None}, "split"),
+        )
+
+        for snapshot, expected in cases:
+            with self.subTest(snapshot=snapshot):
+                state = _SessionState(
+                    tests={"legacy": snapshot},
+                    active_test_id="legacy",
+                )
+                self.assertEqual(legacy_test_method(state), expected)
+                self.assertNotIn("using_split_method", state)
+                self.assertNotIn("test_method", state)
+
+    def test_direct_legacy_pages_resolve_method_without_active_flags(self):
+        from pages import _page_1_obsoleto as open_page
+        from pages import page_3_analise_pares as pair_page
+        from pages import page_4_selecao_algoritmo as algorithm_page
+
+        state = _SessionState(
+            tests={
+                "legacy": {
+                    "using_split_method": [False],
+                    "test_method": 1,
+                }
+            },
+            active_test_id="legacy",
+            data_loaded=False,
+        )
+
+        with (
+            patch.object(open_page.st, "session_state", state),
+            patch.object(open_page.st, "header"),
+            patch.object(open_page.st, "subheader"),
+            patch.object(
+                open_page.st,
+                "columns",
+                return_value=(nullcontext(), nullcontext()),
+            ),
+            patch.object(open_page.st, "button", return_value=False),
+            patch.object(open_page.st, "markdown"),
+            patch.object(open_page, "render_split_upload") as render_split_upload,
+        ):
+            open_page.render(_translate)
+
+        render_split_upload.assert_called_once_with(_translate)
+        self.assertNotIn("using_split_method", state)
+        self.assertNotIn("test_method", state)
+
+        with (
+            patch.object(pair_page.st, "session_state", state),
+            patch.object(pair_page.st, "info") as info,
+        ):
+            pair_page.render_time_conformity_analysis(_translate)
+        info.assert_called_once_with("time_conformity_split_not_supported")
+
+        with patch.object(algorithm_page.st, "session_state", state):
+            self.assertFalse(algorithm_page._has_algorithm_weather_sync_times(False))
 
 
 if __name__ == "__main__":

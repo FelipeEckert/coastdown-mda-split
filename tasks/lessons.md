@@ -2720,6 +2720,11 @@ fonte canonica equivalente.
 O lote seguinte confirmou que `weather_data_split` e `excel_buffer` ainda
 sustentam superficies legadas observaveis, enquanto `split_ambient_version` e
 `split_processed_at` registram metadata sem substituto canonico equivalente.
+No lote final, `using_split_method` e `test_method` sairam dos defaults, da
+persistencia e da criacao de testes ativos. Snapshots antigos preservam os
+campos somente em seus dicionarios; paginas nao roteadas resolvem valores
+historicos validos em uma fronteira privada e mantem sua selecao fora do estado
+canonico.
 
 ### Licao:
 
@@ -2731,5 +2736,9 @@ substituto canonico e motivo suficiente para rete-la.
 Estado legado malformado pode ser preservado passivamente; quando uma mutacao
 real exige um contador valido, reiniciar somente esse contador e mais seguro do
 que promover o valor malformado ou impedir o fluxo.
+Uma aplicacao de metodo unico nao precisa persistir uma flag para reafirmar sua
+propria identidade. Compatibilidade de uma pagina herdada deve permanecer nessa
+pagina, aceitar apenas formas historicas comprovadas e nunca dirigir a rota
+canonica.
 
 ---

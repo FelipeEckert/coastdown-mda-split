@@ -18,10 +18,14 @@ import tempfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data.loaders import carregar_dados_csv_robusto, read_weather_station_csv
+from pages._legacy_method_state import legacy_test_method, legacy_test_method_key
 
 
 def render(t):
     """Renderiza a página de abertura de teste."""
+
+    test_method = legacy_test_method(st.session_state)
+    method_key = legacy_test_method_key(st.session_state)
 
     st.header(t("page_open_test"))
 
@@ -34,28 +38,26 @@ def render(t):
         traditional_selected = st.button(
             f"📊 {t('traditional_method')}",
             use_container_width=True,
-            type="primary" if st.session_state.test_method == "traditional" else "secondary"
+            type="primary" if test_method == "traditional" else "secondary"
         )
         if traditional_selected:
-            st.session_state.test_method = "traditional"
-            st.session_state.using_split_method = False
+            st.session_state[method_key] = "traditional"
             st.rerun()
 
     with col2:
         split_selected = st.button(
             f"📈 {t('split_method')}",
             use_container_width=True,
-            type="primary" if st.session_state.test_method == "split" else "secondary"
+            type="primary" if test_method == "split" else "secondary"
         )
         if split_selected:
-            st.session_state.test_method = "split"
-            st.session_state.using_split_method = True
+            st.session_state[method_key] = "split"
             st.rerun()
 
     st.markdown("---")
 
     # ===== UPLOAD DE ARQUIVOS =====
-    if st.session_state.test_method == "traditional":
+    if test_method == "traditional":
         render_traditional_upload(t)
     else:
         render_split_upload(t)

@@ -26,6 +26,7 @@ from core.calculations import (
 )
 from core.corrections import apply_climate_correction
 from data.loaders import find_closest_weather_record
+from pages._legacy_method_state import legacy_uses_split_method
 
 
 def _sync_mode_label(time_only, t):
@@ -652,7 +653,7 @@ def render_time_conformity_html_table(
 
 def render_time_conformity_analysis(t):
     """Renderiza a análise de conformidade dos tempos por intervalo de velocidade."""
-    if st.session_state.using_split_method:
+    if legacy_uses_split_method(st.session_state):
         st.info(t("time_conformity_split_not_supported"))
         return
 
@@ -989,7 +990,7 @@ def render(t):
     with subtab_calc:
         st.markdown("### 🔗 Seleção de Pares")
 
-        if st.session_state.using_split_method:
+        if legacy_uses_split_method(st.session_state):
             render_split_pair_selection(t)
         else:
             render_traditional_pair_selection(t)

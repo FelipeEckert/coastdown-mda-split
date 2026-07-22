@@ -437,7 +437,19 @@ finding has been documented but no cleanup or behavior change has been applied.
   `split_ambient_version`/`split_processed_at` for observable invalidation and
   processing metadata. Malformed legacy ambient versions now recover only when
   a real ambient mutation records the next version; valid counters are unchanged.
-- **Status:** In Progress
+- **Final legacy-method batch (2026-07-22):** The active Split workflow no
+  longer initializes, writes, restores, or persists `using_split_method` or
+  `test_method`; explicit Split navigation is the canonical method identity.
+  Old snapshots retain both fields without promoting them into live state.
+  Unrouted legacy pages resolve only exact historical values through a
+  page-private compatibility helper, default malformed or absent values to
+  Split, and keep direct method selection outside persisted test state.
+- **Validation result:** Focused state, routing, persistence, direct legacy-page,
+  and AppTest regressions cover single-key, dual-key, malformed, switching,
+  round-trip, canonical-routing, and idempotent-load cases. The 407-test full
+  suite, scoped Ruff, compile validation, Streamlit startup, and diff hygiene
+  pass.
+- **Status:** Completed
 
 ### 15. Project documentation no longer matches ownership
 
