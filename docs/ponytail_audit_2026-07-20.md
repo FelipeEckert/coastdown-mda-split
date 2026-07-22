@@ -428,6 +428,10 @@ finding has been documented but no cleanup or behavior change has been applied.
   retain those fields in their stored dictionaries, while live state ignores
   them and continues from canonical `vehicle_info`/`total_mass` and
   `split_input_sources`.
+- **Second low-risk batch (2026-07-22):** Active Split initialization, builders,
+  and persistence no longer write `data_info`; old snapshots retain it without
+  restoring it to live state. `split_processed_at` remains persisted because it
+  is observable processing metadata with no canonical timestamp replacement.
 - **Status:** In Progress
 
 ### 15. Project documentation no longer matches ownership

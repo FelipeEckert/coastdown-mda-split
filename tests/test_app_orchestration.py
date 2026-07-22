@@ -85,6 +85,7 @@ class AppStateOrchestrationTests(unittest.TestCase):
         self.assertEqual(created["test_method"], "split")
         self.assertNotIn("mass_input_mode", created)
         self.assertNotIn("split_source_files", created)
+        self.assertNotIn("data_info", created)
         self.assertEqual(created["split_ambient_mode"], "fixed")
         self.assertEqual(created["split_fixed_temperature"], 25.0)
         self.assertEqual(created["split_fixed_pressure"], 101.3)
@@ -96,6 +97,7 @@ class AppStateOrchestrationTests(unittest.TestCase):
         app.save_active_test_state()
         self.assertNotIn("mass_input_mode", created)
         self.assertNotIn("split_source_files", created)
+        self.assertNotIn("data_info", created)
 
     def test_active_split_builders_do_not_write_stale_state(self):
         high_file = SimpleNamespace(name="high.csv")
@@ -138,7 +140,7 @@ class AppStateOrchestrationTests(unittest.TestCase):
                 [source["filename"] for source in state["split_input_sources"]],
                 ["high.csv", "low.csv"],
             )
-            self.assertEqual(state["data_info"]["split_files"], "high.csv, low.csv")
+            self.assertNotIn("data_info", state)
 
         from pages import page_2_dados_veiculo as vehicle_page
 
@@ -161,17 +163,25 @@ class AppStateOrchestrationTests(unittest.TestCase):
                 "name": "Legacy",
                 "mass_input_mode": "legacy-mode",
                 "split_source_files": ["stale.csv"],
+                "data_info": {"filename": "stale.csv"},
                 "split_input_sources": canonical_sources,
+                "split_processed_at": "2026-06-10T12:00:00+00:00",
             }
         }
         self.state.mass_input_mode = "leaked-mode"
         self.state.split_source_files = ["leaked.csv"]
+        self.state.data_info = {"filename": "leaked.csv"}
 
         app.activate_test("legacy")
 
         self.assertNotIn("mass_input_mode", self.state)
         self.assertNotIn("split_source_files", self.state)
+        self.assertNotIn("data_info", self.state)
         self.assertEqual(self.state.split_input_sources, canonical_sources)
+        self.assertEqual(
+            self.state.split_processed_at,
+            "2026-06-10T12:00:00+00:00",
+        )
         self.assertEqual(
             self.state.tests["legacy"]["mass_input_mode"],
             "legacy-mode",
@@ -180,6 +190,10 @@ class AppStateOrchestrationTests(unittest.TestCase):
             self.state.tests["legacy"]["split_source_files"],
             ["stale.csv"],
         )
+        self.assertEqual(
+            self.state.tests["legacy"]["data_info"],
+            {"filename": "stale.csv"},
+        )
 
     def test_switching_and_round_trip_do_not_leak_or_reintroduce_stale_keys(self):
         self.state.tests = {
@@ -187,10 +201,13 @@ class AppStateOrchestrationTests(unittest.TestCase):
                 "name": "Legacy",
                 "mass_input_mode": "legacy-mode",
                 "split_source_files": ["legacy.csv"],
+                "data_info": {"filename": "legacy.csv"},
+                "split_processed_at": "2026-06-10T12:00:00+00:00",
             },
             "canonical": self._snapshot(
                 "Canonical",
                 split_input_sources=[{"filename": "canonical.csv", "role": "high"}],
+                split_processed_at="2026-06-10T13:00:00+00:00",
             ),
         }
 
@@ -200,8 +217,10 @@ class AppStateOrchestrationTests(unittest.TestCase):
 
         self.assertNotIn("mass_input_mode", self.state)
         self.assertNotIn("split_source_files", self.state)
+        self.assertNotIn("data_info", self.state)
         self.assertNotIn("mass_input_mode", self.state.tests["canonical"])
         self.assertNotIn("split_source_files", self.state.tests["canonical"])
+        self.assertNotIn("data_info", self.state.tests["canonical"])
         self.assertEqual(
             self.state.tests["canonical"]["split_input_sources"],
             [{"filename": "canonical.csv", "role": "high"}],
@@ -209,6 +228,18 @@ class AppStateOrchestrationTests(unittest.TestCase):
         self.assertEqual(
             self.state.tests["legacy"]["split_source_files"],
             ["legacy.csv"],
+        )
+        self.assertEqual(
+            self.state.tests["legacy"]["data_info"],
+            {"filename": "legacy.csv"},
+        )
+        self.assertEqual(
+            self.state.split_processed_at,
+            "2026-06-10T13:00:00+00:00",
+        )
+        self.assertEqual(
+            self.state.tests["canonical"]["split_processed_at"],
+            "2026-06-10T13:00:00+00:00",
         )
 
     def test_reopens_legacy_snapshot_and_populates_canonical_fixed_keys(self):

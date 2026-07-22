@@ -523,9 +523,14 @@
 - [x] Keep canonical mass state and `split_input_sources` behavior unchanged.
 - [x] Pass focused/AppTest coverage, the 400-test full suite, scoped Ruff,
   compile validation, Streamlit startup, and diff checks.
-- [ ] Resolve `weather_data_split`, `data_info`, `split_ambient_version`,
-  `excel_buffer`, `split_processed_at`, `using_split_method`, and `test_method`
-  in later compatibility-reviewed batches.
+- [x] Remove active `data_info` writes and persistence while preserving the
+  field in old snapshot dictionaries.
+- [x] Retain `split_processed_at` as observable parser-processing metadata and
+  verify its explicit-write and save/load behavior remains unchanged.
+- [x] Pass second-batch focused/AppTest coverage, the 400-test full suite,
+  scoped Ruff, compile validation, Streamlit startup, and diff checks.
+- [ ] Resolve `weather_data_split`, `split_ambient_version`, `excel_buffer`,
+  `using_split_method`, and `test_method` in later compatibility-reviewed batches.
 
 ## Audit finding 15 - Documentation ownership and workflow - 2026-07-21
 

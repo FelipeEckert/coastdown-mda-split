@@ -2714,11 +2714,16 @@ que ele nao vaze entre testes nem volte a ser salvo como segunda fonte de verdad
 escritas porque nenhum fluxo ativo ou legado as le. Snapshots antigos preservam
 os campos armazenados, mas o carregamento remove apenas suas copias flat e usa
 `vehicle_info`/`total_mass` e `split_input_sources` como estado canonico.
+O segundo lote aplicou a mesma regra a `data_info`. `split_processed_at` foi
+mantido porque registra o instante do processamento explicito e nao possui uma
+fonte canonica equivalente.
 
 ### Licao:
 
 Remover uma chave de session state exige verificar separadamente escrita, leitura
 e persistencia. Ignorar o campo legado no estado vivo evita vazamento entre testes;
 preserva-lo no snapshot antigo evita uma migracao destrutiva sem necessidade.
+Uma chave sem UI ainda pode ser metadata observavel; nesse caso, ausencia de um
+substituto canonico e motivo suficiente para rete-la.
 
 ---

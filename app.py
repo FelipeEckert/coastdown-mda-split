@@ -457,8 +457,6 @@ TEST_STATE_KEYS = [
     "using_split_method", "test_method",
     "data_loaded", "vehicle_data_complete",
     # Velocidades de referência
-    # Informações
-    "data_info",
     # Navegação interna do teste
     "current_page",
     # Alertas
@@ -521,7 +519,6 @@ TEST_DEFAULTS = {
     "test_method": "traditional",
     "data_loaded": False,
     "vehicle_data_complete": False,
-    "data_info": {},
     "current_page": "2_dados_veiculo",
     "date_mismatch_warning": None,
     "sync_meteo_by_time_only": False,
@@ -607,7 +604,7 @@ def load_test_state(test_id):
     migrated_legacy_pairs = migrate_legacy_split_final_results(test_data)
 
     # Old snapshots keep these fields, but they no longer belong to live state.
-    for key in ("mass_input_mode", "split_source_files"):
+    for key in ("data_info", "mass_input_mode", "split_source_files"):
         st.session_state.pop(key, None)
 
     for key in TEST_STATE_KEYS:
@@ -879,14 +876,6 @@ def _build_split_coastdown_state(high_or_combined_csv, low_csv, input_mode, t):
         "split_input_mode": input_mode,
         "split_input_layout": _legacy_split_input_layout(input_mode),
         "data_loaded": True,
-        "data_info": {
-            "filename": high_or_combined_csv.name,
-            "split_files": ", ".join(
-                source["filename"] for source in split_input_sources
-            ),
-            "rows": len(df_raw),
-            "runs": len(combined_run_data),
-        },
         "csv_test_date": csv_date,
     }
 
@@ -947,14 +936,6 @@ def _build_split_state_from_loaded(
         "split_input_mode": "separate",
         "split_input_layout": "separate",
         "data_loaded": True,
-        "data_info": {
-            "filename": high_filename,
-            "split_files": ", ".join(
-                source["filename"] for source in split_input_sources
-            ),
-            "rows": len(high_df),
-            "runs": len(combined_run_data),
-        },
         "csv_test_date": csv_date,
     }
 
