@@ -2419,6 +2419,23 @@ realmente roda; ampliar formatos pertence a uma mudanca funcional separada.
 
 ---
 
+## 2026-07-22 - Validacao de Colunas Deve Ficar Depois do Pandas
+
+### Decisao:
+
+A normalizacao dos nomes continua antes da leitura da tabela, porque esses nomes
+sao passados ao Pandas. Somente o mapeamento dos nomes ja normalizados e a falha
+por colunas obrigatorias foram extraidos, mantendo a validacao depois da leitura
+e preservando aliases, ordem, diagnostico e mensagem existentes.
+
+### Licao:
+
+Extrair normalizacao e validacao em uma unica chamada antecipada pareceria mais
+limpo, mas mudaria quais erros e warnings do Pandas acontecem primeiro. Em uma
+refatoracao de parser, a ordem das falhas tambem faz parte do contrato.
+
+---
+
 ## 2026-07-20 - Diagnostico de parser nao pode controlar o retorno de sucesso
 
 ### Contexto:

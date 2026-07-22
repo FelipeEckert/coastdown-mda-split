@@ -531,6 +531,14 @@
   keys, timestamps, numeric values, raw ordering break, and duplicates.
 - [x] Pass the same 29 pre/post checks, 16 focused, 62 coastdown, 33 meteo,
   13 sample-data, 423 full-suite, scoped Ruff, compile, startup, and diff checks.
+- [x] Inventory both real Standard header families and the Split low, high, and
+  combined layouts, including exact normalization and required-column errors.
+- [x] Extract only post-Pandas alias mapping and required-column validation into
+  `_validate_coastdown_columns`, preserving normalization order and diagnostics.
+- [x] Cover BOM, whitespace, capitalization, duplicate, empty, unexpected, and
+  missing columns without adding aliases or duplicating Split integration tests.
+- [x] Pass 19 public pre/post checks, 5 focused, 20 loader, 66 coastdown,
+  13 sample-data, 427 full-suite, scoped Ruff, compile, startup, and diff checks.
 - [ ] Continue only with another independently characterized neutral phase;
   do not broadly rewrite `carregar_dados_csv_robusto`.
 

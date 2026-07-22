@@ -75,6 +75,47 @@ def _read_coastdown_table(file_path, lines, debug_output):
     return frame, raw_column_labels
 
 
+def _validate_coastdown_columns(columns, debug_output):
+    """Map normalized coastdown columns and reject missing required names."""
+    column_mapping = {
+        "run_use": ["run_use", "runuse"],
+        "run": ["run", "run_num"],
+        "time_s": ["time_s", "times"],
+        "distance_m": ["distance_m", "distancem"],
+        "start_time": ["start_time", "starttime"],
+        "max_decel_g": ["max_decel_g", "maxdecelg"],
+        "heading": ["heading"],
+        "notes": ["notes"],
+    }
+    found_columns = {}
+    missing_required = []
+    required_columns = ("run_use", "run", "time_s", "heading", "start_time")
+    for column_name, possible_names in column_mapping.items():
+        matched_column = next(
+            (
+                column
+                for possible_name in possible_names
+                for column in columns
+                if column == possible_name
+                or column.startswith(possible_name + "_")
+            ),
+            None,
+        )
+        if matched_column:
+            found_columns[column_name] = matched_column
+        elif column_name in required_columns:
+            missing_required.append(column_name)
+
+    if missing_required:
+        with open("debug_vbox_date.txt", "w", encoding="utf-8") as debug_file:
+            debug_file.write("\n".join(debug_output))
+        raise ValueError(
+            "Colunas essenciais não encontradas após normalização: "
+            f"{missing_required}. Colunas detectadas: {list(columns)}"
+        )
+    return found_columns
+
+
 def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True):
     """
     Carrega e processa dados de um arquivo CSV de coastdown VBOX.
@@ -246,35 +287,7 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
         debug_output.append(f"Original Columns (as read by Pandas): {original_columns}")
         debug_output.append(f"Normalized Columns (used for internal logic): {df.columns.tolist()}")
 
-        col_mapping = {
-            "run_use": ["run_use", "runuse"],
-            "run": ["run", "run_num"],
-            "time_s": ["time_s", "times"],
-            "distance_m": ["distance_m", "distancem"], 
-            "start_time": ["start_time", "starttime"], 
-            "max_decel_g": ["max_decel_g", "maxdecelg"],
-            "heading": ["heading"],
-            "notes": ["notes"] 
-        }
-
-        found_cols = {}
-        missing_core_cols = []
-        for core_name, possible_names in col_mapping.items():
-            found = False
-            for possible in possible_names:
-                matched_col = next((col for col in df.columns if col == possible or col.startswith(possible + "_")), None)
-                if matched_col:
-                    found_cols[core_name] = matched_col
-                    found = True
-                    break
-            if not found and core_name in ["run_use", "run", "time_s", "heading", "start_time"]:
-                missing_core_cols.append(core_name)
-
-        if missing_core_cols:
-            # Write debug_output before raising error
-            with open("debug_vbox_date.txt", "w", encoding="utf-8") as debug_f:
-                debug_f.write("\n".join(debug_output))
-            raise ValueError(f"Colunas essenciais não encontradas após normalização: {missing_core_cols}. Colunas detectadas: {df.columns.tolist()}")
+        found_cols = _validate_coastdown_columns(df.columns, debug_output)
 
         run_use_col = found_cols["run_use"]
         run_col = found_cols["run"]

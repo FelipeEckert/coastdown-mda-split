@@ -11,11 +11,18 @@ from unittest.mock import patch
 
 import pandas as pd
 
-from data.loaders import _read_text_lines, carregar_dados_csv_robusto
+from data.loaders import (
+    _read_text_lines,
+    _validate_coastdown_columns,
+    carregar_dados_csv_robusto,
+)
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 STANDARD_SAMPLE = ROOT_DIR / "sample_data" / "Standard" / "ExemploCSV1_Coastdown.csv"
+STANDARD_LEGACY_SAMPLE = (
+    ROOT_DIR / "sample_data" / "Standard" / "ExemploCSV2_Coastdown.csv"
+)
 SPLIT_COASTDOWN_DIR = ROOT_DIR / "sample_data" / "Split" / "coastdown"
 SPLIT_COASTDOWN_EXPECTATIONS = {
     "altas ioniq.csv": (13, 13),
@@ -116,6 +123,33 @@ class LoaderCharacterizationTests(unittest.TestCase):
             with self.assertRaisesRegex(PermissionError, "denied"):
                 _read_text_lines(path)
 
+    def test_normalized_column_validation_keeps_current_alias_mapping(self):
+        columns = [
+            "runuse",
+            "heading",
+            "run_num",
+            "times",
+            "distancem",
+            "starttime",
+            "maxdecelg",
+            "notes_0",
+            "unexpected",
+        ]
+
+        self.assertEqual(
+            _validate_coastdown_columns(columns, []),
+            {
+                "run_use": "runuse",
+                "run": "run_num",
+                "time_s": "times",
+                "distance_m": "distancem",
+                "start_time": "starttime",
+                "max_decel_g": "maxdecelg",
+                "heading": "heading",
+                "notes": "notes_0",
+            },
+        )
+
     def test_known_standard_sample_output(self):
         frame, runs, test_date = carregar_dados_csv_robusto(str(STANDARD_SAMPLE))
 
@@ -129,6 +163,19 @@ class LoaderCharacterizationTests(unittest.TestCase):
         )
         self.assertEqual(runs[1]["velocities"], [100.0 - 5.0 * i for i in range(15)])
         self.assertEqual(runs[1]["times"][:4], [0.0, 4.44, 9.0, 16.33])
+
+    def test_known_standard_legacy_duplicate_column_layout(self):
+        frame, runs, test_date = carregar_dados_csv_robusto(
+            str(STANDARD_LEGACY_SAMPLE)
+        )
+
+        self.assertEqual(frame.shape, (12, 24))
+        self.assertEqual(len(runs), 12)
+        self.assertEqual(test_date, date(2024, 10, 24))
+        self.assertEqual(
+            list(frame.columns[7:9]),
+            ["speed_at_end_kmh", "speed_at_end_kmh_0"],
+        )
 
     def test_all_split_coastdown_samples_load_with_expected_shapes(self):
         for filename, (row_count, run_count) in SPLIT_COASTDOWN_EXPECTATIONS.items():
@@ -161,8 +208,87 @@ class LoaderCharacterizationTests(unittest.TestCase):
 
         self.assertEqual(frame.shape, (1, 10))
         self.assertEqual(
+            list(frame.columns),
+            [
+                "runuse",
+                "heading",
+                "run",
+                "time_s",
+                "distance_m",
+                "start_time",
+                "max_decel_g",
+                "9085",
+                "8580",
+                "notes",
+            ],
+        )
+        self.assertEqual(
             [item["time_s"] for item in runs[1]["interval_measurements"]],
             [4.25, 4.5],
+        )
+
+    def test_bom_whitespace_and_capitalization_keep_current_column_names(self):
+        header = [
+            "\ufeffRUN-USE",
+            " Heading ",
+            "RUN",
+            "Time (S)",
+            "Distance (M)",
+            "START TIME",
+            "MAX DECEL (G)",
+            "90-85",
+            "85-80",
+            "Notes",
+        ]
+        path = self._write(_vbox_content(header_fields=header))
+
+        with patch("builtins.print") as print_mock:
+            frame, _, _ = carregar_dados_csv_robusto(
+                str(path),
+                using_split_method=True,
+            )
+
+        print_mock.assert_not_called()
+        self.assertEqual(
+            list(frame.columns[:7]),
+            [
+                "runuse",
+                "heading",
+                "run",
+                "time_s",
+                "distance_m",
+                "start_time",
+                "max_decel_g",
+            ],
+        )
+
+    def test_empty_duplicate_and_unexpected_columns_keep_order_without_warning(self):
+        header = [
+            "Run-Use",
+            "Heading",
+            "Run",
+            "Time (s)",
+            "Distance (m)",
+            "Start Time",
+            "Max Decel (g)",
+            "",
+            "",
+            "Notes",
+            "Unexpected",
+            "Unexpected",
+        ]
+        path = self._write(_vbox_content(header_fields=header))
+
+        with patch("builtins.print") as print_mock:
+            frame, _, _ = carregar_dados_csv_robusto(
+                str(path),
+                using_split_method=True,
+            )
+
+        print_mock.assert_not_called()
+        self.assertEqual(
+            list(frame.columns[7:]),
+            ["unnamed_col_0", "unnamed_col_1", "notes", "unexpected", "unexpected_0"],
         )
 
     def test_semicolon_data_delimiter_is_currently_rejected(self):
@@ -226,11 +352,17 @@ class LoaderCharacterizationTests(unittest.TestCase):
         ]
         path = self._write(_vbox_content(header_fields=header))
 
-        with self.assertRaisesRegex(
-            ValueError,
-            r"Colunas essenciais não encontradas.*heading",
-        ):
-            carregar_dados_csv_robusto(str(path))
+        with patch("builtins.print") as print_mock:
+            with self.assertRaises(ValueError) as context:
+                carregar_dados_csv_robusto(str(path))
+
+        print_mock.assert_not_called()
+        self.assertEqual(
+            str(context.exception),
+            "Colunas essenciais não encontradas após normalização: ['heading']. "
+            "Colunas detectadas: ['runuse', 'run', 'time_s', 'distance_m', "
+            "'start_time', 'max_decel_g', '9085', '8580', 'notes']",
+        )
 
     def test_ambiguous_day_first_date_keeps_current_interpretation(self):
         path = self._write(

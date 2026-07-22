@@ -424,6 +424,16 @@ finding has been documented but no cleanup or behavior change has been applied.
   pass before and after extraction. The 16 focused, 62 coastdown, 33 meteo, and
   13 sample-data tests pass, as do the 423-test full suite, scoped Ruff, compile,
   Streamlit startup, and diff checks.
+- **Third neutral phase (2026-07-22):** The existing alias lookup and required
+  normalized-column check moved unchanged into `_validate_coastdown_columns`
+  after the Pandas read. Header normalization remains before Pandas. Coverage
+  now fixes the two real Standard layouts plus BOM, whitespace, capitalization,
+  duplicate, empty, unexpected, and missing-column behavior without accepting
+  new names.
+- **Third-phase validation:** The same 19 public characterizations pass before
+  and after extraction, with one narrow helper check. The 5 focused, 20 loader,
+  66 coastdown, and 13 sample-data tests pass, as do the 427-test full suite,
+  scoped Ruff, compile, Streamlit startup, and diff checks.
 - **Status:** In Progress
 
 ### 14. Stale state keys obscure the canonical Split model
