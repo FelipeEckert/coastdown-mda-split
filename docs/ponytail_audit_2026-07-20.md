@@ -448,6 +448,19 @@ finding has been documented but no cleanup or behavior change has been applied.
 - **Temporal-phase validation:** The 9 focused temporal checks, 85-test loader,
   weather, correction, sample-data, and AppTest matrix, and 436-test full suite
   pass, as do Ruff, compile, Streamlit startup, and diff hygiene.
+- **Fourth narrow phase (2026-07-22):** Per-run `Start Time` normalization,
+  elapsed/absolute classification, legacy clock fallbacks, naive datetime
+  construction, and debug messages moved unchanged into the private
+  `_parse_coastdown_start_time` helper. File-date discovery remains before the
+  Pandas read, preserving its format priority and error order. Direct tests pin
+  exact return types, milliseconds, malformed/missing values, the current
+  two-field `HH:MM`-as-`MM:SS` behavior, and debug text without repeating
+  synchronization coverage.
+- **Fourth-phase validation:** The focused helper plus 10 temporal tests,
+  86-test loader/weather/correction/sample/AppTest matrix, and 437-test full
+  suite pass, as do scoped Ruff, compile, Streamlit startup, and diff checks.
+  Broad Ruff reports only the same eight inherited `data/loaders.py` findings
+  recorded before this extraction; no new finding is introduced.
 - **Status:** In Progress
 
 ### 14. Stale state keys obscure the canonical Split model

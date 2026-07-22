@@ -2,7 +2,7 @@
 
 from contextlib import chdir
 import csv
-from datetime import datetime, time
+from datetime import date, datetime, time
 from io import StringIO
 from pathlib import Path
 import tempfile
@@ -21,7 +21,7 @@ from core.split_weather_context import (
     synchronize_weather_for_split_runs,
 )
 from core.weather_sync import sync_weather_to_run
-from data.loaders import carregar_dados_csv_robusto
+from data.loaders import _parse_coastdown_start_time, carregar_dados_csv_robusto
 from data.split_parser import default_split_interval_config, parse_split_sources
 from data.weather_loader import read_weather_file
 
@@ -143,6 +143,78 @@ class TemporalWeatherCharacterizationTest(unittest.TestCase):
                 run = self._load_synthetic_run(start_time=raw_time)
                 self.assertEqual(run["start_time_str"], raw_time)
                 self.assertEqual(run["start_timestamp"], expected)
+
+    def test_start_time_helper_preserves_values_types_and_debug_contract(self):
+        test_date = date(2024, 4, 22)
+        test_start = datetime(2024, 4, 22, 15, 49)
+        cases = (
+            (
+                "18:47:17.147",
+                test_start,
+                "18:47:17.147",
+                datetime(2024, 4, 22, 18, 47, 17, 147000),
+                [
+                    "  -> Start Time '18:47:17.147' interpretado como ABSOLUTO -> "
+                    "2024-04-22 18:47:17.147000"
+                ],
+            ),
+            (
+                "18:47",
+                test_start,
+                "18:47",
+                datetime(2024, 4, 22, 16, 7, 47),
+                [
+                    "  -> Start Time '18:47' (MM:SS) tratado como ELAPSED "
+                    "18m47.000s desde 2024-04-22 15:49:00 -> 2024-04-22 16:07:47"
+                ],
+            ),
+            (
+                "not-a-time",
+                test_start,
+                "not-a-time",
+                None,
+                [
+                    "  -> ERRO: Não foi possível interpretar start_time "
+                    "'not-a-time' como elapsed nem absoluto."
+                ],
+            ),
+            (
+                float("nan"),
+                test_start,
+                "nan",
+                None,
+                [
+                    "  -> ERRO: Não foi possível interpretar start_time 'nan' "
+                    "como elapsed nem absoluto."
+                ],
+            ),
+            (
+                "00:01:02.345",
+                None,
+                "00:01:02.345",
+                None,
+                [
+                    "  -> Start Time '00:01:02.345' sugere ELAPSED, mas "
+                    "'test_start_datetime' não está disponível.",
+                    "  -> ERRO: Não foi possível interpretar start_time "
+                    "'00:01:02.345' como elapsed nem absoluto.",
+                ],
+            ),
+        )
+        for raw_value, origin, expected_text, expected_time, expected_debug in cases:
+            with self.subTest(raw_value=raw_value):
+                debug_output = []
+                retained, parsed = _parse_coastdown_start_time(
+                    raw_value,
+                    test_date,
+                    origin,
+                    debug_output,
+                )
+                self.assertIsInstance(retained, str)
+                self.assertEqual(retained, expected_text)
+                self.assertEqual(parsed, expected_time)
+                self.assertTrue(parsed is None or isinstance(parsed, datetime))
+                self.assertEqual(debug_output, expected_debug)
 
     def test_missing_or_malformed_coastdown_temporal_fields_keep_current_errors(self):
         with tempfile.TemporaryDirectory(dir=ROOT_DIR) as directory, chdir(directory):

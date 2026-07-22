@@ -548,6 +548,12 @@
   cross-date time-only fallback behavior.
 - [x] Pass 9 focused temporal checks, the 85-test integration/AppTest matrix,
   436-test full suite, Ruff, compile, startup, and diff checks.
+- [x] Extract only per-run coastdown start-time parsing into one private helper,
+  leaving file-date discovery before Pandas and all synchronization untouched.
+- [x] Pin helper return types, exact debug messages, milliseconds, missing and
+  malformed values, elapsed forms, legacy fallbacks, and `HH:MM` ambiguity.
+- [x] Pass the focused helper, 10 temporal, 86 integration/AppTest, and
+  437 full-suite tests plus scoped Ruff, compile, startup, and diff checks.
 - [ ] Continue only with another independently characterized neutral phase;
   do not broadly rewrite `carregar_dados_csv_robusto`.
 

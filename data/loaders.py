@@ -116,6 +116,99 @@ def _validate_coastdown_columns(columns, debug_output):
     return found_columns
 
 
+def _parse_coastdown_start_time(
+    raw_value,
+    test_date,
+    test_start_datetime,
+    debug_output,
+):
+    """Return the retained run time text and its current naive datetime."""
+    start_time_str = str(raw_value).strip()
+    start_timestamp = None
+    s = (str(start_time_str) or "").strip().replace(",", ".")
+
+    m_hms = re.match(r"^(\d{1,2}):([0-5]\d):([0-5]\d)(?:\.(\d+))?$", s)
+    m_ms = re.match(r"^(\d{1,2}):([0-5]\d)(?:\.(\d+))?$", s)
+
+    if m_hms:
+        hh = int(m_hms.group(1))
+        mm = int(m_hms.group(2))
+        ss = int(m_hms.group(3))
+        frac = m_hms.group(4)
+        sec_total = ss + (float(f"0.{frac}") if frac else 0.0)
+
+        if hh == 0:
+            if test_start_datetime is not None:
+                start_timestamp = test_start_datetime + timedelta(
+                    minutes=mm,
+                    seconds=sec_total,
+                )
+                debug_output.append(
+                    f"  -> Start Time '{s}' (HH=00) tratado como ELAPSED {mm}m{sec_total:.3f}s "
+                    f"desde {test_start_datetime} -> {start_timestamp}"
+                )
+            else:
+                debug_output.append(
+                    f"  -> Start Time '{s}' sugere ELAPSED, mas 'test_start_datetime' não está disponível."
+                )
+        else:
+            try:
+                microsecond = int((frac or "").ljust(6, "0")[:6]) if frac else 0
+                time_with_sec = time(hh, mm, ss, microsecond)
+                start_timestamp = datetime.combine(test_date, time_with_sec)
+                debug_output.append(
+                    f"  -> Start Time '{s}' interpretado como ABSOLUTO -> {start_timestamp}"
+                )
+            except Exception as eabs:
+                debug_output.append(
+                    f"  -> ERRO ao interpretar '{s}' como absoluto HH:MM:SS: {eabs}"
+                )
+
+    elif m_ms:
+        mm = int(m_ms.group(1))
+        ss = int(m_ms.group(2))
+        frac = m_ms.group(3)
+        sec_total = ss + (float(f"0.{frac}") if frac else 0.0)
+
+        if test_start_datetime is not None:
+            start_timestamp = test_start_datetime + timedelta(
+                minutes=mm,
+                seconds=sec_total,
+            )
+            debug_output.append(
+                f"  -> Start Time '{s}' (MM:SS) tratado como ELAPSED {mm}m{sec_total:.3f}s "
+                f"desde {test_start_datetime} -> {start_timestamp}"
+            )
+        else:
+            debug_output.append(
+                f"  -> Start Time '{s}' (MM:SS) sugere ELAPSED, mas 'test_start_datetime' não está disponível."
+            )
+    else:
+        time_formats = [
+            "%H:%M:%S.%f",
+            "%H:%M:%S",
+            "%H:%M",
+            "%I:%M:%S %p",
+            "%I:%M %p",
+        ]
+        for fmt in time_formats:
+            try:
+                time_obj = datetime.strptime(s, fmt).time()
+                start_timestamp = datetime.combine(test_date, time_obj)
+                debug_output.append(
+                    f"  -> Start time parseado (fallback fmt {fmt}): {start_timestamp}"
+                )
+                break
+            except ValueError:
+                continue
+
+    if start_timestamp is None:
+        debug_output.append(
+            f"  -> ERRO: Não foi possível interpretar start_time '{s}' como elapsed nem absoluto."
+        )
+    return start_time_str, start_timestamp
+
+
 def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True):
     """
     Carrega e processa dados de um arquivo CSV de coastdown VBOX.
@@ -381,87 +474,12 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
             try:
                 run_data_row = df_filtered.loc[df_filtered[run_col] == run_id].iloc[0]
                 run_heading = str(run_data_row[heading_col]).strip()
-                start_time_str = str(run_data_row[start_time_col]).strip()
-
-                # Parsing robusto do start_time com detecção de elapsed vs absoluto
-                start_timestamp = None
-                s = (str(start_time_str) or "").strip()
-                s = s.replace(",", ".")  # normaliza vírgula para ponto
-
-                # 1) Tenta HH:MM:SS(.fração)
-                m_hms = re.match(r'^(\d{1,2}):([0-5]\d):([0-5]\d)(?:\.(\d+))?$', s)
-                # 2) Tenta MM:SS(.fração)
-                m_ms  = re.match(r'^(\d{1,2}):([0-5]\d)(?:\.(\d+))?$', s)
-
-                if m_hms:
-                    hh = int(m_hms.group(1))
-                    mm = int(m_hms.group(2))
-                    ss = int(m_hms.group(3))
-                    frac = m_hms.group(4)
-                    sec_total = ss + (float(f"0.{frac}") if frac else 0.0)
-
-                    if hh == 0:
-                        # 00:MM:SS(.f) => ELAPSED
-                        if test_start_datetime is not None:
-                            start_timestamp = test_start_datetime + timedelta(minutes=mm, seconds=sec_total)
-                            debug_output.append(
-                                f"  -> Start Time '{s}' (HH=00) tratado como ELAPSED {mm}m{sec_total:.3f}s "
-                                f"desde {test_start_datetime} -> {start_timestamp}"
-                            )
-                        else:
-                            debug_output.append(
-                                f"  -> Start Time '{s}' sugere ELAPSED, mas 'test_start_datetime' não está disponível."
-                            )
-                    else:
-                        # HH>0 => Absoluto no dia do teste
-                        try:
-                            microsecond = int((frac or "").ljust(6, "0")[:6]) if frac else 0
-                            time_with_sec = time(hh, mm, ss, microsecond)
-                            start_timestamp = datetime.combine(test_date, time_with_sec)
-                            debug_output.append(
-                                f"  -> Start Time '{s}' interpretado como ABSOLUTO -> {start_timestamp}"
-                            )
-                        except Exception as eabs:
-                            debug_output.append(f"  -> ERRO ao interpretar '{s}' como absoluto HH:MM:SS: {eabs}")
-
-                elif m_ms:
-                    # MM:SS(.f) => ELAPSED
-                    mm = int(m_ms.group(1))
-                    ss = int(m_ms.group(2))
-                    frac = m_ms.group(3)
-                    sec_total = ss + (float(f"0.{frac}") if frac else 0.0)
-
-                    if test_start_datetime is not None:
-                        start_timestamp = test_start_datetime + timedelta(minutes=mm, seconds=sec_total)
-                        debug_output.append(
-                            f"  -> Start Time '{s}' (MM:SS) tratado como ELAPSED {mm}m{sec_total:.3f}s "
-                            f"desde {test_start_datetime} -> {start_timestamp}"
-                        )
-                    else:
-                        debug_output.append(
-                            f"  -> Start Time '{s}' (MM:SS) sugere ELAPSED, mas 'test_start_datetime' não está disponível."
-                        )
-                else:
-                    # Fallback: tenta formatos antigos/absolutos
-                    time_formats = [
-                        "%H:%M:%S.%f",
-                        "%H:%M:%S",
-                        "%H:%M",
-                        "%I:%M:%S %p",
-                        "%I:%M %p",
-                    ]
-                    for fmt in time_formats:
-                        try:
-                            time_obj = datetime.strptime(s, fmt).time()
-                            start_timestamp = datetime.combine(test_date, time_obj)
-                            debug_output.append(f"  -> Start time parseado (fallback fmt {fmt}): {start_timestamp}")
-                            break
-                        except ValueError:
-                            continue
-
-                if start_timestamp is None:
-                    debug_output.append(f"  -> ERRO: Não foi possível interpretar start_time '{s}' como elapsed nem absoluto.")
-
+                start_time_str, start_timestamp = _parse_coastdown_start_time(
+                    run_data_row[start_time_col],
+                    test_date,
+                    test_start_datetime,
+                    debug_output,
+                )
 
             except IndexError:
                 continue

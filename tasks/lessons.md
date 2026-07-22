@@ -2452,6 +2452,22 @@ exigem uma decisao funcional separada.
 
 ---
 
+## 2026-07-22 - Fases Temporais Devem Preservar a Ordem de Falha
+
+### Decisao:
+
+Somente o parsing de `Start Time` por run foi extraido. A descoberta da data do
+arquivo permanece antes do Pandas, pois unir as duas fases exigiria um helper
+com modos opcionais ou mudaria quando erros de data e tabela aparecem.
+
+### Licao:
+
+Dois blocos temporais nao formam uma unica abstracao quando executam em fases
+diferentes. O menor helper seguro recebe a data ja resolvida, devolve texto e
+`datetime` e preserva no mesmo ponto mensagens, `None` e horario naive.
+
+---
+
 ## 2026-07-20 - Diagnostico de parser nao pode controlar o retorno de sucesso
 
 ### Contexto:
