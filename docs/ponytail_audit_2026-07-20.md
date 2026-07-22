@@ -434,6 +434,20 @@ finding has been documented but no cleanup or behavior change has been applied.
   and after extraction, with one narrow helper check. The 5 focused, 20 loader,
   66 coastdown, and 13 sample-data tests pass, as do the 427-test full suite,
   scoped Ruff, compile, Streamlit startup, and diff checks.
+- **Temporal characterization phase (2026-07-22):** No production code moved
+  or changed. Focused end-to-end tests now pin the two real coastdown date
+  header layouts, millisecond-preserving run datetimes, elapsed and legacy time
+  fallbacks, malformed temporal fields, inclusive 300-second matching, stable
+  nearest/tie/duplicate selection, time-only and midnight behavior, concrete
+  `AGRICULTR_SPLIT.csv` values, and traceability through correction and the
+  comparison pair. Two current ambiguities remain deliberately unchanged:
+  two-field `HH:MM` run text is consumed as elapsed `MM:SS`, and automatic
+  fallback can match a different-date record solely by time of day. Exact sync
+  fields remain in the calculated pair and calculation audit UI, while the
+  current workbook exposes only their environmental summary.
+- **Temporal-phase validation:** The 9 focused temporal checks, 85-test loader,
+  weather, correction, sample-data, and AppTest matrix, and 436-test full suite
+  pass, as do Ruff, compile, Streamlit startup, and diff hygiene.
 - **Status:** In Progress
 
 ### 14. Stale state keys obscure the canonical Split model

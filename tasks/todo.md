@@ -539,6 +539,15 @@
   missing columns without adding aliases or duplicating Split integration tests.
 - [x] Pass 19 public pre/post checks, 5 focused, 20 loader, 66 coastdown,
   13 sample-data, 427 full-suite, scoped Ruff, compile, startup, and diff checks.
+- [x] Map coastdown metadata and run times through parsing, committed state,
+  automatic weather synchronization, correction, comparison, Results, and export.
+- [x] Add characterization only for real millisecond timestamps, concrete meteo
+  matches, nearest/tie/duplicate/order behavior, the 300-second boundary,
+  time-only fallback, midnight, malformed inputs, and retained traceability.
+- [x] Record without fixing the current `HH:MM`/`MM:SS` precedence and
+  cross-date time-only fallback behavior.
+- [x] Pass 9 focused temporal checks, the 85-test integration/AppTest matrix,
+  436-test full suite, Ruff, compile, startup, and diff checks.
 - [ ] Continue only with another independently characterized neutral phase;
   do not broadly rewrite `carregar_dados_csv_robusto`.
 

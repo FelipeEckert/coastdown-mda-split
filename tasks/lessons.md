@@ -2436,6 +2436,22 @@ refatoracao de parser, a ordem das falhas tambem faz parte do contrato.
 
 ---
 
+## 2026-07-22 - Timestamp de Run E Parte do Contrato de Correcao
+
+### Decisao:
+
+Antes de extrair logica temporal, testes end-to-end fixam data e hora brutas,
+milissegundos, `datetime`, registro meteorologico e auditoria do par corrigido.
+Ordenacao estavel e primeiro registro em empates permanecem inalterados.
+
+### Licao:
+
+Timestamp de run e contrato de correcao. Limite, fallback e rastreabilidade
+devem ser caracterizados juntos; ambiguidades `HH:MM`/`MM:SS` e entre datas
+exigem uma decisao funcional separada.
+
+---
+
 ## 2026-07-20 - Diagnostico de parser nao pode controlar o retorno de sucesso
 
 ### Contexto:
