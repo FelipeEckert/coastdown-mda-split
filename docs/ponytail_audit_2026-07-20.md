@@ -345,7 +345,20 @@ finding has been documented but no cleanup or behavior change has been applied.
 - **Validation:** Import every Split submodule with legacy/optional dependencies
   unavailable, and search for external documented import examples before
   removing aliases.
-- **Status:** Pending
+- **Resolution (2026-07-22):** `core` and `data` now resolve their existing
+  package-level functions and module attributes lazily through module-level
+  `__getattr__`. The public `__all__` lists, object identity, import errors on
+  actual access, discoverability, and ambiguous compatibility aliases are
+  preserved; no export was removed. Repository production callers already use
+  direct submodule imports, so no caller rewrite was needed.
+- **Validation result:** Focused tests cover dependency-free representative
+  Split imports, all supported `from core import ...` and `from data import ...`
+  exports, stable eager-era identity across source-module monkeypatching, exact
+  deferred dependency errors, and both package/submodule import orders. The
+  121-test calculation, correction, loader, and exporter regression group, the
+  376-test full suite, Ruff, compile checks, a Streamlit `AppTest` startup smoke
+  test, and diff hygiene pass.
+- **Status:** Completed
 
 ### 13. Loader has mixed Standard/Split responsibility and extreme complexity
 

@@ -2645,3 +2645,23 @@ Um registro historico nao deve ser apagado quando o sistema evolui, mas precisa 
 um limite temporal claro para nao competir com a documentacao operacional.
 
 ---
+
+## 2026-07-22 - Inicializadores De Pacote Devem Ser Fronteiras Preguicosas
+
+### Decisao:
+
+`core/__init__.py` e `data/__init__.py` preservam seus nomes publicos e aliases de
+modulo com `__getattr__`. Quando um modulo proprietario e realmente importado, o
+pacote captura seus objetos publicos originais antes que um monkeypatch posterior
+possa alterar a origem. Imports diretos de submodulos Split nao carregam mais
+calculos, correcoes ou exportadores Standard apenas por atravessarem o pacote.
+
+### Licao:
+
+Quando um pacote possui reexports de compatibilidade incerta, remover aliases nao
+e necessario para eliminar acoplamento eager. Resolucao preguiçosa combinada com
+captura no carregamento do modulo preserva a identidade que o inicializador eager
+fixava, sem importar o modulo antecipadamente. Testes em subprocessos novos provam
+a fronteira sem depender do estado de `sys.modules` da suite.
+
+---
