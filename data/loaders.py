@@ -116,6 +116,114 @@ def _validate_coastdown_columns(columns, debug_output):
     return found_columns
 
 
+def _parse_coastdown_test_header(lines, debug_output):
+    """Return the test date and optional absolute start from VBOX metadata."""
+    test_date = None
+    test_start_datetime = None
+
+    try:
+        if len(lines) >= 3:
+            line_3_content = lines[2].strip()
+            debug_output.append(f"Conteúdo da linha 3 (índice 2): '{line_3_content}'")
+            delimiter = ','
+            if ';' in line_3_content and ',' not in line_3_content:
+                delimiter = ';'
+            debug_output.append(f"Delimitador detectado para linha 3: '{delimiter}'")
+            line_3_parts = line_3_content.split(delimiter)
+            debug_output.append(f"Partes da linha 3 (split por '{delimiter}'): {line_3_parts}")
+            if len(line_3_parts) > 1:
+                date_str_raw = line_3_parts[1].strip()
+                debug_output.append(f"  -> Parte da data bruta extraída da coluna B: '{date_str_raw}'")
+                if date_str_raw:
+                    try:
+                        test_date = datetime.strptime(date_str_raw, '%d-%b-%Y').date()
+                        debug_output.append(f"  -> Data parseada com sucesso (formato %d-%b-%Y): {test_date}")
+                    except ValueError as ve_yyyy:
+                        debug_output.append(f"  -> ERRO ao parsear com %d-%b-%Y: {ve_yyyy}")
+                        try:
+                            test_date = datetime.strptime(date_str_raw, '%d-%b-%y').date()
+                            debug_output.append(f"  -> Data parseada com sucesso (formato %d-%b-%y): {test_date}")
+                        except ValueError as ve_yy:
+                            debug_output.append(f"  -> ERRO ao parsear com %d-%b-%y: {ve_yy}")
+                            test_date = None
+                else:
+                    debug_output.append(f"  -> A parte da data da Linha 3, Coluna B está vazia.")
+            else:
+                debug_output.append(f"  -> ERRO: Linha 3 não tem colunas suficientes para extrair a data da coluna B. Partes: {line_3_parts}")
+        else:
+            debug_output.append(f"ERRO: Arquivo tem menos de 3 linhas. Não foi possível ler a linha 3 para a data.")
+
+        if test_date is None and len(lines) >= 1:
+            line_1_content = lines[0].strip()
+            debug_output.append(f"Tentando fallback: Conteúdo da linha 1 (índice 0): \'{line_1_content}\'")
+            match = re.search(r'Test Date: (\d{2}/\d{2}/\d{4})(?:\s(\d{2}:\d{2}))?', line_1_content)
+            if match:
+                date_part = match.group(1)
+                time_part = match.group(2)
+                full_date_str = f"{date_part} {time_part}" if time_part else date_part
+                debug_output.append(f"  -> Padrão de data/hora encontrado na linha 1: \'{full_date_str}\'")
+                try:
+                    if time_part:
+                        dt = datetime.strptime(full_date_str, '%d/%m/%Y %H:%M')
+                        test_date = dt.date()
+                        test_start_datetime = dt
+                        debug_output.append(
+                            f"  -> Data parseada com sucesso (formato %d/%m/%Y %H:%M): {test_date} (start {test_start_datetime})"
+                        )
+                    else:
+                        dt = datetime.strptime(full_date_str, '%d/%m/%Y')
+                        test_date = dt.date()
+                        test_start_datetime = None
+                        debug_output.append(f"  -> Data parseada com sucesso (formato %d/%m/%Y): {test_date}")
+                except ValueError as ve_line1:
+                    debug_output.append(f"  -> ERRO ao parsear data da linha 1: {ve_line1}")
+            else:
+                debug_output.append(f"  -> Padrão \"Test Date: DD/MM/YYYY HH:MM\" não encontrado na linha 1.")
+    except Exception as e:
+        debug_output.append(f"ERRO inesperado ao tentar extrair a data do cabeçalho: {e}")
+
+    try:
+        if len(lines) >= 1:
+            line_1_content = lines[0].strip()
+            m = re.search(
+                r'Test Date:\s*(\d{2}/\d{2}/\d{4})(?:\s+(\d{2}:\d{2}(?::\d{2})?))?',
+                line_1_content
+            )
+            if m:
+                date_part = m.group(1)
+                time_part = m.group(2)
+                if test_date is None:
+                    try:
+                        test_date = datetime.strptime(date_part, '%d/%m/%Y').date()
+                        debug_output.append(f"  -> (2ª passada) Data (linha 1) parseada: {test_date}")
+                    except ValueError as ve:
+                        debug_output.append(f"  -> (2ª passada) ERRO parse data linha 1: {ve}")
+                if time_part and test_date is not None:
+                    dt = None
+                    for fmt in ('%d/%m/%Y %H:%M:%S', '%d/%m/%Y %H:%M'):
+                        try:
+                            dt = datetime.strptime(f"{date_part} {time_part}", fmt)
+                            break
+                        except ValueError:
+                            continue
+                    if dt is not None:
+                        test_start_datetime = dt
+                        debug_output.append(f"  -> (2ª passada) Hora inicial do teste (linha 1): {test_start_datetime}")
+                    else:
+                        try:
+                            hm = datetime.strptime(time_part, '%H:%M').time()
+                            test_start_datetime = datetime.combine(test_date, hm)
+                            debug_output.append(f"  -> (2ª passada) Hora inicial combinada com test_date: {test_start_datetime}")
+                        except Exception as ehm:
+                            debug_output.append(f"  -> (2ª passada) ERRO compondo hora com test_date: {ehm}")
+            else:
+                debug_output.append("  -> (2ª passada) Linha 1 não bateu com regex de Test Date.")
+    except Exception as e:
+        debug_output.append(f"  -> (2ª passada) ERRO inesperado: {e}")
+
+    return test_date, test_start_datetime
+
+
 def _parse_coastdown_start_time(
     raw_value,
     test_date,
@@ -225,132 +333,25 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
         raise FileNotFoundError(f"Arquivo não encontrado ou caminho inválido: {file_path}")
 
     test_date = None
-    test_start_datetime = None  # <--- NOVO: data+hora absoluta do início do teste (linha 1)
+    test_start_datetime = None
     debug_output = []
 
-    # --- Extração da Data (Linha 3, Coluna B) --- 
-    # --- Extração da Data (Prioridade: Linha 3, Coluna B; Fallback: Linha 1, Coluna A) ---
     try:
-            lines = _read_text_lines(file_path)
-            debug_output.append(f"Total de linhas lidas: {len(lines)}")
-            
-            # Tenta extrair da Linha 3, Coluna B
-            if len(lines) >= 3: # Garante que há pelo menos 3 linhas
-                line_3_content = lines[2].strip() # Linha 3 é índice 2
-                debug_output.append(f"Conteúdo da linha 3 (índice 2): '{line_3_content}'")
-                
-                delimiter = ','
-                if ';' in line_3_content and ',' not in line_3_content:
-                    delimiter = ';'
-                debug_output.append(f"Delimitador detectado para linha 3: '{delimiter}'")
-
-                line_3_parts = line_3_content.split(delimiter)
-                debug_output.append(f"Partes da linha 3 (split por '{delimiter}'): {line_3_parts}")
-
-                if len(line_3_parts) > 1: # Garante que há pelo menos 2 colunas
-                    date_str_raw = line_3_parts[1].strip() # Coluna B é índice 1
-                    debug_output.append(f"  -> Parte da data bruta extraída da coluna B: '{date_str_raw}'")
-                    
-                    if date_str_raw: # VERIFICA SE A STRING NÃO ESTÁ VAZIA
-                        try:
-                            test_date = datetime.strptime(date_str_raw, '%d-%b-%Y').date()
-                            debug_output.append(f"  -> Data parseada com sucesso (formato %d-%b-%Y): {test_date}")
-                        except ValueError as ve_yyyy:
-                            debug_output.append(f"  -> ERRO ao parsear com %d-%b-%Y: {ve_yyyy}")
-                            try:
-                                test_date = datetime.strptime(date_str_raw, '%d-%b-%y').date()
-                                debug_output.append(f"  -> Data parseada com sucesso (formato %d-%b-%y): {test_date}")
-                            except ValueError as ve_yy:
-                                debug_output.append(f"  -> ERRO ao parsear com %d-%b-%y: {ve_yy}")
-                                test_date = None
-                    else:
-                        debug_output.append(f"  -> A parte da data da Linha 3, Coluna B está vazia.")
-                else:
-                    debug_output.append(f"  -> ERRO: Linha 3 não tem colunas suficientes para extrair a data da coluna B. Partes: {line_3_parts}")
-            else:
-                debug_output.append(f"ERRO: Arquivo tem menos de 3 linhas. Não foi possível ler a linha 3 para a data.")
-
-            # Fallback: Tenta extrair da Linha 1, Coluna A, se a data ainda não foi encontrada
-            if test_date is None and len(lines) >= 1:
-                line_1_content = lines[0].strip() # Linha 1 é índice 0
-                debug_output.append(f"Tentando fallback: Conteúdo da linha 1 (índice 0): \'{line_1_content}\'")
-                
-                # Procura pelo padrão "Test Date: DD/MM/YYYY HH:MM" ou "Test Date: DD/MM/YYYY"
-                match = re.search(r'Test Date: (\d{2}/\d{2}/\d{4})(?:\s(\d{2}:\d{2}))?', line_1_content)
-                if match:
-                    date_part = match.group(1)
-                    time_part = match.group(2)
-                    full_date_str = f"{date_part} {time_part}" if time_part else date_part
-                    debug_output.append(f"  -> Padrão de data/hora encontrado na linha 1: \'{full_date_str}\'")
-                    try:
-                        # Tenta parsear com hora, se disponível
-                        if time_part:
-                            dt = datetime.strptime(full_date_str, '%d/%m/%Y %H:%M')
-                            test_date = dt.date()
-                            test_start_datetime = dt  # <--- NOVO
-                            debug_output.append(
-                                f"  -> Data parseada com sucesso (formato %d/%m/%Y %H:%M): {test_date} (start {test_start_datetime})"
-                            )
-                        else:
-                            dt = datetime.strptime(full_date_str, '%d/%m/%Y')
-                            test_date = dt.date()
-                            test_start_datetime = None  # sem hora, não dá pra compor elapsed
-                            debug_output.append(f"  -> Data parseada com sucesso (formato %d/%m/%Y): {test_date}")
-
-                    except ValueError as ve_line1:
-                        debug_output.append(f"  -> ERRO ao parsear data da linha 1: {ve_line1}")
-                else:
-                    debug_output.append(f"  -> Padrão \"Test Date: DD/MM/YYYY HH:MM\" não encontrado na linha 1.")
-
-    except Exception as e:
-        debug_output.append(f"ERRO inesperado ao tentar extrair a data do cabeçalho: {e}")
-        
-    # --- SEGUNDA PASSADA: SEMPRE tentar extrair a HORA da linha 1 (mesmo se a data já veio da linha 3) ---
-    try:
-        if len(lines) >= 1:
-            line_1_content = lines[0].strip()
-            # aceita "Test Date: DD/MM/YYYY HH:MM" OU "Test Date: DD/MM/YYYY HH:MM:SS" OU só data
-            m = re.search(
-                r'Test Date:\s*(\d{2}/\d{2}/\d{4})(?:\s+(\d{2}:\d{2}(?::\d{2})?))?',
-                line_1_content
+        lines = _read_text_lines(file_path)
+        debug_output.append(f"Total de linhas lidas: {len(lines)}")
+        test_date, test_start_datetime = _parse_coastdown_test_header(
+            lines, debug_output
+        )
+    except Exception as error:
+        debug_output.append(
+            f"ERRO inesperado ao tentar extrair a data do cabeçalho: {error}"
+        )
+        try:
+            len(lines)
+        except Exception as second_pass_error:
+            debug_output.append(
+                f"  -> (2ª passada) ERRO inesperado: {second_pass_error}"
             )
-            if m:
-                date_part = m.group(1)
-                time_part = m.group(2)  # pode ser None
-                # se não temos test_date ainda, usa a data da linha 1
-                if test_date is None:
-                    try:
-                        test_date = datetime.strptime(date_part, '%d/%m/%Y').date()
-                        debug_output.append(f"  -> (2ª passada) Data (linha 1) parseada: {test_date}")
-                    except ValueError as ve:
-                        debug_output.append(f"  -> (2ª passada) ERRO parse data linha 1: {ve}")
-                # se temos hora, monta o datetime de início absoluto
-                if time_part and test_date is not None:
-                    # tenta HH:MM:SS e depois HH:MM
-                    dt = None
-                    for fmt in ('%d/%m/%Y %H:%M:%S', '%d/%m/%Y %H:%M'):
-                        try:
-                            dt = datetime.strptime(f"{date_part} {time_part}", fmt)
-                            break
-                        except ValueError:
-                            continue
-                    if dt is not None:
-                        test_start_datetime = dt
-                        debug_output.append(f"  -> (2ª passada) Hora inicial do teste (linha 1): {test_start_datetime}")
-                    else:
-                        # se hora não tinha segundos e a data da linha 1 diverge da da linha 3,
-                        # ainda assim dá pra compor usando test_date + HH:MM
-                        try:
-                            hm = datetime.strptime(time_part, '%H:%M').time()
-                            test_start_datetime = datetime.combine(test_date, hm)
-                            debug_output.append(f"  -> (2ª passada) Hora inicial combinada com test_date: {test_start_datetime}")
-                        except Exception as ehm:
-                            debug_output.append(f"  -> (2ª passada) ERRO compondo hora com test_date: {ehm}")
-            else:
-                debug_output.append("  -> (2ª passada) Linha 1 não bateu com regex de Test Date.")
-    except Exception as e:
-        debug_output.append(f"  -> (2ª passada) ERRO inesperado: {e}")
-
 
     if test_date is None:
         # Write debug_output before raising error

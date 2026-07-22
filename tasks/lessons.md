@@ -2485,6 +2485,41 @@ um bloco ainda excessivo, sem transformar a auditoria em extracoes infinitas.
 
 ---
 
+## 2026-07-22 - Descoberta de Data Tem Duas Passadas Compatíveis
+
+### Decisao:
+
+A prioridade da data da linha 3 e a segunda passada obrigatoria pela linha 1
+foram movidas juntas para `_parse_coastdown_test_header`. A leitura do arquivo e
+a falha publica por data ausente continuam no chamador, no mesmo ponto. Formatos,
+mensagens, `None`, `date` e `datetime` naive permanecem inalterados.
+
+### Licao:
+
+Quando duas passadas parecem redundantes mas a segunda completa a hora mesmo
+apos a primeira resolver a data, separa-las mudaria precedencia e diagnostico.
+O menor limite seguro engloba as duas e deixa I/O e traducao de erro fora.
+
+---
+
+## 2026-07-22 - Limite de Complexidade E Sinal, Nao Meta de Extracao
+
+### Decisao:
+
+O achado 13 foi encerrado com o carregador principal em 33 pontos de
+complexidade, 35 branches e 150 statements. O codigo restante forma um unico
+pipeline de filtragem, descoberta e coleta de intervalos, seguido apenas pela
+adaptacao de representacao Split ou Standard. Novos helpers exigiriam estado de
+DataFrame, cabecalhos e diagnostico acoplado ou isolariam um branch pequeno.
+
+### Licao:
+
+Ultrapassar um limite estatico justifica revisao, nao extracoes indefinidas.
+Quando o metodo restante tem uma responsabilidade continua e a separacao cria
+parameter soup sem novo dono, manter o fluxo junto e a opcao mais simples.
+
+---
+
 ## 2026-07-20 - Diagnostico de parser nao pode controlar o retorno de sucesso
 
 ### Contexto:

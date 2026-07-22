@@ -12,6 +12,7 @@ from unittest.mock import patch
 import pandas as pd
 
 from data.loaders import (
+    _parse_coastdown_test_header,
     _read_text_lines,
     _validate_coastdown_columns,
     carregar_dados_csv_robusto,
@@ -92,6 +93,175 @@ def _vbox_content(
         "ação",
     ]
     return "\n".join([*metadata, delimiter.join(header), delimiter.join(row)])
+
+
+class CoastdownTestHeaderTests(unittest.TestCase):
+    def test_line_3_date_formats_and_delimiters_keep_precedence(self):
+        cases = (
+            ("Test Date,22-Apr-2024", date(2024, 4, 22)),
+            ("Test Date;22-Apr-24", date(2024, 4, 22)),
+        )
+
+        for third_line, expected_date in cases:
+            with self.subTest(third_line=third_line):
+                debug_output = []
+                result = _parse_coastdown_test_header(
+                    ["not a Test Date", "metadata", third_line], debug_output
+                )
+
+                self.assertEqual(result, (expected_date, None))
+                self.assertIn(
+                    f"Delimitador detectado para linha 3: "
+                    f"'{';' if ';' in third_line else ','}'",
+                    debug_output,
+                )
+
+    def test_line_1_fallback_keeps_date_and_time_formats(self):
+        cases = (
+            (
+                ["Test Date: 22/04/2024", "metadata", "Test Date,"],
+                date(2024, 4, 22),
+                None,
+            ),
+            (
+                ["Test Date: 22/04/2024 15:49", "metadata", "Test Date,"],
+                date(2024, 4, 22),
+                datetime(2024, 4, 22, 15, 49),
+            ),
+            (
+                ["Test Date: 22/04/2024 15:49:30"],
+                date(2024, 4, 22),
+                datetime(2024, 4, 22, 15, 49, 30),
+            ),
+            (
+                ["Test Date:22/04/2024 15:49"],
+                date(2024, 4, 22),
+                datetime(2024, 4, 22, 15, 49),
+            ),
+        )
+
+        for lines, expected_date, expected_start in cases:
+            with self.subTest(lines=lines):
+                result = _parse_coastdown_test_header(lines, [])
+
+                self.assertEqual(result, (expected_date, expected_start))
+
+    def test_line_3_date_and_line_1_time_keep_two_pass_order(self):
+        debug_output = []
+
+        result = _parse_coastdown_test_header(
+            [
+                "Test Date: 23/04/2024 15:49:30",
+                "metadata",
+                "Test Date,22-Apr-2024",
+            ],
+            debug_output,
+        )
+
+        self.assertEqual(
+            result,
+            (date(2024, 4, 22), datetime(2024, 4, 23, 15, 49, 30)),
+        )
+        self.assertNotIn(
+            "Tentando fallback: Conteúdo da linha 1 (índice 0): "
+            "'Test Date: 23/04/2024 15:49:30'",
+            debug_output,
+        )
+
+    def test_invalid_line_1_date_keeps_line_3_date_for_time_fallback(self):
+        result = _parse_coastdown_test_header(
+            [
+                "Test Date: 31/02/2024 03:04",
+                "metadata",
+                "Test Date,22-Apr-2024",
+            ],
+            [],
+        )
+
+        self.assertEqual(
+            result,
+            (date(2024, 4, 22), datetime(2024, 4, 22, 3, 4)),
+        )
+
+        debug_output = []
+        result = _parse_coastdown_test_header(
+            [
+                "Test Date: 31/02/2024 03:04:05",
+                "metadata",
+                "Test Date,22-Apr-2024",
+            ],
+            debug_output,
+        )
+        self.assertEqual(result, (date(2024, 4, 22), None))
+        self.assertTrue(
+            any("ERRO compondo hora com test_date" in line for line in debug_output)
+        )
+
+    def test_malformed_and_missing_headers_keep_current_diagnostics(self):
+        cases = (
+            (
+                [],
+                "ERRO: Arquivo tem menos de 3 linhas. Não foi possível ler a "
+                "linha 3 para a data.",
+            ),
+            (
+                ["not a Test Date", "metadata", "Test Date"],
+                "  -> ERRO: Linha 3 não tem colunas suficientes para extrair "
+                "a data da coluna B. Partes: ['Test Date']",
+            ),
+            (
+                ["not a Test Date", "metadata", "Test Date,"],
+                "  -> A parte da data da Linha 3, Coluna B está vazia.",
+            ),
+            (
+                ["Test Date: 31/02/2024 03:04", "metadata", "Test Date,bad"],
+                "  -> (2ª passada) ERRO parse data linha 1: day is out of range "
+                "for month",
+            ),
+            (
+                ["test date: 22/04/2024", "metadata", "Test Date,bad"],
+                "  -> (2ª passada) Linha 1 não bateu com regex de Test Date.",
+            ),
+        )
+
+        for lines, expected_diagnostic in cases:
+            with self.subTest(lines=lines):
+                debug_output = []
+
+                self.assertEqual(
+                    _parse_coastdown_test_header(lines, debug_output),
+                    (None, None),
+                )
+                self.assertIn(expected_diagnostic, debug_output)
+
+    def test_unexpected_metadata_errors_keep_each_pass_isolated(self):
+        class BadLine:
+            def strip(self):
+                raise RuntimeError("bad metadata")
+
+        debug_output = []
+        recovered = _parse_coastdown_test_header(
+            ["Test Date: 22/04/2024 15:49", "metadata", BadLine()],
+            debug_output,
+        )
+        self.assertEqual(
+            recovered,
+            (date(2024, 4, 22), datetime(2024, 4, 22, 15, 49)),
+        )
+        self.assertIn(
+            "ERRO inesperado ao tentar extrair a data do cabeçalho: bad metadata",
+            debug_output,
+        )
+
+        debug_output = []
+        retained = _parse_coastdown_test_header(
+            [BadLine(), "metadata", "Test Date,22-Apr-2024"], debug_output
+        )
+        self.assertEqual(retained, (date(2024, 4, 22), None))
+        self.assertIn(
+            "  -> (2ª passada) ERRO inesperado: bad metadata",
+            debug_output,
+        )
 
 
 class LoaderCharacterizationTests(unittest.TestCase):
@@ -420,6 +590,16 @@ class LoaderCharacterizationTests(unittest.TestCase):
                 "Não foi possível encontrar a 'Test Date'",
             ):
                 carregar_dados_csv_robusto(str(path))
+
+        debug_text = (self.temp_path / "debug_vbox_date.txt").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn(
+            "ERRO inesperado ao tentar extrair a data do cabeçalho: "
+            "fixture cannot be read",
+            debug_text,
+        )
+        self.assertIn("  -> (2ª passada) ERRO inesperado:", debug_text)
 
     def test_is_alta_true_false_and_omitted_are_equivalent(self):
         path = self._write(_vbox_content())

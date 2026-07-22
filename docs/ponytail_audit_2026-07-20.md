@@ -27,7 +27,7 @@ finding has been documented but no cleanup or behavior change has been applied.
 | 10 | Main and nested tabs compute hidden content eagerly | Medium | High | 3 | Pending |
 | 11 | Redundant derived session state | Low | Medium-High | 5 | Pending |
 | 12 | Eager package initializers couple Split imports to legacy modules | Medium | High | 6 | Pending |
-| 13 | Loader has mixed Standard/Split responsibility and extreme complexity | Medium | High | 7 | In Progress |
+| 13 | Loader has mixed Standard/Split responsibility and extreme complexity | Medium | High | 7 | Completed |
 | 14 | Stale state keys obscure the canonical Split model | Low | Medium-High | 5 | Pending |
 | 15 | Project documentation no longer matches ownership | Low | High | 1 | Pending |
 | 16 | Critical Streamlit orchestration is untested | High | High | 3 | Completed |
@@ -467,15 +467,38 @@ finding has been documented but no cleanup or behavior change has been applied.
   diagnostics, and exception translation. The completed helpers reduced its
   Ruff profile from complexity 69, 84 branches, and 325 statements to 52, 61,
   and 233, but the remaining function is still not cohesive enough to close the
-  finding. The one justified next extraction is the neutral line-1/line-3 test
-  date discovery into `_parse_coastdown_test_header(lines, debug_output)`,
+  finding. That review selected the neutral line-1/line-3 test-date discovery
+  into `_parse_coastdown_test_header(lines, debug_output)` as the next boundary,
   returning `test_date` and `test_start_datetime` while leaving the caller's
   missing-date debug write and exception point unchanged. Fixed row 15, forced
   comma parsing, unsupported semicolon tables, naive datetimes, `HH:MM` as
   elapsed `MM:SS`, inactive `is_alta`, Standard/Split outputs, and all weather
   synchronization behavior remain intentional compatibility contracts. The
   70-test focused loader matrix, 437-test full suite, and diff hygiene pass.
-- **Status:** In Progress
+- **Fifth narrow phase (2026-07-22):** The selected two-pass line-3/line-1
+  header-date discovery moved into `_parse_coastdown_test_header` without
+  changing delimiter selection, accepted formats, diagnostics, returned
+  `date`/naive `datetime` values, or the caller's missing-date debug write and
+  exception. Six focused tests cover four- and two-digit line-3 dates, comma
+  and semicolon metadata, line-1 date/minute/second fallbacks, both-pass order,
+  malformed headers, and isolated unexpected failures. The public loader now
+  measures complexity 33, 35 branches, and 150 statements; the extracted
+  compatibility helper measures 22, 28, and 94. Finding 13 remains In Progress
+  until a separate post-extraction cohesion review decides whether further
+  movement would clarify ownership or only fragment the loader.
+- **Fifth-phase validation:** The 76-test focused loader suite and 443-test full
+  suite pass. Ruff reports only the same eight inherited `data/loaders.py`
+  findings, with none in the new tests; compile, Streamlit startup, and diff
+  hygiene pass.
+- **Final reassessment (2026-07-22):** The remaining 33-complexity,
+  35-branch, 150-statement function is a cohesive loader pipeline: filter
+  enabled runs, locate interval columns, collect interval measurements, and
+  adapt that shared result to Split or legacy Standard output. Extracting the
+  column scan would pass tightly coupled frame/header/debug state into another
+  function, while extracting the output branch would isolate only a small
+  representation choice. Both would move complexity without clarifying
+  ownership. No further high-value extraction is justified.
+- **Status:** Completed
 
 ### 14. Stale state keys obscure the canonical Split model
 

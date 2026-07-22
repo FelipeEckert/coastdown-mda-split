@@ -557,8 +557,15 @@
 - [x] Reassess the remaining loader after four extractions: complexity is still
   52 with 61 branches and 233 statements, so finding 13 remains In Progress.
 - [x] Pass the 70-test focused loader matrix, 437-test full suite, and diff check.
-- [ ] Extract only line-1/line-3 test-date discovery into a private header helper;
+- [x] Extract only line-1/line-3 test-date discovery into a private header helper;
   preserve the caller's missing-date debug write and exception point.
+- [x] Cover current date formats, delimiter choice, both-pass ordering,
+  malformed metadata, diagnostics, and isolated unexpected failures.
+- [x] Pass the 76-test focused loader suite, 443-test full suite, scoped Ruff,
+  compile, Streamlit startup, and diff checks.
+- [x] Reassess finding 13 after the header extraction: the remaining interval
+  pipeline and Standard/Split representation branch are cohesive, so further
+  extraction would move coupled state without improving ownership. Completed.
 
 ## Audit finding 14 - Stale Split session state - 2026-07-22
 
