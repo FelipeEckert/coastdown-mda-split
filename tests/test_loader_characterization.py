@@ -5,7 +5,7 @@ from datetime import date, datetime
 import builtins
 import os
 from pathlib import Path
-import shutil
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -16,10 +16,20 @@ from data.loaders import _read_text_lines, carregar_dados_csv_robusto
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 STANDARD_SAMPLE = ROOT_DIR / "sample_data" / "Standard" / "ExemploCSV1_Coastdown.csv"
-SPLIT_SAMPLE = (
-    ROOT_DIR / "sample_data" / "Split" / "coastdown" / "split eliezer high.csv"
-)
-WORK_DIR = ROOT_DIR / ".tmp_loader_characterization_tests"
+SPLIT_COASTDOWN_DIR = ROOT_DIR / "sample_data" / "Split" / "coastdown"
+SPLIT_COASTDOWN_EXPECTATIONS = {
+    "altas ioniq.csv": (13, 13),
+    "altas ioniq_16012026.csv": (20, 20),
+    "baixas ioniq.csv": (16, 16),
+    "baixas ioniq_16012026.csv": (20, 20),
+    "ford-HighSpeed-ok.csv": (14, 14),
+    "Ford-LowSpeed-ok.csv": (18, 18),
+    "intercalado ioniq_16012026.csv": (20, 10),
+    "spli_MrLee_LowSpd_ctvi.csv": (20, 20),
+    "split eliezer high.csv": (20, 20),
+    "split eliezer low.csv": (20, 20),
+    "split_MrLee_HighSpd_ctvi.csv": (20, 20),
+}
 
 
 def _vbox_content(
@@ -78,23 +88,15 @@ def _vbox_content(
 
 
 class LoaderCharacterizationTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        WORK_DIR.mkdir(exist_ok=True)
-
-    @classmethod
-    def tearDownClass(cls):
-        shutil.rmtree(WORK_DIR, ignore_errors=True)
-
     def setUp(self):
-        self.temp_path = WORK_DIR / self._testMethodName
-        self.temp_path.mkdir(exist_ok=True)
+        self._temp_dir = tempfile.TemporaryDirectory()
+        self.temp_path = Path(self._temp_dir.name)
         self._chdir = chdir(self.temp_path)
         self._chdir.__enter__()
 
     def tearDown(self):
         self._chdir.__exit__(None, None, None)
-        shutil.rmtree(self.temp_path, ignore_errors=True)
+        self._temp_dir.cleanup()
 
     def _write(self, content, *, encoding="utf-8", name="fixture.csv"):
         path = self.temp_path / name
@@ -128,19 +130,26 @@ class LoaderCharacterizationTests(unittest.TestCase):
         self.assertEqual(runs[1]["velocities"], [100.0 - 5.0 * i for i in range(15)])
         self.assertEqual(runs[1]["times"][:4], [0.0, 4.44, 9.0, 16.33])
 
-    def test_known_split_sample_output(self):
-        frame, runs, test_date = carregar_dados_csv_robusto(
-            str(SPLIT_SAMPLE),
-            using_split_method=True,
-        )
+    def test_all_split_coastdown_samples_load_with_expected_shapes(self):
+        for filename, (row_count, run_count) in SPLIT_COASTDOWN_EXPECTATIONS.items():
+            with self.subTest(filename=filename):
+                frame, runs, test_date = carregar_dados_csv_robusto(
+                    str(SPLIT_COASTDOWN_DIR / filename),
+                    using_split_method=True,
+                )
 
-        self.assertEqual(frame.shape, (20, 13))
-        self.assertEqual(test_date, date(2024, 4, 22))
-        self.assertEqual(sorted(runs), list(range(1, 21)))
-        self.assertEqual(
-            [item["time_s"] for item in runs[1]["interval_measurements"]],
-            [4.23, 4.56, 4.81, 5.12, 5.67],
-        )
+                self.assertEqual(len(frame), row_count)
+                self.assertEqual(len(runs), run_count)
+                self.assertIsInstance(test_date, date)
+                self.assertTrue(
+                    {"runuse", "heading", "run", "start_time"}.issubset(frame.columns)
+                )
+                first_run = runs[min(runs)]
+                self.assertIsInstance(first_run["start_timestamp"], datetime)
+                self.assertIsInstance(
+                    first_run["interval_measurements"][0]["time_s"],
+                    float,
+                )
 
     def test_comma_delimiter_and_decimal_point_are_accepted(self):
         path = self._write(_vbox_content())

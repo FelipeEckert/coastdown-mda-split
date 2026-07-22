@@ -523,6 +523,14 @@
 - [x] Pass the 16-test characterization group, 82-test loader/parser matrix,
   423-test full suite, scoped Ruff, compile, sample imports, startup, and diff
   checks.
+- [x] Inventory all Split coastdown/meteo samples and keep fixture paths
+  repository-relative without copying or rewriting sample data.
+- [x] Extract only fixed row-15 header construction and the unchanged
+  comma-only CSV read into `_read_coastdown_table`.
+- [x] Cover every Split coastdown sample plus the meteo owner's record count,
+  keys, timestamps, numeric values, raw ordering break, and duplicates.
+- [x] Pass the same 29 pre/post checks, 16 focused, 62 coastdown, 33 meteo,
+  13 sample-data, 423 full-suite, scoped Ruff, compile, startup, and diff checks.
 - [ ] Continue only with another independently characterized neutral phase;
   do not broadly rewrite `carregar_dados_csv_robusto`.
 

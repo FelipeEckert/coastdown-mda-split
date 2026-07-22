@@ -26,6 +26,55 @@ def _read_text_lines(file_path):
         return file.readlines()
 
 
+def _read_coastdown_table(file_path, lines, debug_output):
+    """Read the fixed comma-delimited VBOX table and preserve raw labels."""
+    encoding, _ = detect_encoding_and_dialect(file_path)
+    start_row = 14
+    delimiter = ","
+    header_line_content = lines[start_row].strip()
+    debug_output.append(f"\n--- Header Line (Row {start_row + 1}) Details ---")
+    debug_output.append(f"Content of header line: '{header_line_content}'")
+
+    raw_header_parts = header_line_content.split(delimiter)
+    header_names = []
+    raw_column_labels = []
+    unnamed_counter = 0
+    seen_names = set()
+
+    for header in raw_header_parts:
+        stripped_header = header.strip()
+        raw_column_labels.append(stripped_header)
+        if not stripped_header:
+            current_name = f"Unnamed_Col_{unnamed_counter}"
+            unnamed_counter += 1
+        else:
+            current_name = stripped_header
+
+        original_name = current_name
+        suffix_counter = 0
+        while current_name in seen_names:
+            current_name = f"{original_name}_{suffix_counter}"
+            suffix_counter += 1
+
+        header_names.append(current_name)
+        seen_names.add(current_name)
+
+    header_names = normalize_column_names(header_names)
+    frame = pd.read_csv(
+        file_path,
+        skiprows=start_row + 1,
+        header=None,
+        names=header_names,
+        encoding=encoding,
+        sep=delimiter,
+        skipinitialspace=False,
+        quoting=csv.QUOTE_MINIMAL,
+        engine="python",
+        on_bad_lines="warn",
+    )
+    return frame, raw_column_labels
+
+
 def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True):
     """
     Carrega e processa dados de um arquivo CSV de coastdown VBOX.
@@ -177,66 +226,10 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
 
     # --- Leitura do CSV com cabeçalho fixo na linha 15 --- 
     try:
-        encoding, _ = detect_encoding_and_dialect(file_path)
-        start_row = 14 # Linha 15 é índice 14
-        
-        class ForcedDialect:
-            delimiter = ','
-            quotechar = '"'
-            doublequote = True
-            skipinitialspace = False
-            lineterminator = '\r\n'
-            quoting = csv.QUOTE_MINIMAL
-
-        dialect = ForcedDialect()
-
-
-        # Lendo o cabeçalho da linha 15 separadamente
-        header_line_content = lines[start_row].strip()
-        debug_output.append(f"\n--- Header Line (Row {start_row + 1}) Details ---")
-        debug_output.append(f"Content of header line: '{header_line_content}'")
-        
-         # Processando os nomes do cabeçalho para garantir unicidade
-        raw_header_parts = header_line_content.split(dialect.delimiter) # Usar o delimitador detectado para os dados
-        header_names = []
-        raw_column_labels = []
-        unnamed_counter = 0
-        seen_names = set() # Para controlar nomes duplicados
-
-        for h in raw_header_parts:
-            stripped_h = h.strip()
-            raw_column_labels.append(stripped_h)
-            if not stripped_h:
-                # Se o cabeçalho está vazio, atribui um nome Unnamed_Col_X
-                current_name = f"Unnamed_Col_{unnamed_counter}"
-                unnamed_counter += 1
-            else:
-                current_name = stripped_h
-            
-            # Verifica se o nome já foi visto e adiciona um sufixo se for duplicado
-            original_current_name = current_name
-            suffix_counter = 0
-            while current_name in seen_names:
-                current_name = f"{original_current_name}_{suffix_counter}"
-                suffix_counter += 1
-            
-            header_names.append(current_name)
-            seen_names.add(current_name)
-        header_names = normalize_column_names(header_names)
-
-        # Lendo o CSV, usando a linha 15 como cabeçalho
-        # Lendo o CSV, pulando a linha do cabeçalho e usando os nomes de coluna extraídos
-        df = pd.read_csv(
+        df, raw_column_labels = _read_coastdown_table(
             file_path,
-            skiprows=start_row + 1, # Pula a linha do cabeçalho também
-            header=None, # Não usa o cabeçalho do arquivo, usaremos 'names'
-            names=header_names, # Define os nomes das colunas manualmente
-            encoding=encoding,
-            sep=dialect.delimiter, # Mantém o delimitador detectado para os dados
-            skipinitialspace=dialect.skipinitialspace,
-            quoting=dialect.quoting,
-            engine="python",
-            on_bad_lines="warn"
+            lines,
+            debug_output,
         )
 
         if df.empty:

@@ -291,13 +291,34 @@ class SplitSampleDataImportTest(unittest.TestCase):
         weather_path = SAMPLE_DIR / "meteo" / "AGRICULTR_SPLIT.csv"
         records = read_weather_file(str(weather_path))
 
-        self.assertGreater(len(records), 0)
+        self.assertEqual(len(records), 9476)
+        self.assertEqual(records[0]["timestamp"], datetime(2024, 4, 22))
+        self.assertEqual(records[-1]["timestamp"], datetime(2025, 5, 30, 20, 25))
+        self.assertEqual(records[0]["temp_c"], 23.5)
+        self.assertEqual(records[0]["baro_kpa"], 95.05)
+        self.assertEqual(records[0]["source_row"], 4148)
+        self.assertEqual(
+            [record["timestamp"] for record in records],
+            sorted(record["timestamp"] for record in records),
+        )
+        self.assertTrue(
+            any(
+                current["source_row"] > following["source_row"]
+                for current, following in zip(records, records[1:])
+            )
+        )
         first = records[0]
-        self.assertIn("timestamp", first)
-        self.assertIn("temp_c", first)
-        self.assertIn("baro_kpa", first)
-        self.assertIn("wind_ms", first)
-        self.assertIn("wind_direction", first)
+        self.assertTrue(
+            {
+                "timestamp",
+                "temp_c",
+                "baro_kpa",
+                "wind_ms",
+                "wind_direction",
+                "source_file",
+            }.issubset(first)
+        )
+        self.assertEqual(first["source_file"], weather_path.name)
         self.assertEqual(first["wind_source_column"], "Wind Speed")
         self.assertEqual(first["wind_unit"], "m/s")
         self.assertEqual(first["wind_ms"], 0.0)

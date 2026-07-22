@@ -413,6 +413,17 @@ finding has been documented but no cleanup or behavior change has been applied.
   and after extraction, two direct helper checks pass, the 82-test loader/parser
   matrix and 423-test full suite pass, and scoped Ruff, compile, representative
   Standard/Split sample imports, Streamlit startup, and diff hygiene pass.
+- **Second neutral phase (2026-07-22):** Fixed row-15 header construction and
+  the existing comma-only Pandas read configuration moved into the private
+  `_read_coastdown_table` helper. All 11 Split coastdown fixtures now have
+  explicit row/run expectations. The ISO-8859-1 meteo fixture remains owned by
+  `data/weather_loader.py`; integration coverage fixes its 9,476-record count,
+  normalized keys, timestamps, numeric values, raw ordering break, and duplicate
+  timestamps without changing that loader.
+- **Second-phase validation:** The same 29 characterization/integration tests
+  pass before and after extraction. The 16 focused, 62 coastdown, 33 meteo, and
+  13 sample-data tests pass, as do the 423-test full suite, scoped Ruff, compile,
+  Streamlit startup, and diff checks.
 - **Status:** In Progress
 
 ### 14. Stale state keys obscure the canonical Split model

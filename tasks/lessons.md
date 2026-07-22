@@ -2401,6 +2401,24 @@ correcao silenciosa.
 
 ---
 
+## 2026-07-22 - Descoberta de Cabecalho Deve Preservar o Dialeto Real
+
+### Decisao:
+
+A leitura da tabela VBOX continua usando a linha 15 e virgula, mesmo quando o
+detector generico devolve outro dialeto. A construcao dos nomes e a configuracao
+do Pandas foram movidas juntas para um helper privado, sem adicionar busca de
+cabecalho ou suporte a ponto e virgula. O arquivo meteorologico continua sob
+`data/weather_loader.py` e participa somente da cobertura de integracao.
+
+### Licao:
+
+Um detector existente nao deve virar fonte de verdade durante uma refatoracao
+se o fluxo ativo sempre descartou seu resultado. Primeiro isole a sequencia que
+realmente roda; ampliar formatos pertence a uma mudanca funcional separada.
+
+---
+
 ## 2026-07-20 - Diagnostico de parser nao pode controlar o retorno de sucesso
 
 ### Contexto:
