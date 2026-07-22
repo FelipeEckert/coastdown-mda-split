@@ -2381,6 +2381,26 @@ estruturado evita acoplar o teste a espacos ou a ordem textual do arquivo.
 
 ---
 
+## 2026-07-22 - Decompor Loader Comeca Pela Menor Fronteira Neutra
+
+### Decisao:
+
+Antes de mover logica do loader herdado, os contratos Standard e Split foram
+fixados com entradas reais e sinteticas, incluindo falhas e formatos hoje nao
+suportados. Somente a leitura tolerante de linhas foi extraida; a ordem das
+datas, do cabecalho fixo, do Pandas e das traducoes de excecao permaneceu igual.
+`is_alta` continua na assinatura por compatibilidade, embora nao seja lido pelo
+corpo atual.
+
+### Licao:
+
+Em um parser antigo, um comportamento limitado tambem e contrato ate existir
+uma mudanca dedicada. Caracterizar a rejeicao atual de delimitador e dados
+malformados permite reduzir o metodo em fases sem transformar refatoracao em
+correcao silenciosa.
+
+---
+
 ## 2026-07-20 - Diagnostico de parser nao pode controlar o retorno de sucesso
 
 ### Contexto:

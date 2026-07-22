@@ -27,7 +27,7 @@ finding has been documented but no cleanup or behavior change has been applied.
 | 10 | Main and nested tabs compute hidden content eagerly | Medium | High | 3 | Pending |
 | 11 | Redundant derived session state | Low | Medium-High | 5 | Pending |
 | 12 | Eager package initializers couple Split imports to legacy modules | Medium | High | 6 | Pending |
-| 13 | Loader has mixed Standard/Split responsibility and extreme complexity | Medium | High | 7 | Pending |
+| 13 | Loader has mixed Standard/Split responsibility and extreme complexity | Medium | High | 7 | In Progress |
 | 14 | Stale state keys obscure the canonical Split model | Low | Medium-High | 5 | Pending |
 | 15 | Project documentation no longer matches ownership | Low | High | 1 | Pending |
 | 16 | Critical Streamlit orchestration is untested | High | High | 3 | Completed |
@@ -401,7 +401,19 @@ finding has been documented but no cleanup or behavior change has been applied.
 - **Validation:** Preserve the complete parser matrix: separate files, combined
   file, full coastdown, custom intervals, missing-interval warnings, direction,
   traceability, legacy layouts, and representative real VBOX samples.
-- **Status:** Pending
+- **First low-risk phase (2026-07-22):** Characterization now fixes the current
+  Standard and Split outputs, comma-only data-table behavior, decimal point and
+  quoted decimal comma conversion, UTF-8/ISO-8859-1 handling, header/date/time
+  failures, empty/read failures, and `is_alta` equivalence. Raw UTF-8-tolerant
+  line reading moved unchanged into the private `_read_text_lines` helper;
+  date parsing, fixed header position, delimiter behavior, normalization,
+  method branches, warnings, fallbacks, and exception translation did not move.
+  `is_alta` remains in the public signature solely for compatibility.
+- **Validation result:** The same 14 public characterization cases pass before
+  and after extraction, two direct helper checks pass, the 82-test loader/parser
+  matrix and 423-test full suite pass, and scoped Ruff, compile, representative
+  Standard/Split sample imports, Streamlit startup, and diff hygiene pass.
+- **Status:** In Progress
 
 ### 14. Stale state keys obscure the canonical Split model
 

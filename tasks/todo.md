@@ -512,6 +512,20 @@
 - [x] Pass focused/AppTest coverage, the 397-test full suite, Ruff, compile,
   Streamlit startup and diff checks.
 
+## Audit finding 13 - Loader decomposition - 2026-07-22
+
+- [x] Inventory the loader phases, callers, sample shapes, fallbacks,
+  exceptions, warnings, and inactive `is_alta` compatibility argument.
+- [x] Characterize Standard/Split outputs, delimiters, decimals, encodings,
+  malformed inputs, dates/times, read failures, and `is_alta` equivalence.
+- [x] Extract only tolerant raw text-line reading into `_read_text_lines` while
+  preserving its original position and public error behavior.
+- [x] Pass the 16-test characterization group, 82-test loader/parser matrix,
+  423-test full suite, scoped Ruff, compile, sample imports, startup, and diff
+  checks.
+- [ ] Continue only with another independently characterized neutral phase;
+  do not broadly rewrite `carregar_dados_csv_robusto`.
+
 ## Audit finding 14 - Stale Split session state - 2026-07-22
 
 - [x] Inventory all nine candidate keys across active and legacy readers,

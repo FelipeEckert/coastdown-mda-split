@@ -20,6 +20,12 @@ from data.split_parser import parse_speed_bin_label
 from utils.file_utils import detect_encoding_and_dialect, normalize_column_names
 
 
+def _read_text_lines(file_path):
+    """Read text for VBOX metadata using the loader's tolerant decoding."""
+    with open(file_path, "r", encoding="utf-8", errors="ignore") as file:
+        return file.readlines()
+
+
 def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True):
     """
     Carrega e processa dados de um arquivo CSV de coastdown VBOX.
@@ -27,7 +33,7 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
     Args:
         file_path: Caminho do arquivo CSV
         using_split_method: Se está usando método Split
-        is_alta: Se é arquivo de alta velocidade (para Split)
+        is_alta: Mantido por compatibilidade; atualmente não altera o processamento
         
     Returns:
         tuple: (df_filtered, all_data, test_date)
@@ -42,8 +48,7 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
     # --- Extração da Data (Linha 3, Coluna B) --- 
     # --- Extração da Data (Prioridade: Linha 3, Coluna B; Fallback: Linha 1, Coluna A) ---
     try:
-        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-            lines = f.readlines()
+            lines = _read_text_lines(file_path)
             debug_output.append(f"Total de linhas lidas: {len(lines)}")
             
             # Tenta extrair da Linha 3, Coluna B
