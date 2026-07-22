@@ -285,8 +285,8 @@ finding has been documented but no cleanup or behavior change has been applied.
 
 - **Severity:** Medium
 - **Confidence:** High
-- **Locations:** `app.py:1726-1755`;
-  `pages/page_split_coefficient_calculation.py:1705-1717`.
+- **Locations:** `app.py`; `pages/page_split_coefficient_calculation.py`;
+  `pages/page_split_workflow.py`.
 - **Evidence:** All five top-level page renderers execute after `st.tabs()`
   creation on every rerun. The nested calculation, graph, and automatic
   selection renderers do the same. Streamlit computes every tab by default;
@@ -301,7 +301,11 @@ finding has been documented but no cleanup or behavior change has been applied.
   the installed Streamlit API.
 - **Validation:** Instrument or mock renderer calls and verify only the selected
   tab executes while navigation and saved test state remain unchanged.
-- **Status:** Pending
+- **Status:** Completed. Main, pair-analysis, and parser-review tabs now use
+  Streamlit's keyed active-tab state and execute only the open renderer. The
+  legacy comparison-selection repair runs after selected pages that can mutate
+  pairs and before Results consumes them, so Results no longer depends on hidden
+  Final Comparison execution.
 
 ### 11. Redundant derived session state
 

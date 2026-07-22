@@ -484,6 +484,15 @@
 - [x] Pass focused/existing correction tests, the 370-test full suite, scoped
   Ruff, compile validation and diff checks.
 
+## Audit finding 10 - Lazy tab rendering - 2026-07-22
+
+- [x] Characterize every active main, pair-analysis and parser-review tab.
+- [x] Render only the selected tab while preserving labels, keys and rerun state.
+- [x] Run the legacy comparison-selection repair after pair mutations and before Results.
+- [x] Cover selection switching, hidden-state isolation and incomplete saved state.
+- [x] Pass focused/AppTest coverage, the 383-test full suite, Ruff, compile,
+  Streamlit startup and diff checks.
+
 ## Audit finding 15 - Documentation ownership and workflow - 2026-07-21
 
 - [x] Inventory current guidance, trackers, the automatic-selection plan, and

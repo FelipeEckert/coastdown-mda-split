@@ -2665,3 +2665,21 @@ fixava, sem importar o modulo antecipadamente. Testes em subprocessos novos prov
 a fronteira sem depender do estado de `sys.modules` da suite.
 
 ---
+
+## 2026-07-22 - Abas Ocultas Nao Devem Ser Inicializadores Implicitos
+
+### Decisao:
+
+As abas principais, de analise de pares e de revisao do parser usam o estado
+ativo nativo de `st.tabs` e executam somente o container com `.open`. A reparacao
+de selecoes antigas de pares, antes executada incidentalmente pela aba oculta de
+Comparativo Final, roda depois das abas que podem alterar pares e antes de
+Resultados consumir a selecao.
+
+### Licao:
+
+Antes de tornar abas Streamlit preguicosas, caracterize mutacoes das abas ocultas.
+Estado realmente compartilhado deve ter uma inicializacao explicita; estado local,
+calculos, graficos e exportadores devem permanecer dentro do renderer selecionado.
+
+---

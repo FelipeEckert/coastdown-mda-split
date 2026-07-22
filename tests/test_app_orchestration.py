@@ -224,6 +224,44 @@ class AppWorkflowAppTestTests(unittest.TestCase):
         self.assertEqual(app_test.session_state["active_test_id"], "incomplete")
         self.assertEqual(app_test.session_state["current_page"], "split_results")
 
+        tab_key = "main_analysis_tabs_incomplete_pt"
+        self.assertEqual(
+            app_test.session_state[tab_key],
+            app.get_translator("pt")("page_split_results"),
+        )
+
+        app_test.run()
+        self.assertEqual(len(app_test.exception), 0)
+        self.assertEqual(app_test.session_state["current_page"], "split_results")
+
+        app_test.session_state[tab_key] = app.get_translator("pt")(
+            "page_split_workflow"
+        )
+        app_test.run()
+        self.assertEqual(len(app_test.exception), 0)
+        self.assertEqual(app_test.session_state["current_page"], "split_workflow")
+
+        app_test.session_state[tab_key] = app.get_translator("pt")(
+            "page_split_pair_analysis"
+        )
+        app_test.run()
+        nested_key = "split_pair_analysis_tabs_incomplete_pt"
+        self.assertEqual(len(app_test.exception), 0)
+        self.assertEqual(
+            app_test.session_state[nested_key],
+            app.get_translator("pt")("page_split_coefficient_calculation"),
+        )
+
+        app_test.session_state[nested_key] = app.get_translator("pt")(
+            "split_graphical_analysis"
+        )
+        app_test.run()
+        self.assertEqual(len(app_test.exception), 0)
+        self.assertEqual(
+            app_test.session_state[nested_key],
+            app.get_translator("pt")("split_graphical_analysis"),
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

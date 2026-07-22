@@ -39,6 +39,7 @@ from core.split_state import (
     clear_split_final_state,
     invalidate_split_input_state,
     migrate_split_fixed_conditions,
+    normalize_split_comparison_selection_state,
 )
 
 # ===== CONFIGURAÇÃO DA PÁGINA =====
@@ -1746,25 +1747,32 @@ def render_test_analysis(t):
     if selected_page:
         st.session_state.current_page = selected_page
 
-    with tab1:
-        from pages import page_2_dados_veiculo
-        page_2_dados_veiculo.render(t)
+    if tab5.open:
+        normalize_split_comparison_selection_state(st.session_state)
 
-    with tab2:
-        from pages import page_split_workflow
-        page_split_workflow.render(t)
+    if tab1.open:
+        with tab1:
+            from pages import page_2_dados_veiculo
+            page_2_dados_veiculo.render(t)
+    elif tab2.open:
+        with tab2:
+            from pages import page_split_workflow
+            page_split_workflow.render(t)
+    elif tab3.open:
+        with tab3:
+            from pages import page_split_coefficient_calculation
+            page_split_coefficient_calculation.render(t)
+    elif tab4.open:
+        with tab4:
+            from pages import page_split_final_comparison
+            page_split_final_comparison.render(t)
+    elif tab5.open:
+        with tab5:
+            from pages import page_split_results
+            page_split_results.render(t)
 
-    with tab3:
-        from pages import page_split_coefficient_calculation
-        page_split_coefficient_calculation.render(t)
-
-    with tab4:
-        from pages import page_split_final_comparison
-        page_split_final_comparison.render(t)
-
-    with tab5:
-        from pages import page_split_results
-        page_split_results.render(t)
+    if tab1.open or tab2.open or tab3.open:
+        normalize_split_comparison_selection_state(st.session_state)
 
 
 # ===== PONTO DE ENTRADA =====

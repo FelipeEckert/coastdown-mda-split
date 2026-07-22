@@ -1257,19 +1257,32 @@ def _render_graphical_analysis(t):
 
 def render(t):
     """Render Split pair analysis with calculation and graph sub-tabs."""
-    from pages import page_split_auto_selection
-
     st.header(t("page_split_pair_analysis"))
-    tab_calc, tab_graph, tab_auto = st.tabs(
-        [
-            t("page_split_coefficient_calculation"),
-            t("split_graphical_analysis"),
-            t("split_auto_tab"),
-        ]
+    tab_labels = [
+        t("page_split_coefficient_calculation"),
+        t("split_graphical_analysis"),
+        t("split_auto_tab"),
+    ]
+    tab_key = (
+        f"split_pair_analysis_tabs_{st.session_state.active_test_id}_"
+        f"{st.session_state.language}"
     )
-    with tab_calc:
-        _render_coefficient_calculation(t)
-    with tab_graph:
-        _render_graphical_analysis(t)
-    with tab_auto:
-        page_split_auto_selection.render(t)
+    if st.session_state.get(tab_key) not in tab_labels:
+        st.session_state[tab_key] = tab_labels[0]
+    tab_calc, tab_graph, tab_auto = st.tabs(
+        tab_labels,
+        default=st.session_state[tab_key],
+        key=tab_key,
+        on_change="rerun",
+    )
+    if tab_calc.open:
+        with tab_calc:
+            _render_coefficient_calculation(t)
+    elif tab_graph.open:
+        with tab_graph:
+            _render_graphical_analysis(t)
+    elif tab_auto.open:
+        with tab_auto:
+            from pages import page_split_auto_selection
+
+            page_split_auto_selection.render(t)

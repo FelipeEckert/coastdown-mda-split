@@ -10,7 +10,6 @@ import streamlit as st
 
 from core.split_comparison import (
     clear_split_comparison_pairs,
-    force_uncorrected_split_pairs_unselected,
     format_split_comparison_display_value,
     is_split_pair_corrected,
     normalize_split_comparison_pairs,
@@ -29,7 +28,7 @@ from core.split_display import (
 from core.split_results import consolidate_split_final_results
 from core.split_state import (
     clear_split_comparison_state,
-    ensure_split_comparison_pairs,
+    normalize_split_comparison_selection_state,
     reset_split_final_outputs,
 )
 
@@ -128,14 +127,7 @@ def _reset_split_final_outputs() -> None:
 
 def _current_pairs() -> list[dict]:
     """Return session comparison pairs as a list and repair old selected flags."""
-    ensure_split_comparison_pairs(st.session_state)
-    pairs, changed = force_uncorrected_split_pairs_unselected(
-        st.session_state.split_comparison_pairs
-    )
-    if changed:
-        st.session_state.split_comparison_pairs = pairs
-        _reset_split_final_outputs()
-    return pairs
+    return normalize_split_comparison_selection_state(st.session_state)
 
 
 def get_selected_split_comparison_pairs() -> list[dict]:

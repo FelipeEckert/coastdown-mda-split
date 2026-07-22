@@ -305,14 +305,36 @@ def render(t):
         )
         if parse_dirty:
             st.caption(t("split_interval_preview_stale"))
-        high_tab, low_tab = st.tabs(["High interval", "Low interval"])
-        with high_tab:
-            if high_records:
-                st.dataframe(_records_dataframe(high_records), use_container_width=True, hide_index=True)
-            else:
-                st.info("No high interval records found.")
-        with low_tab:
-            if low_records:
-                st.dataframe(_records_dataframe(low_records), use_container_width=True, hide_index=True)
-            else:
-                st.info("No low interval records found.")
+        tab_labels = ["High interval", "Low interval"]
+        tab_key = (
+            f"split_workflow_review_tabs_{st.session_state.active_test_id}_"
+            f"{st.session_state.language}"
+        )
+        if st.session_state.get(tab_key) not in tab_labels:
+            st.session_state[tab_key] = tab_labels[0]
+        high_tab, low_tab = st.tabs(
+            tab_labels,
+            default=st.session_state[tab_key],
+            key=tab_key,
+            on_change="rerun",
+        )
+        if high_tab.open:
+            with high_tab:
+                if high_records:
+                    st.dataframe(
+                        _records_dataframe(high_records),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+                else:
+                    st.info("No high interval records found.")
+        elif low_tab.open:
+            with low_tab:
+                if low_records:
+                    st.dataframe(
+                        _records_dataframe(low_records),
+                        use_container_width=True,
+                        hide_index=True,
+                    )
+                else:
+                    st.info("No low interval records found.")

@@ -205,6 +205,18 @@ def reset_split_final_outputs(test_data: dict) -> dict:
     return test_data
 
 
+def normalize_split_comparison_selection_state(test_data: dict) -> list[dict]:
+    """Repair persisted comparison selection before rendering any main tab."""
+    from core.split_comparison import force_uncorrected_split_pairs_unselected
+
+    pairs = ensure_split_comparison_pairs(test_data)
+    pairs, changed = force_uncorrected_split_pairs_unselected(pairs)
+    if changed:
+        test_data["split_comparison_pairs"] = pairs
+        reset_split_final_outputs(test_data)
+    return pairs
+
+
 def clear_split_comparison_state(test_data: dict) -> dict:
     """Clear only final comparison pairs and their derived final outputs."""
     test_data["split_comparison_pairs"] = []
