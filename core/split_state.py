@@ -316,7 +316,9 @@ def invalidate_split_ambient_state(test_data: dict) -> dict:
     test_data["split_auto_replace_dialog_open"] = False
     clear_split_final_results_compatibility(test_data)
     test_data["excel_buffer"] = None
-    test_data["split_ambient_version"] = (
-        int(test_data.get("split_ambient_version") or 0) + 1
-    )
+    try:
+        ambient_version = int(test_data.get("split_ambient_version") or 0)
+    except (TypeError, ValueError, OverflowError):
+        ambient_version = 0
+    test_data["split_ambient_version"] = ambient_version + 1
     return test_data

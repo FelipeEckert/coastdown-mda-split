@@ -529,8 +529,16 @@
   verify its explicit-write and save/load behavior remains unchanged.
 - [x] Pass second-batch focused/AppTest coverage, the 400-test full suite,
   scoped Ruff, compile validation, Streamlit startup, and diff checks.
-- [ ] Resolve `weather_data_split`, `split_ambient_version`, `excel_buffer`,
-  `using_split_method`, and `test_method` in later compatibility-reviewed batches.
+- [x] Retain `weather_data_split` for legacy weather reads and `excel_buffer`
+  for the legacy visible download and its stale-export invalidation paths.
+- [x] Retain `split_ambient_version` and `split_processed_at` because signatures
+  and counters do not replace their observable version and timestamp metadata.
+- [x] Recover a malformed legacy ambient version only when a real ambient
+  mutation records version 1; preserve valid version increments.
+- [x] Pass retention-batch focused/AppTest coverage, the 402-test full suite,
+  scoped Ruff, compile validation, Streamlit startup, and diff checks.
+- [ ] Resolve `using_split_method` and `test_method` in a later
+  legacy-navigation and persistence review.
 
 ## Audit finding 15 - Documentation ownership and workflow - 2026-07-21
 

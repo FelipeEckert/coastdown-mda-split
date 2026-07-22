@@ -280,6 +280,13 @@ class SplitSampleDataImportTest(unittest.TestCase):
         self.assertIsNone(test_data["excel_buffer"])
         self.assertEqual(test_data["split_ambient_version"], 3)
 
+    def test_ambient_mode_change_recovers_malformed_legacy_version(self):
+        test_data = {"split_ambient_version": "malformed"}
+
+        invalidate_split_ambient_state(test_data)
+
+        self.assertEqual(test_data["split_ambient_version"], 1)
+
     def test_split_weather_file_loads_neutral_meteo_fields(self):
         weather_path = SAMPLE_DIR / "meteo" / "AGRICULTR_SPLIT.csv"
         records = read_weather_file(str(weather_path))

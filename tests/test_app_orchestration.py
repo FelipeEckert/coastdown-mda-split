@@ -86,6 +86,10 @@ class AppStateOrchestrationTests(unittest.TestCase):
         self.assertNotIn("mass_input_mode", created)
         self.assertNotIn("split_source_files", created)
         self.assertNotIn("data_info", created)
+        self.assertIsNone(created["weather_data_split"])
+        self.assertIsNone(created["excel_buffer"])
+        self.assertEqual(created["split_ambient_version"], 0)
+        self.assertIsNone(created["split_processed_at"])
         self.assertEqual(created["split_ambient_mode"], "fixed")
         self.assertEqual(created["split_fixed_temperature"], 25.0)
         self.assertEqual(created["split_fixed_pressure"], 101.3)
@@ -240,6 +244,58 @@ class AppStateOrchestrationTests(unittest.TestCase):
         self.assertEqual(
             self.state.tests["canonical"]["split_processed_at"],
             "2026-06-10T13:00:00+00:00",
+        )
+
+    def test_retained_legacy_state_round_trips_without_switch_leakage(self):
+        legacy_weather = [{"source": "canonical-legacy"}]
+        canonical_weather = [{"source": "canonical-current"}]
+        self.state.tests = {
+            "legacy": self._snapshot(
+                "Legacy",
+                weather_data=legacy_weather,
+                weather_data_split="malformed-weather",
+                excel_buffer=["malformed-buffer"],
+                split_ambient_version="malformed-version",
+                split_processed_at={"malformed": True},
+            ),
+            "canonical": self._snapshot(
+                "Canonical",
+                weather_data=canonical_weather,
+                weather_data_split=[{"source": "legacy-current"}],
+                excel_buffer=b"legacy-export",
+                split_ambient_version=7,
+                split_processed_at="2026-06-10T14:00:00+00:00",
+            ),
+        }
+
+        app.activate_test("legacy")
+        self.assertEqual(self.state.weather_data, legacy_weather)
+        self.assertEqual(self.state.weather_data_split, "malformed-weather")
+        self.assertEqual(self.state.excel_buffer, ["malformed-buffer"])
+        self.assertEqual(self.state.split_ambient_version, "malformed-version")
+        self.assertEqual(self.state.split_processed_at, {"malformed": True})
+
+        app.activate_test("canonical")
+        app.save_active_test_state()
+
+        self.assertEqual(self.state.weather_data, canonical_weather)
+        self.assertEqual(
+            self.state.weather_data_split,
+            [{"source": "legacy-current"}],
+        )
+        self.assertEqual(self.state.excel_buffer, b"legacy-export")
+        self.assertEqual(self.state.split_ambient_version, 7)
+        self.assertEqual(
+            self.state.split_processed_at,
+            "2026-06-10T14:00:00+00:00",
+        )
+        self.assertEqual(
+            self.state.tests["canonical"]["split_ambient_version"],
+            7,
+        )
+        self.assertEqual(
+            self.state.tests["legacy"]["split_processed_at"],
+            {"malformed": True},
         )
 
     def test_reopens_legacy_snapshot_and_populates_canonical_fixed_keys(self):

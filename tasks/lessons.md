@@ -2717,6 +2717,9 @@ os campos armazenados, mas o carregamento remove apenas suas copias flat e usa
 O segundo lote aplicou a mesma regra a `data_info`. `split_processed_at` foi
 mantido porque registra o instante do processamento explicito e nao possui uma
 fonte canonica equivalente.
+O lote seguinte confirmou que `weather_data_split` e `excel_buffer` ainda
+sustentam superficies legadas observaveis, enquanto `split_ambient_version` e
+`split_processed_at` registram metadata sem substituto canonico equivalente.
 
 ### Licao:
 
@@ -2725,5 +2728,8 @@ e persistencia. Ignorar o campo legado no estado vivo evita vazamento entre test
 preserva-lo no snapshot antigo evita uma migracao destrutiva sem necessidade.
 Uma chave sem UI ainda pode ser metadata observavel; nesse caso, ausencia de um
 substituto canonico e motivo suficiente para rete-la.
+Estado legado malformado pode ser preservado passivamente; quando uma mutacao
+real exige um contador valido, reiniciar somente esse contador e mais seguro do
+que promover o valor malformado ou impedir o fluxo.
 
 ---

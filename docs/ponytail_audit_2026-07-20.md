@@ -432,6 +432,11 @@ finding has been documented but no cleanup or behavior change has been applied.
   and persistence no longer write `data_info`; old snapshots retain it without
   restoring it to live state. `split_processed_at` remains persisted because it
   is observable processing metadata with no canonical timestamp replacement.
+- **Scoped retention batch (2026-07-22):** `weather_data_split` remains for
+  legacy weather reads, `excel_buffer` for the legacy visible download, and
+  `split_ambient_version`/`split_processed_at` for observable invalidation and
+  processing metadata. Malformed legacy ambient versions now recover only when
+  a real ambient mutation records the next version; valid counters are unchanged.
 - **Status:** In Progress
 
 ### 15. Project documentation no longer matches ownership
