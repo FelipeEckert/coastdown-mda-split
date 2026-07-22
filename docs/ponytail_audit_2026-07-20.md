@@ -423,7 +423,12 @@ finding has been documented but no cleanup or behavior change has been applied.
   snapshot migration or compatibility reads where old saved tests require them.
 - **Validation:** Round-trip save/load/reset/edit operations across old and new
   state shapes and inspect every page after each key removal.
-- **Status:** Pending
+- **First low-risk batch (2026-07-22):** New tests no longer initialize,
+  persist, or write `mass_input_mode` and `split_source_files`. Legacy snapshots
+  retain those fields in their stored dictionaries, while live state ignores
+  them and continues from canonical `vehicle_info`/`total_mass` and
+  `split_input_sources`.
+- **Status:** In Progress
 
 ### 15. Project documentation no longer matches ownership
 

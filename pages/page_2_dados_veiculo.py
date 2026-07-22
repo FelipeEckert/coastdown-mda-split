@@ -25,7 +25,6 @@ def _store_mass_data(mass_data):
     vehicle_info["inertia_mass"] = mass_data["rotational_equivalent_mass_kg"]
     vehicle_info["effective_mass"] = mass_data["effective_mass_kg"]
     st.session_state.total_mass = mass_data["test_mass_kg"]
-    st.session_state.mass_input_mode = "running_order_mass"
 
 
 def _invalidate_mass_dependent_results(previous_effective_mass, effective_mass):

@@ -83,6 +83,8 @@ class AppStateOrchestrationTests(unittest.TestCase):
         created = self.state.tests["test_12345678"]
         self.assertEqual(self.state.active_test_id, "test_12345678")
         self.assertEqual(created["test_method"], "split")
+        self.assertNotIn("mass_input_mode", created)
+        self.assertNotIn("split_source_files", created)
         self.assertEqual(created["split_ambient_mode"], "fixed")
         self.assertEqual(created["split_fixed_temperature"], 25.0)
         self.assertEqual(created["split_fixed_pressure"], 101.3)
@@ -90,6 +92,124 @@ class AppStateOrchestrationTests(unittest.TestCase):
         self.assertEqual(self.state.split_fixed_pressure, 101.3)
         error.assert_not_called()
         rerun.assert_called_once_with()
+
+        app.save_active_test_state()
+        self.assertNotIn("mass_input_mode", created)
+        self.assertNotIn("split_source_files", created)
+
+    def test_active_split_builders_do_not_write_stale_state(self):
+        high_file = SimpleNamespace(name="high.csv")
+        low_file = SimpleNamespace(name="low.csv")
+        high_runs = {"high-run": {"direction": "+"}}
+        low_runs = {"low-run": {"direction": "-"}}
+
+        with (
+            patch.object(
+                app,
+                "_load_uploaded_csv_file",
+                side_effect=[
+                    ([{"row": "high"}], high_runs, None),
+                    ([{"row": "low"}], low_runs, None),
+                ],
+            ),
+            patch.object(app, "_uploaded_file_sha256", side_effect=["high-hash", "low-hash"]),
+        ):
+            uploaded_state = app._build_split_coastdown_state(
+                high_file,
+                low_file,
+                "separate",
+                _translate,
+            )
+
+        loaded_state = app._build_split_state_from_loaded(
+            "high.csv",
+            "high-hash",
+            [{"row": "high"}],
+            high_runs,
+            low_filename="low.csv",
+            low_hash="low-hash",
+            low_df=[{"row": "low"}],
+            low_runs=low_runs,
+        )
+
+        for state in (uploaded_state, loaded_state):
+            self.assertNotIn("split_source_files", state)
+            self.assertEqual(
+                [source["filename"] for source in state["split_input_sources"]],
+                ["high.csv", "low.csv"],
+            )
+            self.assertEqual(state["data_info"]["split_files"], "high.csv, low.csv")
+
+        from pages import page_2_dados_veiculo as vehicle_page
+
+        self.state.vehicle_info = {}
+        vehicle_page._store_mass_data({
+            "running_order_mass_kg": 1500.0,
+            "rotational_equivalent_mass_kg": 45.0,
+            "test_mass_kg": 1636.0,
+            "effective_mass_kg": 1681.0,
+        })
+
+        self.assertNotIn("mass_input_mode", self.state)
+        self.assertEqual(self.state.total_mass, 1636.0)
+        self.assertEqual(self.state.vehicle_info["effective_mass"], 1681.0)
+
+    def test_legacy_stale_keys_remain_stored_but_do_not_override_canonical_state(self):
+        canonical_sources = [{"filename": "canonical.csv", "role": "high"}]
+        self.state.tests = {
+            "legacy": {
+                "name": "Legacy",
+                "mass_input_mode": "legacy-mode",
+                "split_source_files": ["stale.csv"],
+                "split_input_sources": canonical_sources,
+            }
+        }
+        self.state.mass_input_mode = "leaked-mode"
+        self.state.split_source_files = ["leaked.csv"]
+
+        app.activate_test("legacy")
+
+        self.assertNotIn("mass_input_mode", self.state)
+        self.assertNotIn("split_source_files", self.state)
+        self.assertEqual(self.state.split_input_sources, canonical_sources)
+        self.assertEqual(
+            self.state.tests["legacy"]["mass_input_mode"],
+            "legacy-mode",
+        )
+        self.assertEqual(
+            self.state.tests["legacy"]["split_source_files"],
+            ["stale.csv"],
+        )
+
+    def test_switching_and_round_trip_do_not_leak_or_reintroduce_stale_keys(self):
+        self.state.tests = {
+            "legacy": {
+                "name": "Legacy",
+                "mass_input_mode": "legacy-mode",
+                "split_source_files": ["legacy.csv"],
+            },
+            "canonical": self._snapshot(
+                "Canonical",
+                split_input_sources=[{"filename": "canonical.csv", "role": "high"}],
+            ),
+        }
+
+        app.activate_test("legacy")
+        app.activate_test("canonical")
+        app.save_active_test_state()
+
+        self.assertNotIn("mass_input_mode", self.state)
+        self.assertNotIn("split_source_files", self.state)
+        self.assertNotIn("mass_input_mode", self.state.tests["canonical"])
+        self.assertNotIn("split_source_files", self.state.tests["canonical"])
+        self.assertEqual(
+            self.state.tests["canonical"]["split_input_sources"],
+            [{"filename": "canonical.csv", "role": "high"}],
+        )
+        self.assertEqual(
+            self.state.tests["legacy"]["split_source_files"],
+            ["legacy.csv"],
+        )
 
     def test_reopens_legacy_snapshot_and_populates_canonical_fixed_keys(self):
         self.state.tests = {

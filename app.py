@@ -435,7 +435,7 @@ TEST_STATE_KEYS = [
     # Arquivos
     "coastdown_csv_path", "meteo_csv_path",
     "split_alta_csv_path", "split_baixa_csv_path", "split_meteo_csv_path",
-    "split_source_files", "split_input_sources", "split_input_mode", "split_input_layout", "split_input_version",
+    "split_input_sources", "split_input_mode", "split_input_layout", "split_input_version",
     # DataFrames
     "df_raw", "df_raw_alta", "df_raw_baixa",
     # Dados processados
@@ -443,7 +443,7 @@ TEST_STATE_KEYS = [
     "weather_data", "weather_data_split",
     "csv_test_date",
     # Dados do veículo
-    "vehicle_info", "total_mass", "mass_input_mode",
+    "vehicle_info", "total_mass",
     "vehicle_model_input", "test_date_input",
     # Coeficientes e pares
     "split_interval_config", "split_interval_draft_config",
@@ -478,7 +478,6 @@ TEST_DEFAULTS = {
     "split_alta_csv_path": None,
     "split_baixa_csv_path": None,
     "split_meteo_csv_path": None,
-    "split_source_files": [],
     "split_input_sources": [],
     "split_input_mode": "separate",
     "split_input_layout": "separate",
@@ -494,7 +493,6 @@ TEST_DEFAULTS = {
     "csv_test_date": None,
     "vehicle_info": {},
     "total_mass": 0.0,
-    "mass_input_mode": "total",
     "vehicle_model_input": "",
     "test_date_input": None,
     "split_interval_config": {
@@ -607,6 +605,10 @@ def load_test_state(test_id):
     migrate_split_fixed_conditions(test_data)
     had_canonical_pairs = "split_comparison_pairs" in test_data
     migrated_legacy_pairs = migrate_legacy_split_final_results(test_data)
+
+    # Old snapshots keep these fields, but they no longer belong to live state.
+    for key in ("mass_input_mode", "split_source_files"):
+        st.session_state.pop(key, None)
 
     for key in TEST_STATE_KEYS:
         if key in test_data:
@@ -814,7 +816,6 @@ def _build_split_coastdown_state(high_or_combined_csv, low_csv, input_mode, t):
     )
 
     split_input_sources = []
-    split_source_files = [high_or_combined_csv.name]
     combined_run_data = {
         f"main:{run_id}": data
         for run_id, data in high_or_combined_runs.items()
@@ -860,7 +861,6 @@ def _build_split_coastdown_state(high_or_combined_csv, low_csv, input_mode, t):
                     "all_run_data": all_run_data_baixa,
                 }
             )
-            split_source_files.append(low_csv.name)
             combined_run_data.update(
                 {f"low:{run_id}": data for run_id, data in all_run_data_baixa.items()}
             )
@@ -873,7 +873,6 @@ def _build_split_coastdown_state(high_or_combined_csv, low_csv, input_mode, t):
         "all_run_data_alta": all_run_data_alta,
         "all_run_data_baixa": all_run_data_baixa,
         "split_input_sources": split_input_sources,
-        "split_source_files": split_source_files,
         "coastdown_csv_path": high_or_combined_csv.name,
         "split_alta_csv_path": high_or_combined_csv.name if not is_combined else None,
         "split_baixa_csv_path": low_csv.name if low_csv is not None else None,
@@ -882,7 +881,9 @@ def _build_split_coastdown_state(high_or_combined_csv, low_csv, input_mode, t):
         "data_loaded": True,
         "data_info": {
             "filename": high_or_combined_csv.name,
-            "split_files": ", ".join(split_source_files),
+            "split_files": ", ".join(
+                source["filename"] for source in split_input_sources
+            ),
             "rows": len(df_raw),
             "runs": len(combined_run_data),
         },
@@ -919,7 +920,6 @@ def _build_split_state_from_loaded(
             "all_run_data": high_runs,
         }
     ]
-    split_source_files = [high_filename]
     combined_run_data = {f"main:{run_id}": data for run_id, data in high_runs.items()}
 
     if low_filename and low_runs:
@@ -931,7 +931,6 @@ def _build_split_state_from_loaded(
                 "all_run_data": low_runs,
             }
         )
-        split_source_files.append(low_filename)
         combined_run_data.update({f"low:{run_id}": data for run_id, data in low_runs.items()})
 
     return {
@@ -942,7 +941,6 @@ def _build_split_state_from_loaded(
         "all_run_data_alta": high_runs,
         "all_run_data_baixa": low_runs if low_filename else {},
         "split_input_sources": split_input_sources,
-        "split_source_files": split_source_files,
         "coastdown_csv_path": high_filename,
         "split_alta_csv_path": high_filename,
         "split_baixa_csv_path": low_filename,
@@ -951,7 +949,9 @@ def _build_split_state_from_loaded(
         "data_loaded": True,
         "data_info": {
             "filename": high_filename,
-            "split_files": ", ".join(split_source_files),
+            "split_files": ", ".join(
+                source["filename"] for source in split_input_sources
+            ),
             "rows": len(high_df),
             "runs": len(combined_run_data),
         },

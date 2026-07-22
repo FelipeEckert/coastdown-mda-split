@@ -2705,3 +2705,20 @@ inverso nao e seguro. A primeira mutacao canonica deve invalidar o legado para
 que ele nao vaze entre testes nem volte a ser salvo como segunda fonte de verdade.
 
 ---
+
+## 2026-07-22 - Chaves Obsoletas Devem Sair Em Lotes Comprovaveis
+
+### Decisao:
+
+`mass_input_mode` e `split_source_files` deixaram de ser inicializadas, salvas e
+escritas porque nenhum fluxo ativo ou legado as le. Snapshots antigos preservam
+os campos armazenados, mas o carregamento remove apenas suas copias flat e usa
+`vehicle_info`/`total_mass` e `split_input_sources` como estado canonico.
+
+### Licao:
+
+Remover uma chave de session state exige verificar separadamente escrita, leitura
+e persistencia. Ignorar o campo legado no estado vivo evita vazamento entre testes;
+preserva-lo no snapshot antigo evita uma migracao destrutiva sem necessidade.
+
+---

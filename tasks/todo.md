@@ -512,6 +512,21 @@
 - [x] Pass focused/AppTest coverage, the 397-test full suite, Ruff, compile,
   Streamlit startup and diff checks.
 
+## Audit finding 14 - Stale Split session state - 2026-07-22
+
+- [x] Inventory all nine candidate keys across active and legacy readers,
+  writers, persistence, callbacks, dynamic lookups, tests, and documentation.
+- [x] Remove new writes and persistence for the conclusive first-batch keys
+  `mass_input_mode` and `split_source_files`.
+- [x] Preserve old snapshot dictionaries while preventing obsolete flat-state
+  values from leaking across test switches.
+- [x] Keep canonical mass state and `split_input_sources` behavior unchanged.
+- [x] Pass focused/AppTest coverage, the 400-test full suite, scoped Ruff,
+  compile validation, Streamlit startup, and diff checks.
+- [ ] Resolve `weather_data_split`, `data_info`, `split_ambient_version`,
+  `excel_buffer`, `split_processed_at`, `using_split_method`, and `test_method`
+  in later compatibility-reviewed batches.
+
 ## Audit finding 15 - Documentation ownership and workflow - 2026-07-21
 
 - [x] Inventory current guidance, trackers, the automatic-selection plan, and
