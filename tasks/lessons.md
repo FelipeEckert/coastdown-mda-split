@@ -2468,6 +2468,23 @@ diferentes. O menor helper seguro recebe a data ja resolvida, devolve texto e
 
 ---
 
+## 2026-07-22 - Medir Novamente Antes de Encerrar uma Decomposicao
+
+### Decisao:
+
+A revisao apos quatro extracoes nao encerrou o achado 13. O metodo principal
+ainda concentra 52 pontos de complexidade, 61 branches e 233 statements. A
+proxima fronteira unica e a descoberta de data nas linhas 1 e 3; filtragem,
+intervalos e adaptacao Standard/Split permanecem juntos ate nova medicao.
+
+### Licao:
+
+Helpers menores nao provam por si so que uma decomposicao terminou. Recontar as
+responsabilidades e medir o metodo restante distingue um orquestrador coeso de
+um bloco ainda excessivo, sem transformar a auditoria em extracoes infinitas.
+
+---
+
 ## 2026-07-20 - Diagnostico de parser nao pode controlar o retorno de sucesso
 
 ### Contexto:

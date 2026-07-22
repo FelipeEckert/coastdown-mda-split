@@ -461,6 +461,20 @@ finding has been documented but no cleanup or behavior change has been applied.
   suite pass, as do scoped Ruff, compile, Streamlit startup, and diff checks.
   Broad Ruff reports only the same eight inherited `data/loaders.py` findings
   recorded before this extraction; no new finding is introduced.
+- **Post-refactor review (2026-07-22):** The main function now orchestrates
+  file/date discovery, table validation, enabled-run filtering, interval-column
+  discovery, interval measurement extraction, Standard/Split output adaptation,
+  diagnostics, and exception translation. The completed helpers reduced its
+  Ruff profile from complexity 69, 84 branches, and 325 statements to 52, 61,
+  and 233, but the remaining function is still not cohesive enough to close the
+  finding. The one justified next extraction is the neutral line-1/line-3 test
+  date discovery into `_parse_coastdown_test_header(lines, debug_output)`,
+  returning `test_date` and `test_start_datetime` while leaving the caller's
+  missing-date debug write and exception point unchanged. Fixed row 15, forced
+  comma parsing, unsupported semicolon tables, naive datetimes, `HH:MM` as
+  elapsed `MM:SS`, inactive `is_alta`, Standard/Split outputs, and all weather
+  synchronization behavior remain intentional compatibility contracts. The
+  70-test focused loader matrix, 437-test full suite, and diff hygiene pass.
 - **Status:** In Progress
 
 ### 14. Stale state keys obscure the canonical Split model

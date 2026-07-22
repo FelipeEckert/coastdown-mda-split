@@ -554,8 +554,11 @@
   malformed values, elapsed forms, legacy fallbacks, and `HH:MM` ambiguity.
 - [x] Pass the focused helper, 10 temporal, 86 integration/AppTest, and
   437 full-suite tests plus scoped Ruff, compile, startup, and diff checks.
-- [ ] Continue only with another independently characterized neutral phase;
-  do not broadly rewrite `carregar_dados_csv_robusto`.
+- [x] Reassess the remaining loader after four extractions: complexity is still
+  52 with 61 branches and 233 statements, so finding 13 remains In Progress.
+- [x] Pass the 70-test focused loader matrix, 437-test full suite, and diff check.
+- [ ] Extract only line-1/line-3 test-date discovery into a private header helper;
+  preserve the caller's missing-date debug write and exception point.
 
 ## Audit finding 14 - Stale Split session state - 2026-07-22
 
