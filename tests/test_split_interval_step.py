@@ -397,7 +397,7 @@ class SplitIntervalStepTest(unittest.TestCase):
         self.assertEqual(test_data["split_results"], [])
         self.assertIsNone(test_data["split_last_calculated_result"])
         self.assertEqual(test_data["split_comparison_pairs"], [])
-        self.assertEqual(test_data["split_final_results"], {})
+        self.assertNotIn("split_final_results", test_data)
         self.assertIsNone(test_data["excel_buffer"])
         self.assertEqual(test_data["split_input_version"], 4)
 
@@ -521,7 +521,7 @@ class SplitIntervalStepTest(unittest.TestCase):
         self.assertEqual(test_data["split_results"], [])
         self.assertIsNone(test_data["split_last_calculated_result"])
         self.assertEqual(test_data["split_comparison_pairs"], [])
-        self.assertEqual(test_data["split_final_results"], {})
+        self.assertNotIn("split_final_results", test_data)
         self.assertIsNone(test_data["excel_buffer"])
         self.assertEqual(test_data["split_input_version"], 4)
 

@@ -3,6 +3,7 @@
 
 import streamlit as st
 
+from core.split_state import clear_split_final_results_compatibility
 from core.split_vehicle_mass import (
     compute_split_effective_mass,
     normalize_split_vehicle_mass_data,
@@ -36,11 +37,11 @@ def _invalidate_mass_dependent_results(previous_effective_mass, effective_mass):
         ("split_last_calculated_result", None),
         ("split_auto_selection_last_result", None),
         ("split_auto_selection_pending", None),
-        ("split_final_results", {}),
         ("split_results_excel_cache", None),
         ("excel_buffer", None),
     ):
         st.session_state[key] = empty_value
+    clear_split_final_results_compatibility(st.session_state)
 
 
 def render(t):

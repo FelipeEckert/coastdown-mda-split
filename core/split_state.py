@@ -5,6 +5,9 @@ from copy import deepcopy
 from datetime import datetime, timezone
 
 
+LEGACY_SPLIT_FINAL_RESULTS_FLAG = "_split_final_results_legacy_only"
+
+
 def build_split_fixed_conditions(temperature: float, pressure: float) -> dict:
     """Store fixed inputs under legacy and canonical Split keys."""
     return {
@@ -25,6 +28,84 @@ def migrate_split_fixed_conditions(test_data: dict) -> None:
             test_data[canonical_key] = test_data[legacy_key]
 
 
+def _legacy_split_final_count(legacy) -> int | None:
+    """Return one valid count shared by every current legacy count field."""
+    if not isinstance(legacy, dict):
+        return None
+    counts = []
+    for key in ("num_results", "num_pairs"):
+        if key not in legacy:
+            continue
+        value = legacy[key]
+        if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+            return None
+        counts.append(value)
+    return counts[0] if counts and len(set(counts)) == 1 else None
+
+
+def migrate_legacy_split_final_results(test_data: dict) -> bool:
+    """Restore canonical pairs only from a complete legacy selected-pair list."""
+    if "split_comparison_pairs" in test_data:
+        return False
+    legacy = test_data.get("split_final_results")
+    selected_pairs = legacy.get("selected_pairs") if isinstance(legacy, dict) else None
+    count = _legacy_split_final_count(legacy)
+    if (
+        not isinstance(selected_pairs, list)
+        or not selected_pairs
+        or count is None
+        or count != len(selected_pairs)
+        or any(
+            not isinstance(pair, dict) or pair.get("selected") is not True
+            for pair in selected_pairs
+        )
+    ):
+        return False
+    pair_ids = [pair.get("id") for pair in selected_pairs]
+    if (
+        any(not isinstance(pair_id, str) or not pair_id.strip() for pair_id in pair_ids)
+        or len({pair_id.strip() for pair_id in pair_ids}) != len(pair_ids)
+    ):
+        return False
+
+    from core.split_comparison import is_split_pair_corrected
+
+    if any(not is_split_pair_corrected(pair) for pair in selected_pairs):
+        return False
+    test_data["split_comparison_pairs"] = deepcopy(selected_pairs)
+    return True
+
+
+def clear_split_final_results_compatibility(test_data: dict) -> None:
+    """Remove the read-only legacy summary after canonical state changes."""
+    test_data.pop("split_final_results", None)
+    test_data.pop(LEGACY_SPLIT_FINAL_RESULTS_FLAG, None)
+
+
+def split_final_results_status(test_data: dict) -> dict:
+    """Return current final-result availability from canonical or legacy state."""
+    if test_data.get(LEGACY_SPLIT_FINAL_RESULTS_FLAG):
+        legacy = test_data.get("split_final_results")
+        count = _legacy_split_final_count(legacy)
+        return {
+            "source": "legacy",
+            "available": count is not None,
+            "selected_pair_count": count or 0,
+        }
+
+    from core.split_results import consolidate_split_final_results
+
+    summary = consolidate_split_final_results(
+        test_data.get("split_comparison_pairs") or []
+    )
+    count = summary["num_results"]
+    return {
+        "source": "split_comparison_pairs",
+        "available": count > 0,
+        "selected_pair_count": count,
+    }
+
+
 def ensure_split_comparison_pairs(test_data: dict) -> list[dict]:
     """Initialize comparison pairs only when the state key is absent."""
     if "split_comparison_pairs" not in test_data:
@@ -43,7 +124,7 @@ def invalidate_split_input_state(test_data: dict, reset_meteo_sync: bool = True)
     test_data["split_auto_selection_pending"] = None
     test_data["split_auto_replace_request"] = None
     test_data["split_auto_replace_dialog_open"] = False
-    test_data["split_final_results"] = {}
+    clear_split_final_results_compatibility(test_data)
     test_data["excel_buffer"] = None
     test_data["split_input_version"] = int(test_data.get("split_input_version") or 0) + 1
     test_data["split_parse_dirty"] = True
@@ -96,7 +177,7 @@ def record_split_parse_failure(test_data: dict, issues: list[dict]) -> dict:
     test_data["split_auto_selection_pending"] = None
     test_data["split_auto_replace_request"] = None
     test_data["split_auto_replace_dialog_open"] = False
-    test_data["split_final_results"] = {}
+    clear_split_final_results_compatibility(test_data)
     test_data["excel_buffer"] = None
     test_data["split_parse_dirty"] = True
     test_data["split_parse_feedback_current"] = True
@@ -185,7 +266,7 @@ def clear_split_final_state(test_data: dict) -> dict:
                 result["energy_profile"] = None
                 result["energy_origin"] = None
                 result["energy_details"] = None
-    test_data["split_final_results"] = {}
+    clear_split_final_results_compatibility(test_data)
     test_data["split_comparison_pairs"] = []
     test_data["split_last_calculated_result"] = None
     test_data["split_auto_selection_last_result"] = None
@@ -198,7 +279,7 @@ def clear_split_final_state(test_data: dict) -> dict:
 
 def reset_split_final_outputs(test_data: dict) -> dict:
     """Clear Split final/export outputs after comparison selection changes."""
-    test_data["split_final_results"] = {}
+    clear_split_final_results_compatibility(test_data)
     test_data["excel_buffer"] = None
     test_data.pop("split_deviation_analysis_cache", None)
     test_data.pop("split_results_excel_cache", None)
@@ -233,7 +314,7 @@ def invalidate_split_ambient_state(test_data: dict) -> dict:
     test_data["split_auto_selection_pending"] = None
     test_data["split_auto_replace_request"] = None
     test_data["split_auto_replace_dialog_open"] = False
-    test_data["split_final_results"] = {}
+    clear_split_final_results_compatibility(test_data)
     test_data["excel_buffer"] = None
     test_data["split_ambient_version"] = (
         int(test_data.get("split_ambient_version") or 0) + 1

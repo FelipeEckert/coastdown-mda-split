@@ -24,7 +24,6 @@ from core.split_comparison import (
 )
 from core.split_corrections import (
     apply_split_pair_correction,
-    fixed_ambient_conditions,
     weather_sync_ambient_conditions,
 )
 from data.split_parser import default_split_interval_config
@@ -524,7 +523,7 @@ class SplitComparisonTest(unittest.TestCase):
 
         self.assertEqual(state["split_parsed_runs"], {"high": [{"run_id": 1}]})
         self.assertEqual(state["split_comparison_pairs"], [])
-        self.assertEqual(state["split_final_results"], {})
+        self.assertNotIn("split_final_results", state)
         self.assertIsNone(state["excel_buffer"])
 
     def test_selection_source_supports_manual_algorithm_and_unknown(self):

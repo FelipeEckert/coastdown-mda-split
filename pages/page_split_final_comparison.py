@@ -27,6 +27,7 @@ from core.split_display import (
 )
 from core.split_results import consolidate_split_final_results
 from core.split_state import (
+    clear_split_final_results_compatibility,
     clear_split_comparison_state,
     normalize_split_comparison_selection_state,
     reset_split_final_outputs,
@@ -551,7 +552,7 @@ def _render_final_results_action(t) -> None:
             st.session_state.get("split_comparison_pairs") or []
         )
         if stored_summary.get("selected_pairs"):
-            st.session_state.split_final_results = stored_summary
+            clear_split_final_results_compatibility(st.session_state)
             st.session_state.navigate_to_results = True
             st.rerun()
         else:

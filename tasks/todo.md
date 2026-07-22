@@ -493,6 +493,25 @@
 - [x] Pass focused/AppTest coverage, the 383-test full suite, Ruff, compile,
   Streamlit startup and diff checks.
 
+## Audit finding 11 - Canonical final-result state - 2026-07-22
+
+- [x] Inventory every `split_final_results` read, write, persistence path, and
+  legacy saved-state shape before editing.
+- [x] Make `split_comparison_pairs` canonical for current availability and
+  selected-pair counts without changing calculations or exports.
+- [x] Stop new redundant writes while retaining complete and aggregate-only
+  legacy summaries during a documented migration window.
+- [x] Migrate only complete legacy pair lists and explicitly report summaries
+  that lack reconstructable pair data.
+- [x] Require unique stable IDs, explicit selection, valid corrected fields,
+  and agreement among all supplied legacy counts before migration.
+- [x] Preserve aggregate-only summaries during passive ambient rendering and
+  clear them only after a real invalidating mutation.
+- [x] Cover canonical precedence, legacy migration, test switching, sidebar,
+  Results, and save/load behavior.
+- [x] Pass focused/AppTest coverage, the 397-test full suite, Ruff, compile,
+  Streamlit startup and diff checks.
+
 ## Audit finding 15 - Documentation ownership and workflow - 2026-07-21
 
 - [x] Inventory current guidance, trackers, the automatic-selection plan, and

@@ -35,11 +35,15 @@ from translations import get_translator, get_available_languages
 from data.loaders import carregar_dados_csv_robusto
 from data.weather_loader import read_weather_file
 from core.split_state import (
+    LEGACY_SPLIT_FINAL_RESULTS_FLAG,
     build_split_fixed_conditions,
+    clear_split_final_results_compatibility,
     clear_split_final_state,
     invalidate_split_input_state,
+    migrate_legacy_split_final_results,
     migrate_split_fixed_conditions,
     normalize_split_comparison_selection_state,
+    split_final_results_status,
 )
 
 # ===== CONFIGURAÇÃO DA PÁGINA =====
@@ -449,8 +453,6 @@ TEST_STATE_KEYS = [
     "split_comparison_pairs", "split_last_calculated_result",
     "split_auto_selection_last_result", "split_auto_selection_pending",
     "split_auto_replace_request", "split_auto_replace_dialog_open",
-    # Resultados
-    "split_final_results",
     # Flags de controle
     "using_split_method", "test_method",
     "data_loaded", "vehicle_data_complete",
@@ -517,7 +519,6 @@ TEST_DEFAULTS = {
     "split_auto_selection_pending": None,
     "split_auto_replace_request": None,
     "split_auto_replace_dialog_open": False,
-    "split_final_results": {},
     "using_split_method": False,
     "test_method": "traditional",
     "data_loaded": False,
@@ -569,7 +570,6 @@ def init_session_state():
     ):
         if key not in st.session_state:
             st.session_state[key] = 0
-
     # Flat keys de compatibilidade com páginas 2-6
     for key, default in TEST_DEFAULTS.items():
         if key not in st.session_state:
@@ -587,17 +587,26 @@ def save_active_test_state():
     if not test_id or test_id not in st.session_state.tests:
         return
     for key in TEST_STATE_KEYS:
+        if (
+            key == "split_comparison_pairs"
+            and st.session_state.get(LEGACY_SPLIT_FINAL_RESULTS_FLAG)
+        ):
+            continue
         val = st.session_state.get(key)
         if isinstance(val, (dict, list)):
             st.session_state.tests[test_id][key] = copy.deepcopy(val)
         else:
             st.session_state.tests[test_id][key] = val
+    if "split_final_results" not in st.session_state:
+        st.session_state.tests[test_id].pop("split_final_results", None)
 
 
 def load_test_state(test_id):
     """Restaura o estado de um teste nas flat keys."""
     test_data = st.session_state.tests.get(test_id, {})
     migrate_split_fixed_conditions(test_data)
+    had_canonical_pairs = "split_comparison_pairs" in test_data
+    migrated_legacy_pairs = migrate_legacy_split_final_results(test_data)
 
     for key in TEST_STATE_KEYS:
         if key in test_data:
@@ -612,6 +621,18 @@ def load_test_state(test_id):
                 st.session_state[key] = copy.deepcopy(default)
             else:
                 st.session_state[key] = default
+
+    legacy_summary = test_data.get("split_final_results")
+    if isinstance(legacy_summary, dict) and legacy_summary:
+        st.session_state.split_final_results = copy.deepcopy(legacy_summary)
+    else:
+        st.session_state.pop("split_final_results", None)
+    st.session_state[LEGACY_SPLIT_FINAL_RESULTS_FLAG] = bool(
+        isinstance(legacy_summary, dict)
+        and legacy_summary
+        and not had_canonical_pairs
+        and not migrated_legacy_pairs
+    )
 
     # Compatibilidade com testes salvos antes das widget keys por teste.
     if "vehicle_model_input" not in test_data:
@@ -648,6 +669,7 @@ def delete_test(test_id):
                     st.session_state[key] = copy.deepcopy(default)
                 else:
                     st.session_state[key] = default
+            clear_split_final_results_compatibility(st.session_state)
             st.session_state.active_test_id = None
 
     st.session_state.delete_confirm_id = None
@@ -705,13 +727,9 @@ def _sync_meteo_mode_changed(test_id, sync_enabled):
 
     test_data["sync_meteo_by_time_only"] = sync_enabled
     _clear_test_data_for_meteo_change(test_data)
+    clear_split_final_results_compatibility(st.session_state)
 
-    for key in (
-        "split_final_results",
-        "excel_buffer",
-    ):
-        value = test_data.get(key, TEST_DEFAULTS.get(key))
-        st.session_state[key] = copy.deepcopy(value) if isinstance(value, (dict, list)) else value
+    st.session_state.excel_buffer = test_data.get("excel_buffer")
 
 
 def _load_uploaded_csv_file(uploaded_csv, t, using_split_method=False, is_alta=True):
@@ -1491,8 +1509,9 @@ def render_sidebar_status(t):
             unsafe_allow_html=True
         )
 
-    if st.session_state.split_final_results:
-        n = st.session_state.split_final_results.get("num_results", 0)
+    final_status = split_final_results_status(st.session_state)
+    if final_status["available"]:
+        n = final_status["selected_pair_count"]
         st.markdown(
             f"<div class='mda-sidebar-status-item' style='color:#4a9eff'>"
             f"{n} {t('split_final_summary')}</div>",

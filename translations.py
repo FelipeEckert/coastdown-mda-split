@@ -1824,6 +1824,10 @@ TRANSLATIONS = {
         "pt": "Há pares no Comparativo Final, mas nenhum está selecionado. Volte ao Comparativo Final e marque os pares que devem compor o resultado.",
         "en": "Final Comparison has pairs, but none is selected. Return to Final Comparison and select the pairs that should compose the result."
     },
+    "split_results_legacy_summary_only": {
+        "pt": "Este teste preserva apenas um resumo final legado ({count} resultado(s)); faltam dados por par para reconstruir, exibir ou exportar os resultados.",
+        "en": "This test preserves only a legacy final summary ({count} result(s)); pair-level data is unavailable for rebuilding, displaying, or exporting results."
+    },
     "split_results_final_table": {
         "pt": "Tabela final dos pares selecionados",
         "en": "Final selected-pair table"

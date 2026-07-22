@@ -304,7 +304,7 @@ class SplitTabRoutingTests(unittest.TestCase):
         vehicle_render.assert_called_once_with(_translate)
         final_render.assert_not_called()
         self.assertFalse(state.split_comparison_pairs[0]["selected"])
-        self.assertEqual(state.split_final_results, {})
+        self.assertNotIn("split_final_results", state)
         self.assertIsNone(state.excel_buffer)
         self.assertNotIn("split_deviation_analysis_cache", state)
         self.assertNotIn("split_results_excel_cache", state)

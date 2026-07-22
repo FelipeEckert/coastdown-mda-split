@@ -325,7 +325,22 @@ finding has been documented but no cleanup or behavior change has been applied.
   removing the key.
 - **Validation:** Load current and legacy saved-state shapes, edit selected
   pairs, and confirm sidebar and Results counts remain consistent.
-- **Status:** Pending
+- **Resolution (2026-07-22):** `split_comparison_pairs` is now the canonical
+  source for current final-result availability and selected-pair counts. New
+  states, selection changes, invalidation, and Final Comparison navigation no
+  longer write redundant `split_final_results` snapshots. During the migration
+  window, legacy summaries remain readable; complete legacy `selected_pairs`
+  lists migrate only when their stable IDs are unique, every pair is explicitly
+  selected and valid under the current corrected-pair contract, and all supplied
+  counts agree. Aggregate-only summaries survive passive rendering and are
+  reported explicitly without inventing missing pair data.
+- **Validation result:** Focused migration, sidebar, Results, switching, and
+  save/load tests cover canonical-only, both-key, complete legacy-only,
+  aggregate-only, malformed, duplicate, inconsistent, and incomplete legacy
+  states, including idempotence and ambient invalidation. The 397-test full
+  suite, scoped Ruff, compile validation, Streamlit startup health check, and
+  diff hygiene pass.
+- **Status:** Completed
 
 ## Maintainability Improvements
 

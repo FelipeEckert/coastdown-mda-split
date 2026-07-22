@@ -2683,3 +2683,25 @@ Estado realmente compartilhado deve ter uma inicializacao explicita; estado loca
 calculos, graficos e exportadores devem permanecer dentro do renderer selecionado.
 
 ---
+
+## 2026-07-22 - Estado Derivado Nao Deve Competir Com Sua Fonte
+
+### Decisao:
+
+`split_comparison_pairs` e a fonte canonica do estado final corrente. A barra
+lateral, a pagina de Resultados e o exportador derivam disponibilidade, contagem
+e consolidacao dos pares selecionados. `split_final_results` permanece somente
+como leitura de compatibilidade durante a migracao: uma lista legada completa de
+pares so pode ser copiada quando IDs unicos, selecao explicita, campos corrigidos
+validos e todas as contagens concordam. Resumos agregados incompletos sao
+preservados em renderizacoes passivas e sinalizados, mas nunca usados para
+inventar dados por par.
+
+### Licao:
+
+Ao remover estado derivado persistido, separar migracao de informacao e
+compatibilidade de leitura. Dados detalhados podem reconstruir agregados; o
+inverso nao e seguro. A primeira mutacao canonica deve invalidar o legado para
+que ele nao vaze entre testes nem volte a ser salvo como segunda fonte de verdade.
+
+---

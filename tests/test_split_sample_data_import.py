@@ -216,7 +216,7 @@ class SplitSampleDataImportTest(unittest.TestCase):
         self.assertIsNone(test_data["split_auto_selection_pending"])
         self.assertIsNone(test_data["split_auto_replace_request"])
         self.assertFalse(test_data["split_auto_replace_dialog_open"])
-        self.assertEqual(test_data["split_final_results"], {})
+        self.assertNotIn("split_final_results", test_data)
         self.assertIsNone(test_data["excel_buffer"])
         self.assertEqual(test_data["split_input_version"], 5)
         self.assertFalse(test_data["sync_meteo_by_time_only"])
@@ -256,7 +256,7 @@ class SplitSampleDataImportTest(unittest.TestCase):
         self.assertEqual(test_data["split_comparison_pairs"], [])
         self.assertIsNone(test_data["split_last_calculated_result"])
         self.assertIsNone(test_data["split_auto_selection_pending"])
-        self.assertEqual(test_data["split_final_results"], {})
+        self.assertNotIn("split_final_results", test_data)
         self.assertIsNone(test_data["excel_buffer"])
 
     def test_ambient_mode_change_invalidates_results_and_comparison_cards(self):
@@ -276,7 +276,7 @@ class SplitSampleDataImportTest(unittest.TestCase):
         self.assertEqual(test_data["split_comparison_pairs"], [])
         self.assertIsNone(test_data["split_last_calculated_result"])
         self.assertIsNone(test_data["split_auto_selection_pending"])
-        self.assertEqual(test_data["split_final_results"], {})
+        self.assertNotIn("split_final_results", test_data)
         self.assertIsNone(test_data["excel_buffer"])
         self.assertEqual(test_data["split_ambient_version"], 3)
 

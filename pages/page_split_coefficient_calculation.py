@@ -28,7 +28,10 @@ from core.weather_sync import (
     sync_weather_to_run,
 )
 from core.split_state import (
+    LEGACY_SPLIT_FINAL_RESULTS_FLAG,
+    clear_split_final_results_compatibility,
     invalidate_split_ambient_state,
+    reset_split_final_outputs,
     split_parse_is_current,
 )
 from core.split_vehicle_mass import normalize_split_vehicle_mass_data
@@ -315,6 +318,7 @@ def _apply_ambient_signature(signature: tuple, t):
     tests = st.session_state.get("tests") or {}
     if active_test_id in tests:
         test_data = tests[active_test_id]
+        legacy_only = st.session_state.get(LEGACY_SPLIT_FINAL_RESULTS_FLAG)
         for key in (
             "split_ambient_mode",
             "split_fixed_temperature",
@@ -324,10 +328,13 @@ def _apply_ambient_signature(signature: tuple, t):
             "split_results",
             "split_comparison_pairs",
             "split_last_calculated_result",
-            "split_final_results",
             "excel_buffer",
         ):
+            if key == "split_comparison_pairs" and legacy_only:
+                continue
             test_data[key] = st.session_state.get(key)
+        if changed:
+            clear_split_final_results_compatibility(test_data)
 
 
 def _fmt(value, precision=3):
@@ -727,8 +734,7 @@ def _render_add_to_comparison(t):
             st.session_state.get("split_comparison_pairs") or [],
             pair,
         )
-        st.session_state.split_final_results = {}
-        st.session_state.excel_buffer = None
+        reset_split_final_outputs(st.session_state)
         st.success(t("split_pair_added_to_comparison"))
 
     pairs = st.session_state.get("split_comparison_pairs") or []
@@ -890,7 +896,7 @@ def _render_coefficient_calculation(t):
             st.session_state.setdefault("split_results", [])
             st.session_state.split_results.append(result)
             st.session_state.split_last_calculated_result = result
-            st.session_state.split_final_results = {}
+            clear_split_final_results_compatibility(st.session_state)
             st.session_state.excel_buffer = None
 
             st.success(t("split_selected_pair_calculated"))

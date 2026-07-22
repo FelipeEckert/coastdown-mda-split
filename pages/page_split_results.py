@@ -17,6 +17,7 @@ from core.split_display import (
     get_split_reference_speeds,
 )
 from core.split_results import consolidate_split_final_results
+from core.split_state import split_final_results_status
 from core.split_weather_context import split_environmental_values
 from core.split_vehicle_mass import normalize_split_vehicle_mass_data
 from data.split_exporters import (
@@ -487,7 +488,16 @@ def render(t):
     summary = consolidate_split_final_results(comparison_pairs)
     selected_pairs = summary["selected_pairs"]
     if not selected_pairs:
-        st.warning(t("split_results_no_pairs_selected"))
+        final_status = split_final_results_status(st.session_state)
+        if final_status["source"] == "legacy" and final_status["available"]:
+            st.warning(
+                t(
+                    "split_results_legacy_summary_only",
+                    count=final_status["selected_pair_count"],
+                )
+            )
+        else:
+            st.warning(t("split_results_no_pairs_selected"))
         st.info("Volte ao Comparativo Final e selecione os pares desejados.")
         return
 
