@@ -32,7 +32,7 @@ finding has been documented but no cleanup or behavior change has been applied.
 | 15 | Project documentation no longer matches ownership | Low | High | 1 | Pending |
 | 16 | Critical Streamlit orchestration is untested | High | High | 3 | Completed |
 | 17 | Several tests enforce source text rather than behavior | Low | High | 5 | Completed |
-| 18 | Inherited Standard pages removed; dependency cleanup remains | Medium | High | 8 | In Progress |
+| 18 | Inherited Standard pages and dependency island removed | Medium | High | 8 | Completed |
 | 19 | Split coefficient sign convention conflicts across repository guidance | High | High conflict / Low resolution | 8 | Pending |
 | 20 | Translation and compatibility cleanup cannot rely on static counts | Low | High | 8 | Pending |
 | 21 | Automatic-selection page is indirectly rendered | Informational | High | Preserve | Pending |
@@ -272,14 +272,14 @@ finding has been documented but no cleanup or behavior change has been applied.
   paths, and the names do not establish which implementation owns the behavior.
 - **Risk:** Medium because the legacy path and possible external imports may
   depend on the current symbols.
-- **Recommended action:** Completed. Keep
-  `core.corrections.calculate_single_pair_corrected_data` canonical; retain the
-  raw-value schema adapter and both local-import calculation-module wrappers.
+- **Recommended action:** Completed initially by consolidating the duplicated
+  implementation. Finding 18 Batch 3 later removed the compatibility API after
+  its last Standard page caller and exclusive tests were retired.
 - **Validation:** Five focused characterization tests, all existing correction
   and calculation tests, 370 full-suite tests, scoped Ruff, compile validation,
   and `git diff --check` passed.
-- **Status:** Completed. One corrected-pair formula remains, with all four
-  module-level paths and both package exports preserved.
+- **Status:** Completed. The duplication was removed first; the resulting
+  compatibility-only module was removed with the retired Standard workflow.
 
 ### 10. Main and nested tabs compute hidden content eagerly
 
@@ -701,7 +701,7 @@ equivalent behavioral coverage exists; 4 = consolidate duplicated coverage.
 
 ## Risky Findings Requiring Manual Validation
 
-### 18. Inherited Standard pages removed; dependency cleanup remains
+### 18. Inherited Standard pages and dependency island removed
 
 - **Severity:** Medium
 - **Confidence:** High on internal routing, imports, persisted state, exports,
@@ -725,7 +725,14 @@ equivalent behavioral coverage exists; 4 = consolidate duplicated coverage.
   `page_4_selecao_algoritmo.py` (1,297 lines), and their private 53-line
   `_legacy_method_state.py` helper. Outside that four-file island, the only
   code consumers were three direct-import compatibility tests, which were
-  retired. Active stale-snapshot state and AppTest routing coverage remains.
+  retired. Active stale-snapshot state and AppTest routing coverage remain.
+- **Batch 3 result (2026-07-23):** Removed the now-closed Standard dependency
+  island: `core/corrections.py`, `data/exporters.py`, obsolete coefficient and
+  correction adapters from `core/calculations.py`, legacy weather adapters
+  from `data/loaders.py`, their lazy package exports, the exclusive corrected-
+  pair compatibility test, and translation keys owned only by the retired
+  pages. The active `calcular_energia()` kernel and
+  `carregar_dados_csv_robusto()` loader retain unchanged behavior.
 
 #### Route model
 
@@ -769,51 +776,44 @@ initializer. No test-only or dead page module remains.
 - `data.loaders.carregar_dados_csv_robusto` must remain: `app.py` and Split
   parser characterization tests still use it. Removing the obsolete page-1
   caller does not make the loader dead.
-- `core.calculations.calcular_energia` must remain until its separately tracked
-  neutral-kernel move: active `core/split_energy.py` deliberately delegates to
-  it.
-- `core.corrections.py` is not used by active Split pages, but its public lazy
-  package exports and compatibility tests remain. It is not part of a page-only
-  deletion.
-- `data/exporters.py` remains behind public lazy package exports and package
-  compatibility tests. Active Split results owns `data/split_exporters.py`;
-  Batch 1 did not change either exporter.
+- `core.calculations.calcular_energia` remains because active
+  `core/split_energy.py` deliberately delegates to the neutral kernel.
+- `core/corrections.py` and `data/exporters.py` had no caller after the page
+  removals; their lazy exports and compatibility-only tests were part of the
+  same closed Standard contract and were retired in Batch 3.
+- `read_weather_station_csv` and `find_closest_weather_record` had no remaining
+  caller after pages 1, 3, and 4 were removed. Active weather loading and
+  synchronization remain owned by `data/weather_loader.py` and Split modules.
 - `utils/pair_time_analysis.py` was removed after pages 5 and 6 because the
   final repository-wide caller check found no remaining code caller.
-- `find_closest_weather_record`, `read_weather_station_csv`, and the inherited
-  Standard calculation adapters need a separate caller/public-export audit
-  after the page deletion; they are not required by active Split pages as page
-  helpers.
-
-- **Remaining problem:** Legacy Standard calculation, correction, loader,
-  exporter, and translation compatibility surfaces still need the separately
-  scoped Batch 3 caller/public-contract audit.
-- **Risk:** Medium. The page and route ambiguity is removed; remaining cleanup
-  must still preserve neutral helpers and public lazy exports used by Split or
-  compatibility tests.
+- **Remaining problem:** None within finding 18. The separately tracked mixed
+  responsibility inside the retained shared coastdown loader is not a legacy
+  page dependency.
+- **Risk:** Low. Active Split owners, state compatibility, formulas, routing,
+  weather loading, and workbook export remain independently covered.
 
 #### Safest cleanup plan
 
 1. **Batch 1 — completed 2026-07-23:** Deleted `page_5_comparativo.py`,
    `page_6_resultados.py`, and conclusively unreferenced
    `utils/pair_time_analysis.py`. No test referenced any target, so no test
-   edit was necessary. `data/exporters.py` remains unchanged because its public
-   compatibility exports are independently tested.
+   edit was necessary. `data/exporters.py` was retained until its separate
+   public compatibility contract was audited in Batch 3.
 2. **Batch 2 — completed 2026-07-23:** Deleted
    `_page_1_obsoleto.py`, `page_3_analise_pares.py`,
    `page_4_selecao_algoritmo.py`, and `_legacy_method_state.py` together.
    Retired only their three direct-import compatibility tests. Kept the active
    tests proving old method flags remain stored but never enter live Split
    state or override canonical routing.
-3. **Batch 3 — dependency/translation fallout:** Audit and remove only newly
-   unreferenced Standard adapters, public lazy exports, tests, and translation
-   families. Preserve `carregar_dados_csv_robusto` and
-   `calcular_energia`/its compatibility wrapper because active Split code still
-   uses them. This batch must not move Standard formulas into Split owners.
+3. **Batch 3 — completed 2026-07-23:** Removed only the unreferenced Standard
+   adapters, modules, lazy exports, exclusive tests, and page-owned translation
+   families. Preserved `carregar_dados_csv_robusto` and `calcular_energia`
+   because active Split code still uses them.
 
 **Must remain:** all five `page_split_*` modules,
-`page_2_dados_veiculo.py`, and `pages/__init__.py`. Batches 1 and 2 removed
-only the confirmed inherited page surfaces.
+`page_2_dados_veiculo.py`, `pages/__init__.py`, the shared coastdown loader,
+the neutral energy kernel, and all Split-owned calculation, weather, parser,
+state, and export modules.
 
 - **Inventory validation (2026-07-23):** Before Batch 1, direct
   `AppTest.from_file()` execution of all 13 page modules completed with zero
@@ -835,8 +835,14 @@ only the confirmed inherited page surfaces.
   utilities passes. Repository-wide Ruff now reports only nine pre-existing
   findings in explicitly untouched `core/calculations.py`,
   `data/exporters.py`, and `data/loaders.py`.
-- **Status:** In Progress — inventory and Batches 1-2 complete; Batch 3 remains
-  open
+- **Batch 3 validation (2026-07-23):** Direct AppTests load `app.py` and all
+  seven remaining page modules without exceptions. The 70 focused routing,
+  package, energy, loader, and weather tests and the 435-test full suite pass.
+  All 74 Python files compile. Scoped Ruff over `core`, `data`, tests, and
+  translations passes; repository-wide Ruff reports only five unchanged E402
+  findings in `app.py`. `git diff --check` passes.
+- **Status:** Completed — all three batches are complete and no inherited
+  Standard page dependency remains.
 
 ### 19. Split coefficient sign convention conflicts across repository guidance
 
@@ -868,9 +874,11 @@ only the confirmed inherited page surfaces.
 - **Locations:** `translations.py`; `core/split_display.py:157`
   (`format_split_pair_public_label`); legacy input, vehicle-mass, wind, and
   selector aliases.
-- **Evidence:** Of 755 translation keys, 506 have active exact references, 88
-  have legacy-only exact references, and 161 have no exact reference. Dynamic
-  f-string key families prevent treating the last group as dead.
+- **Initial audit evidence:** Before finding 18 Batch 3, 755 translation keys
+  included 506 active exact references, 88 legacy-only exact references, and
+  161 without an exact reference. Batch 3 removed 121 keys whose ownership by
+  the retired pages was independently proven; dynamic f-string key families
+  still prevent treating every remaining unmatched key as dead.
   `format_split_pair_public_label` has no internal caller but is explicitly a
   compatibility alias. Similar compatibility surfaces exist for old input
   layouts, vehicle mass names, wind names, and the v1 selector wrapper.

@@ -1,9 +1,5 @@
 # coding: utf-8
-"""
-Módulo core para análise de coastdown.
-
-Contém funções de cálculo e correção climática.
-"""
+"""Core modules for the active Split workflow."""
 
 import sys
 from importlib import import_module
@@ -11,10 +7,6 @@ from types import ModuleType
 
 __all__ = [
     'calcular_energia',
-    'calcular_coeficientes_individuais',
-    'apply_climate_correction',
-    'calculate_single_pair_corrected_data',
-    'calculate_single_pair_corrected_data2',
     'DEFAULT_SPLIT_INTERVAL_CONFIG',
     'calculate_split_coefficients',
     'calculate_split_result',
@@ -26,13 +18,8 @@ __all__ = [
 
 _EXPORTS = {
     'calculations': ('.calculations', None),
-    'corrections': ('.corrections', None),
     'split_calculations': ('.split_calculations', None),
     'calcular_energia': ('.calculations', 'calcular_energia'),
-    'calcular_coeficientes_individuais': ('.calculations', 'calcular_coeficientes_individuais'),
-    'apply_climate_correction': ('.corrections', 'apply_climate_correction'),
-    'calculate_single_pair_corrected_data': ('.corrections', 'calculate_single_pair_corrected_data'),
-    'calculate_single_pair_corrected_data2': ('.corrections', 'calculate_single_pair_corrected_data2'),
     'DEFAULT_SPLIT_INTERVAL_CONFIG': ('.split_calculations', 'DEFAULT_SPLIT_INTERVAL_CONFIG'),
     'calculate_split_coefficients': ('.split_calculations', 'calculate_split_coefficients'),
     'calculate_split_result': ('.split_calculations', 'calculate_split_result'),

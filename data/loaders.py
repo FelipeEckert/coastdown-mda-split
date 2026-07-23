@@ -11,7 +11,6 @@ IMPORTANTE: Não altere os nomes das funções ou variáveis para manter compati
 import os
 import re
 import csv
-import chardet
 import numpy as np
 import pandas as pd
 from datetime import datetime, time, timedelta
@@ -147,11 +146,11 @@ def _parse_coastdown_test_header(lines, debug_output):
                             debug_output.append(f"  -> ERRO ao parsear com %d-%b-%y: {ve_yy}")
                             test_date = None
                 else:
-                    debug_output.append(f"  -> A parte da data da Linha 3, Coluna B está vazia.")
+                            debug_output.append("  -> A parte da data da Linha 3, Coluna B está vazia.")
             else:
                 debug_output.append(f"  -> ERRO: Linha 3 não tem colunas suficientes para extrair a data da coluna B. Partes: {line_3_parts}")
         else:
-            debug_output.append(f"ERRO: Arquivo tem menos de 3 linhas. Não foi possível ler a linha 3 para a data.")
+            debug_output.append("ERRO: Arquivo tem menos de 3 linhas. Não foi possível ler a linha 3 para a data.")
 
         if test_date is None and len(lines) >= 1:
             line_1_content = lines[0].strip()
@@ -178,7 +177,7 @@ def _parse_coastdown_test_header(lines, debug_output):
                 except ValueError as ve_line1:
                     debug_output.append(f"  -> ERRO ao parsear data da linha 1: {ve_line1}")
             else:
-                debug_output.append(f"  -> Padrão \"Test Date: DD/MM/YYYY HH:MM\" não encontrado na linha 1.")
+                debug_output.append("  -> Padrão \"Test Date: DD/MM/YYYY HH:MM\" não encontrado na linha 1.")
     except Exception as e:
         debug_output.append(f"ERRO inesperado ao tentar extrair a data do cabeçalho: {e}")
 
@@ -377,7 +376,7 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
         original_columns = raw_column_labels
 
         # DEBUG: Print column information
-        debug_output.append(f"\n--- Column Detection Debug ---")
+        debug_output.append("\n--- Column Detection Debug ---")
         debug_output.append(f"Original Columns (as read by Pandas): {original_columns}")
         debug_output.append(f"Normalized Columns (used for internal logic): {df.columns.tolist()}")
 
@@ -428,7 +427,7 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
         # Inicia a busca pela coluna de tempos após a última coluna de metadados conhecida
         start_search_index = last_meta_col_index + 1
 
-        debug_output.append(f"\n--- Time Column Detection Details ---")
+        debug_output.append("\n--- Time Column Detection Details ---")
         debug_output.append(f"Last Meta Column Index: {last_meta_col_index} (Column: {original_columns[last_meta_col_index] if last_meta_col_index != -1 else 'N/A'})")
         debug_output.append(f"Start Search Index for Times: {start_search_index}")
         debug_output.append(f"Notes Column Index: {notes_col_index}")
@@ -484,7 +483,7 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
 
             except IndexError:
                 continue
-            except KeyError as ke:
+            except KeyError:
                 continue
            
             interval_measurements = []
@@ -496,7 +495,7 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
                     time_interval = pd.to_numeric(time_interval_str, errors="coerce")
                 except IndexError:
                     break
-                except Exception as e_conv:
+                except Exception:
                     time_interval = np.nan
 
                 if pd.isna(time_interval) or time_interval < 0: 
@@ -548,7 +547,6 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
         return df_filtered, all_data, test_date
 
     except Exception as e:
-        import traceback
         # Ensure debug_output is written even on unexpected errors
         with open("debug_vbox_date.txt", "w", encoding="utf-8") as debug_f:
             debug_f.write("\n".join(debug_output))
@@ -562,167 +560,3 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
              raise ValueError(f"Erro de chave/coluna não encontrada: Verifique se as colunas esperadas existem. Detalhe: {e}")
         else:
              raise ValueError(f"Erro inesperado ao processar o arquivo CSV. Verifique o formato e conteúdo. Detalhe: {e}")
-
-
-def read_weather_station_csv(file_path):
-    """
-    Lê dados de uma estação meteorológica a partir de um arquivo CSV.
-    
-    Args:
-        file_path: Caminho do arquivo CSV
-        
-    Returns:
-        list: Lista de dicionários com dados meteorológicos
-    """
-    # Detecta o encoding (mantém seu comportamento atual)
-    with open(file_path, 'rb') as f:
-        raw_data = f.read(2048)
-        encoding = chardet.detect(raw_data)['encoding'] or 'utf-8'
-
-    # Nomes conforme seu arquivo (linha de cabeçalho na 12ª linha = skiprows=11)
-    column_names = [
-        "Time", "Temp", "Wet Bulb Temp.", "Rel. Hum.", "Baro.", "Altitude", "Station P.",
-        "Wind Speed", "Heat Index", "Dew Point", "Dens. Alt.", "Air Flow", "Crosswind",
-        "Headwind", "Mag. Dir.", "True Dir.", "Wind Chill", "Delta T", "Unknown1", "Unknown2"
-    ]
-
-    df = pd.read_csv(
-        file_path,
-        skiprows=11,
-        names=column_names,
-        encoding=encoding,
-        engine="python",
-        on_bad_lines="skip"
-    )
-
-    # Converte 'Time' para datetime (se houver formatos mistos)
-    df['Time'] = pd.to_datetime(df['Time'], errors='coerce', dayfirst=True)
-
-    # Converte numéricos com segurança
-    for col in ['Temp', 'Baro.', 'Wind Speed', 'Crosswind', 'Headwind']:
-        if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors='coerce')
-
-    # Converte pressão de mb para kPa (mb ÷ 10)
-    if 'Baro.' in df.columns:
-        df['Baro.'] = df['Baro.'] / 10.0
-
-    # Filtra linhas válidas (precisamos pelo menos de timestamp, temp e baro para correção)
-    df = df.dropna(subset=['Time', 'Temp', 'Baro.'])
-
-    def _weather_wind_ms(row):
-        """Retorna vento em m/s, preferindo Wind Speed e usando componentes como fallback."""
-        wind_speed = row.get('Wind Speed')
-        if wind_speed is not None and not pd.isna(wind_speed) and float(wind_speed) != 0.0:
-            return float(wind_speed)
-
-        crosswind = row.get('Crosswind')
-        headwind = row.get('Headwind')
-        if (
-            crosswind is not None and not pd.isna(crosswind)
-            and headwind is not None and not pd.isna(headwind)
-        ):
-            wind_from_components = float(np.hypot(float(crosswind), float(headwind)))
-            if wind_from_components != 0.0:
-                return wind_from_components
-
-        if wind_speed is not None and not pd.isna(wind_speed):
-            return float(wind_speed)
-
-        return None
-
-    # Monta a lista de dicionários, incluindo wind_ms (pode ser None)
-    weather_data = []
-    for _, row in df.iterrows():
-        weather_data.append({
-            'timestamp': row['Time'].to_pydatetime(),
-            'baro_kpa' : float(row['Baro.']),
-            'temp_c'   : float(row['Temp']),
-            'wind_ms'  : _weather_wind_ms(row)
-        })
-
-    # Ordena por tempo (bom para buscas por "mais próximo")
-    weather_data.sort(key=lambda x: x['timestamp'])
-    
-    return weather_data
-
-
-def _seconds_since_midnight(value):
-    """Converte datetime/time/string HH:MM[:SS] para segundos desde meia-noite."""
-    if value is None:
-        return None
-
-    if isinstance(value, datetime):
-        time_obj = value.time()
-    elif isinstance(value, time):
-        time_obj = value
-    else:
-        text = str(value).strip().replace(",", ".")
-        if not text:
-            return None
-
-        formats = ("%H:%M:%S.%f", "%H:%M:%S", "%H:%M")
-        time_obj = None
-        for fmt in formats:
-            try:
-                time_obj = datetime.strptime(text, fmt).time()
-                break
-            except ValueError:
-                continue
-
-        if time_obj is None:
-            return None
-
-    return (
-        time_obj.hour * 3600
-        + time_obj.minute * 60
-        + time_obj.second
-        + time_obj.microsecond / 1_000_000
-    )
-
-
-def find_closest_weather_record(run_or_time, weather_data, time_only=False):
-    """
-    Retorna o registro meteorológico mais próximo de uma passada.
-
-    Modo normal: compara timestamp completo (data + horário), preservando o
-    comportamento existente. Modo flexível: compara apenas horário do dia.
-    """
-    if not weather_data:
-        return None
-
-    if isinstance(run_or_time, dict):
-        target_time = run_or_time.get("start_timestamp") or run_or_time.get("start_time_str")
-    else:
-        target_time = run_or_time
-
-    if time_only:
-        target_seconds = _seconds_since_midnight(target_time)
-        if target_seconds is None:
-            return None
-
-        candidates = []
-        for record in weather_data:
-            record_seconds = _seconds_since_midnight(record.get("timestamp"))
-            if record_seconds is not None:
-                candidates.append((abs(record_seconds - target_seconds), record))
-
-        if not candidates:
-            return None
-
-        return min(candidates, key=lambda item: item[0])[1]
-
-    if not isinstance(target_time, datetime):
-        return None
-
-    valid_records = [
-        record for record in weather_data
-        if isinstance(record.get("timestamp"), datetime)
-    ]
-    if not valid_records:
-        return None
-
-    return min(
-        valid_records,
-        key=lambda record: abs((record["timestamp"] - target_time).total_seconds())
-    )

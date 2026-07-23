@@ -2754,13 +2754,18 @@ As duas funcoes herdadas de correcao de pares tinham corpos repetidos em
 retorno diferentes entre os dois nomes publicos.
 
 ### Decisao:
-`core.corrections.calculate_single_pair_corrected_data` continua sendo a API
-canonica; a unica implementacao da formula fica em um helper privado que recebe
+`core.corrections.calculate_single_pair_corrected_data` foi definida naquele
+momento como a API canonica; a unica implementacao da formula ficou em um
+helper privado que recebe
 o calculo de energia. A variante de valores brutos adapta entradas e projeta
 seu schema legado; os nomes de `core.calculations` usam imports locais e passam
 `calcular_energia` corrente para preservar monkeypatches sem criar ciclo de
-importacao. Chamadas diretas de `core.corrections` continuam usando a
+importacao. Chamadas diretas de `core.corrections` continuavam usando a
 dependencia do proprio modulo.
+
+Atualizacao de 2026-07-23: o finding 18 Batch 3 confirmou que todas essas APIs
+eram compatibilidade exclusiva das paginas Standard removidas. O modulo, os
+wrappers e seus testes de contrato foram entao removidos juntos.
 
 ### Licao:
 Antes de consolidar APIs nominalmente equivalentes, caracterize cada contrato
@@ -2926,5 +2931,30 @@ estado restaurado e testes diretos. Dependencias neutras compartilhadas devem
 ser decididas pelo grafo de chamadas atual: `carregar_dados_csv_robusto` e
 `calcular_energia` continuam sustentando o Split mesmo depois da remocao das
 paginas Standard.
+
+---
+
+## 2026-07-23 - Finding 18 Fecha a Ilha de Dependencias Standard
+
+### Decisao:
+
+O lote final confirmou que `core/corrections.py`, `data/exporters.py`, os
+adaptadores antigos de coeficientes em `core/calculations.py`,
+`read_weather_station_csv()` e `find_closest_weather_record()` eram alcancados
+somente por exports lazy e testes de compatibilidade do workflow Standard ja
+removido. Esses contratos, os testes exclusivos e as traducoes pertencentes
+somente as paginas 1 e 3-6 foram removidos.
+
+O kernel `calcular_energia()` e `carregar_dados_csv_robusto()` permaneceram
+porque seguem no grafo ativo do Split. As paginas, formulas, loaders
+operacionais, exportacao Split, rotas e compatibilidade de snapshots Split nao
+foram alterados.
+
+### Licao:
+
+Um teste de compatibilidade ou export lazy nao prova uso ativo; depois que o
+ultimo workflow suportado desaparece, ambos podem ser removidos com o contrato
+que protegiam. Antes disso, separar helpers neutros por caller real evita apagar
+dependencias compartilhadas junto com a ilha legada.
 
 ---

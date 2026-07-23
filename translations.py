@@ -24,80 +24,16 @@ TRANSLATIONS = {
         "en": "English"
     },
     
-    # ===== NAVEGAÇÃO / PÁGINAS =====
-    "page_open_test": {
-        "pt": "1. Abrir Teste",
-        "en": "1. Open Test"
-    },
+    # ===== NAVEGAÇÃO =====
     "page_vehicle_data": {
         "pt": "Dados do Veículo",
         "en": "Vehicle Data"
     },
-    "page_pair_analysis": {
-        "pt": "3. Análise de Pares",
-        "en": "3. Pair Analysis"
-    },
-    "pair_calculations": {
-        "pt": "Cálculos e Correções",
-        "en": "Calculations & Corrections"
-    },
-    "pair_analysis_graphs": {
-        "pt": "Gráficos",
-        "en": "Graphs"
-    },
-    "pair_analysis_simulation": {
-        "pt": "Simulação",
-        "en": "Simulation"
-    },
-    "report_plot_mode": {
-        "pt": "Modo relatorio: graficos claros",
-        "en": "Report mode: light charts"
-    },
-    "pair_time_conformity_tab": {
-        "pt": "Conformidade de Tempos",
-        "en": "Time Conformity"
-    },
-    "page_algorithm_selection": {
-        "pt": "4. Seleção por Algoritmo",
-        "en": "4. Algorithm Selection"
-    },
-    "page_final_comparison": {
-        "pt": "5. Comparativo Final",
-        "en": "5. Final Comparison"
-    },
-    "page_final_results": {
-        "pt": "6. Resultados Finais",
-        "en": "6. Final Results"
-    },
-    
-    # ===== PÁGINA 1: ABRIR TESTE =====
-    "select_test_method": {
-        "pt": "Selecione o Método de Teste",
-        "en": "Select Test Method"
-    },
-    "traditional_method": {
-        "pt": "Método Tradicional",
-        "en": "Traditional Method"
-    },
-    "split_method": {
-        "pt": "Método Split",
-        "en": "Split Method"
-    },
-    "upload_coastdown_csv": {
-        "pt": "Upload do arquivo CSV de Coastdown",
-        "en": "Upload Coastdown CSV file"
-    },
+
+    # ===== ENTRADA DE ARQUIVOS COMPARTILHADA =====
     "upload_weather_csv": {
         "pt": "Upload do arquivo CSV/XLSX de Dados Meteorológicos (opcional)",
         "en": "Upload Weather Data CSV/XLSX file (optional)"
-    },
-    "upload_high_speed_csv": {
-        "pt": "Upload do arquivo CSV de Alta Velocidade",
-        "en": "Upload High Speed CSV file"
-    },
-    "upload_low_speed_csv": {
-        "pt": "Upload do arquivo CSV de Baixa Velocidade",
-        "en": "Upload Low Speed CSV file"
     },
     "file_loaded_success": {
         "pt": "✅ Arquivo carregado com sucesso!",
@@ -110,14 +46,6 @@ TRANSLATIONS = {
     "runs_detected": {
         "pt": "Runs detectados",
         "en": "Runs detected"
-    },
-    "proceed_to_vehicle_data": {
-        "pt": "Prosseguir para Dados do Veículo",
-        "en": "Proceed to Vehicle Data"
-    },
-    "load_data": {
-        "pt": "Carregar Dados",
-        "en": "Load Data"
     },
     
     # ===== PÁGINA 2: DADOS DO VEÍCULO =====
@@ -157,25 +85,13 @@ TRANSLATIONS = {
         "pt": "Massa de Equipamentos (kg)",
         "en": "Equipment Mass (kg)"
     },
-    "total_mass": {
-        "pt": "Massa Total (kg)",
-        "en": "Total Mass (kg)"
-    },
     "inertia_mass": {
         "pt": "Massa de Inércia (kg)",
         "en": "Inertia Mass (kg)"
     },
-    "effective_mass": {
-        "pt": "Massa Efetiva (kg)",
-        "en": "Effective Mass (kg)"
-    },
     "mass_norm_note": {
         "pt": "Nota: a norma recomenda considerar 136 kg adicionais referentes a motorista + equipamento.",
         "en": "Note: the standard recommends considering an additional 136 kg for driver + equipment."
-    },
-    "frontal_area": {
-        "pt": "Área Frontal (m²)",
-        "en": "Frontal Area (m²)"
     },
     "calculate_coefficients": {
         "pt": "Calcular Coeficientes Individuais",
@@ -214,23 +130,7 @@ TRANSLATIONS = {
         "en": "Proceed to Pair Analysis"
     },
     
-    # ===== PÁGINA 3: ANÁLISE DE PARES =====
-    "pair_selection": {
-        "pt": "Seleção de Pares",
-        "en": "Pair Selection"
-    },
-    "select_outbound_run": {
-        "pt": "Selecione o Run de Ida",
-        "en": "Select Outbound Run"
-    },
-    "select_return_run": {
-        "pt": "Selecione o Run de Volta",
-        "en": "Select Return Run"
-    },
-    "environmental_conditions": {
-        "pt": "Condições Ambientais",
-        "en": "Environmental Conditions"
-    },
+    # ===== RÓTULOS METEOROLÓGICOS COMPARTILHADOS =====
     "temperature": {
         "pt": "Temperatura (°C)",
         "en": "Temperature (°C)"
@@ -239,304 +139,10 @@ TRANSLATIONS = {
         "pt": "Pressão (kPa)",
         "en": "Pressure (kPa)"
     },
-    "humidity": {
-        "pt": "Umidade (%)",
-        "en": "Humidity (%)"
-    },
     "wind_speed": {
         "pt": "Velocidade do Vento (m/s)",
         "en": "Wind Speed (m/s)"
     },
-    "apply_climate_correction": {
-        "pt": "Aplicar Correção Climática",
-        "en": "Apply Climate Correction"
-    },
-    "calculate_pair": {
-        "pt": "Calcular Par",
-        "en": "Calculate Pair"
-    },
-    "pair_results": {
-        "pt": "Resultados do Par",
-        "en": "Pair Results"
-    },
-    "use_pair": {
-        "pt": "Usar Este Par",
-        "en": "Use This Pair"
-    },
-    "f0_coefficient": {
-        "pt": "Coeficiente F0 (N)",
-        "en": "F0 Coefficient (N)"
-    },
-    "f2_coefficient": {
-        "pt": "Coeficiente F2 (N/(km/h)²)",
-        "en": "F2 Coefficient (N/(km/h)²)"
-    },
-    "energy": {
-        "pt": "Energia (J)",
-        "en": "Energy (J)"
-    },
-    "time_conformity_title": {
-        "pt": "Conformidade dos Tempos de Desaceleração",
-        "en": "Deceleration Time Conformity"
-    },
-    "time_conformity_description": {
-        "pt": "Compare os tempos por intervalo de velocidade de cada passada e veja o desvio em relação à média daquele intervalo.",
-        "en": "Compare each run's interval times and inspect the deviation relative to that interval's mean."
-    },
-    "time_conformity_source": {
-        "pt": "Fonte das passadas",
-        "en": "Run source"
-    },
-    "time_conformity_tolerance_pct": {
-        "pt": "Tolerância (%)",
-        "en": "Tolerance (%)"
-    },
-    "time_conformity_all_runs": {
-        "pt": "Todas as passadas",
-        "en": "All runs"
-    },
-    "time_conformity_selected_pair_runs": {
-        "pt": "Passadas dos pares selecionados",
-        "en": "Runs from selected pairs"
-    },
-    "time_conformity_all_runs_hint": {
-        "pt": "Analisando {run_count} passadas válidas carregadas no teste ativo.",
-        "en": "Analyzing {run_count} valid runs loaded in the active test."
-    },
-    "time_conformity_selected_runs_hint": {
-        "pt": "Usando runs deduplicadas de {pair_count} par(es) marcado(s): {run_count} passada(s) encontrada(s).",
-        "en": "Using deduplicated runs from {pair_count} checked pair(s): {run_count} run(s) found."
-    },
-    "time_conformity_no_selected_runs": {
-        "pt": "Nenhuma passada disponível para a fonte selecionada.",
-        "en": "No runs are available for the selected source."
-    },
-    "time_conformity_no_interval_data": {
-        "pt": "Nenhuma passada possui dados válidos de tempo por intervalo para análise.",
-        "en": "No runs contain valid interval-time data for analysis."
-    },
-    "time_conformity_split_not_supported": {
-        "pt": "A análise de conformidade de tempos ainda não está disponível para o método Split.",
-        "en": "Time conformity analysis is not available for the Split method yet."
-    },
-    "time_conformity_summary": {
-        "pt": "Resumo por Intervalo",
-        "en": "Interval Summary"
-    },
-    "time_conformity_matrix": {
-        "pt": "Matriz de Tempos por Intervalo",
-        "en": "Interval Time Matrix"
-    },
-    "time_conformity_details": {
-        "pt": "Detalhamento por Passada",
-        "en": "Run Details"
-    },
-    "time_conformity_run_label": {
-        "pt": "Run {run_id}",
-        "en": "Run {run_id}"
-    },
-    "time_conformity_interval": {
-        "pt": "Intervalo",
-        "en": "Interval"
-    },
-    "time_conformity_mean_time": {
-        "pt": "Tempo Médio (s)",
-        "en": "Mean Time (s)"
-    },
-    "time_conformity_min_time": {
-        "pt": "Tempo Mínimo (s)",
-        "en": "Min Time (s)"
-    },
-    "time_conformity_max_time": {
-        "pt": "Tempo Máximo (s)",
-        "en": "Max Time (s)"
-    },
-    "time_conformity_spread_s": {
-        "pt": "Amplitude (s)",
-        "en": "Spread (s)"
-    },
-    "time_conformity_cv_pct": {
-        "pt": "CV (%)",
-        "en": "CV (%)"
-    },
-    "time_conformity_max_deviation_pct": {
-        "pt": "Maior Desvio (%)",
-        "en": "Max Deviation (%)"
-    },
-    "time_conformity_deviation_s": {
-        "pt": "Desvio (s)",
-        "en": "Deviation (s)"
-    },
-    "time_conformity_deviation_pct": {
-        "pt": "Desvio (%)",
-        "en": "Deviation (%)"
-    },
-    "time_conformity_runs_count": {
-        "pt": "Qtde. de Passadas",
-        "en": "Run Count"
-    },
-    "time_conformity_intervals_count": {
-        "pt": "Intervalos",
-        "en": "Intervals"
-    },
-    "time_conformity_records_count": {
-        "pt": "Registros",
-        "en": "Records"
-    },
-    "time_conformity_non_conforming_count": {
-        "pt": "Não Conformes",
-        "en": "Non-conforming"
-    },
-    "time_conformity_non_conforming_runs": {
-        "pt": "Células Não Conformes",
-        "en": "Non-conforming Cells"
-    },
-    "time_conformity_non_conforming_intervals": {
-        "pt": "Intervalos com Desvio",
-        "en": "Intervals with Deviation"
-    },
-    "time_conformity_skipped_runs": {
-        "pt": "Passadas ignoradas por falta de dados válidos de intervalo: {runs}",
-        "en": "Runs skipped due to missing valid interval data: {runs}"
-    },
-    
-    "time_conformity_measured_value": {
-        "pt": "Valor medido",
-        "en": "Measured value"
-    },
-    "time_conformity_mean_detail": {
-        "pt": "Média do intervalo",
-        "en": "Interval mean"
-    },
-    "time_conformity_std_time": {
-        "pt": "Desvio padrão",
-        "en": "Standard deviation"
-    },
-    "time_conformity_difference_s": {
-        "pt": "Diferença",
-        "en": "Difference"
-    },
-    "time_conformity_status": {
-        "pt": "Status",
-        "en": "Status"
-    },
-    "time_conformity_status_conforming": {
-        "pt": "Conforme",
-        "en": "Conforming"
-    },
-    "time_conformity_status_non_conforming": {
-        "pt": "Não conforme",
-        "en": "Non-conforming"
-    },
-
-    # ===== PÁGINA 4: COMPARATIVO FINAL =====
-    "calculated_pairs": {
-        "pt": "Pares Calculados",
-        "en": "Calculated Pairs"
-    },
-    "select_pairs_for_final": {
-        "pt": "Selecione os pares para o resultado final",
-        "en": "Select pairs for final result"
-    },
-    "auto_select_best": {
-        "pt": "Seleção Automática (Melhores Pares)",
-        "en": "Auto Select (Best Pairs)"
-    },
-    "number_of_pairs": {
-        "pt": "Número de Pares",
-        "en": "Number of Pairs"
-    },
-    "max_cv_percent": {
-        "pt": "CV Máximo (%)",
-        "en": "Max CV (%)"
-    },
-    "target_f0": {
-        "pt": "F0 Alvo (N)",
-        "en": "Target F0 (N)"
-    },
-    "target_f2": {
-        "pt": "F2 Alvo (N/(km/h)²)",
-        "en": "Target F2 (N/(km/h)²)"
-    },
-    "run_auto_selection": {
-        "pt": "Executar Seleção Automática",
-        "en": "Run Auto Selection"
-    },
-    "calculate_final_results": {
-        "pt": "Calcular Resultados Finais",
-        "en": "Calculate Final Results"
-    },
-    "select_all_pairs": {
-        "pt": "Selecionar todos",
-        "en": "Select all"
-    },
-    "deselect_all_pairs": {
-        "pt": "Desmarcar todos",
-        "en": "Deselect all"
-    },
-    "clear_all_pairs": {
-        "pt": "Limpar tudo",
-        "en": "Clear all"
-    },
-    "remove_pair": {
-        "pt": "Remover Par",
-        "en": "Remove Pair"
-    },
-    "cv_f0": {
-        "pt": "CV F0 (%)",
-        "en": "CV F0 (%)"
-    },
-    "cv_f2": {
-        "pt": "CV F2 (%)",
-        "en": "CV F2 (%)"
-    },
-    "mean_f0": {
-        "pt": "F0 Médio (N)",
-        "en": "Mean F0 (N)"
-    },
-    "mean_f2": {
-        "pt": "F2 Médio (N/(km/h)²)",
-        "en": "Mean F2 (N/(km/h)²)"
-    },
-    
-    # ===== PÁGINA 5: RESULTADOS FINAIS =====
-    "final_results": {
-        "pt": "Resultados Finais",
-        "en": "Final Results"
-    },
-    "summary": {
-        "pt": "Resumo",
-        "en": "Summary"
-    },
-    "selected_pairs": {
-        "pt": "Pares Selecionados",
-        "en": "Selected Pairs"
-    },
-    "export_to_excel": {
-        "pt": "Exportar para Excel",
-        "en": "Export to Excel"
-    },
-    "export_success": {
-        "pt": "✅ Exportação realizada com sucesso!",
-        "en": "✅ Export completed successfully!"
-    },
-    "download_excel": {
-        "pt": "📥 Baixar Excel",
-        "en": "📥 Download Excel"
-    },
-    "corrected_f0": {
-        "pt": "F0 Corrigido (N)",
-        "en": "Corrected F0 (N)"
-    },
-    "corrected_f2": {
-        "pt": "F2 Corrigido (N/(km/h)²)",
-        "en": "Corrected F2 (N/(km/h)²)"
-    },
-    "total_energy": {
-        "pt": "Energia Total (J)",
-        "en": "Total Energy (J)"
-    },
-    
     # ===== MENSAGENS DE ERRO =====
     "error_no_file": {
         "pt": "Por favor, carregue um arquivo CSV primeiro.",
@@ -546,44 +152,8 @@ TRANSLATIONS = {
         "pt": "Por favor, insira a massa do veículo.",
         "en": "Please enter the vehicle mass."
     },
-    "error_no_pairs": {
-        "pt": "Nenhum par foi calculado ainda.",
-        "en": "No pairs have been calculated yet."
-    },
-    "error_select_pairs": {
-        "pt": "Por favor, selecione pelo menos um par.",
-        "en": "Please select at least one pair."
-    },
-    "error_calculation": {
-        "pt": "Erro no cálculo",
-        "en": "Calculation error"
-    },
     
     # ===== TABELAS =====
-    "run_id": {
-        "pt": "ID do Run",
-        "en": "Run ID"
-    },
-    "heading": {
-        "pt": "Direção",
-        "en": "Heading"
-    },
-    "outbound": {
-        "pt": "Ida",
-        "en": "Outbound"
-    },
-    "return": {
-        "pt": "Volta",
-        "en": "Return"
-    },
-    "pair_id": {
-        "pt": "ID do Par",
-        "en": "Pair ID"
-    },
-    "selected": {
-        "pt": "Selecionado",
-        "en": "Selected"
-    },
     "actions": {
         "pt": "Ações",
         "en": "Actions"
@@ -597,10 +167,6 @@ TRANSLATIONS = {
     "velocity_kmh": {
         "pt": "Velocidade (km/h)",
         "en": "Velocity (km/h)"
-    },
-    "time_s": {
-        "pt": "Tempo (s)",
-        "en": "Time (s)"
     },
     "deceleration_curve": {
         "pt": "Curva de Desaceleração",
@@ -873,63 +439,6 @@ TRANSLATIONS = {
         "pt": "Sincronização por horário ativada: a data será ignorada ao escolher o registro meteorológico mais próximo.",
         "en": "Time-only synchronization is active: the date will be ignored when choosing the nearest meteorological record."
     },
-    "meteo_sync_no_valid_time": {
-        "pt": "Não foi possível sincronizar o arquivo meteorológico porque as passadas não têm horário válido. Verifique o campo de horário no CSV ou use condições fixas.",
-        "en": "The meteorological file could not be synchronized because the runs do not have valid times. Check the time field in the CSV or use fixed conditions."
-    },
-    "meteo_sync_mode_full_datetime": {
-        "pt": "data + horário",
-        "en": "date + time"
-    },
-    "meteo_sync_mode_time_only": {
-        "pt": "somente horário",
-        "en": "time only"
-    },
-    "meteo_sync_current_mode": {
-        "pt": "Sincronização meteorológica atual: {mode}.",
-        "en": "Current meteorological synchronization: {mode}."
-    },
-    "meteo_sync_details_expander": {
-        "pt": "Ver detalhes da sincronização meteorológica",
-        "en": "View meteorological synchronization details"
-    },
-    "meteo_sync_col_run": {
-        "pt": "Run/passada",
-        "en": "Run"
-    },
-    "meteo_sync_col_csv_time": {
-        "pt": "Horário CSV",
-        "en": "CSV time"
-    },
-    "meteo_sync_col_meteo_time": {
-        "pt": "Horário Meteo sincronizado",
-        "en": "Synchronized meteo time"
-    },
-    "meteo_sync_col_delta_s": {
-        "pt": "Diferença (s)",
-        "en": "Difference (s)"
-    },
-    "meteo_sync_col_mode": {
-        "pt": "Modo usado",
-        "en": "Mode used"
-    },
-    "meteo_sync_col_temp": {
-        "pt": "Temperatura",
-        "en": "Temperature"
-    },
-    "meteo_sync_col_press": {
-        "pt": "Pressão",
-        "en": "Pressure"
-    },
-    "meteo_sync_col_wind": {
-        "pt": "Vento",
-        "en": "Wind"
-    },
-    "meteo_wind_above_limit_warning": {
-        "pt": "Atenção: vento acima de 3,0 m/s em {runs}. Vento acima desse limite é critério de atenção/exclusão pela norma.",
-        "en": "Warning: wind above 3.0 m/s in {runs}. Wind above this limit is an attention/exclusion criterion under the standard."
-    },
-
     # ===== SPLIT WORKFLOW =====
     "page_split_workflow": {
         "pt": "Seleção de Intervalos",

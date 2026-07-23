@@ -1,7 +1,5 @@
 # coding: utf-8
-"""
-Módulo de dados - carregamento e exportação.
-"""
+"""Split parsing and shared data-loading package."""
 
 import sys
 from importlib import import_module
@@ -9,11 +7,6 @@ from types import ModuleType
 
 __all__ = [
     'carregar_dados_csv_robusto',
-    'read_weather_station_csv',
-    'celulas_template',
-    'preencher_template_com_dados',
-    'preencher_tabela_tempos',
-    'gerar_excel',
     'default_split_interval_config',
     'extract_interval_record',
     'normalize_run_intervals',
@@ -22,14 +15,8 @@ __all__ = [
 
 _EXPORTS = {
     'loaders': ('.loaders', None),
-    'exporters': ('.exporters', None),
     'split_parser': ('.split_parser', None),
     'carregar_dados_csv_robusto': ('.loaders', 'carregar_dados_csv_robusto'),
-    'read_weather_station_csv': ('.loaders', 'read_weather_station_csv'),
-    'celulas_template': ('.exporters', 'celulas_template'),
-    'preencher_template_com_dados': ('.exporters', 'preencher_template_com_dados'),
-    'preencher_tabela_tempos': ('.exporters', 'preencher_tabela_tempos'),
-    'gerar_excel': ('.exporters', 'gerar_excel'),
     'default_split_interval_config': ('.split_parser', 'default_split_interval_config'),
     'extract_interval_record': ('.split_parser', 'extract_interval_record'),
     'normalize_run_intervals': ('.split_parser', 'normalize_run_intervals'),
