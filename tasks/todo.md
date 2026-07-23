@@ -569,8 +569,9 @@
   malformed values, elapsed forms, legacy fallbacks, and `HH:MM` ambiguity.
 - [x] Pass the focused helper, 10 temporal, 86 integration/AppTest, and
   437 full-suite tests plus scoped Ruff, compile, startup, and diff checks.
-- [x] Reassess the remaining loader after four extractions: complexity is still
-  52 with 61 branches and 233 statements, so finding 13 remains In Progress.
+- [x] Reassess the remaining loader after four extractions: complexity was still
+  52 with 61 branches and 233 statements, so finding 13 remained In Progress at
+  that checkpoint.
 - [x] Pass the 70-test focused loader matrix, 437-test full suite, and diff check.
 - [x] Extract only line-1/line-3 test-date discovery into a private header helper;
   preserve the caller's missing-date debug write and exception point.
@@ -660,13 +661,14 @@
   compile of 74 Python files, scoped Ruff, and diff checks.
 - [x] Mark finding 19 Completed.
 
-## Fixed-condition state compatibility - 2026-07-20
+## Audit finding 2 - Fixed-condition state compatibility - 2026-07-20
 
 - [x] Trace fixed temperature and pressure through new-test creation, saved test snapshots, editing, loading and Split coefficient calculation.
 - [x] Store new fixed-condition inputs in the canonical `split_fixed_temperature` and `split_fixed_pressure` keys while retaining legacy keys.
 - [x] Migrate legacy-only saved tests at load time without overriding canonical Split values.
 - [x] Add focused regression coverage for creation, legacy loading, canonical loading and canonical precedence.
-- [ ] Manually create and reopen one fixed-condition test in the running Streamlit app.
+- [ ] Optional follow-up: manually create and reopen one fixed-condition test in
+  the running Streamlit app; automated coverage closes finding 2.
 
 ## Results page visual fixes - 2026-06-24
 - [x] Replace the `st.columns`/`st.metric` consolidated summary in `pages/page_split_results.py` with a single HTML card (`split-summary-card`), matching the requested 3-row layout: pairs + conformity, F0/F2/energy grid, CV F0/F2 diagnostic row.

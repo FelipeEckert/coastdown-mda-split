@@ -8,15 +8,16 @@ state and navigation, compatibility surfaces, maintainability, and test gaps.
 No application code, tests, formulas, validation rules, or domain behavior were
 changed as part of the audit.
 
-Findings are ordered by risk within each section. A `Pending` status means the
-finding has been documented but no cleanup or behavior change has been applied.
+Findings are ordered by risk within each section. Actionable findings 1-20 are
+completed; confirmed indirect-usage findings 21-26 are closed with preservation
+decisions.
 
 ## Summary
 
 | # | Title | Severity | Confidence | Recommended phase | Current status |
 |---:|---|---|---|---|---|
 | 1 | Split final status still uses non-normative coefficient variation | High | High | 4 | Completed |
-| 2 | Fixed-condition inputs are ignored for new tests | High | High | 3 | Pending |
+| 2 | Fixed-condition inputs are ignored for new tests | High | High | 3 | Completed |
 | 3 | Declared Streamlit minimum is incompatible with active API use | High | High | 3 | Completed |
 | 4 | Export cache signature omits workbook-visible traceability | Medium | High | 4 | Completed |
 | 5 | Successful parsing always writes a shared debug file | Medium | High | 2 | Completed |
@@ -24,23 +25,23 @@ finding has been documented but no cleanup or behavior change has been applied.
 | 7 | Unused imports, constants, and dependencies | Low | High | 1 | Completed |
 | 8 | Orphan desktop-GUI configuration module | Low | High | 1 | Completed |
 | 9 | Duplicate corrected-pair implementation | Low | High | 6 | Completed |
-| 10 | Main and nested tabs compute hidden content eagerly | Medium | High | 3 | Pending |
-| 11 | Redundant derived session state | Low | Medium-High | 5 | Pending |
-| 12 | Eager package initializers couple Split imports to legacy modules | Medium | High | 6 | Pending |
+| 10 | Main and nested tabs compute hidden content eagerly | Medium | High | 3 | Completed |
+| 11 | Redundant derived session state | Low | Medium-High | 5 | Completed |
+| 12 | Eager package initializers couple Split imports to legacy modules | Medium | High | 6 | Completed |
 | 13 | Loader has mixed Standard/Split responsibility and extreme complexity | Medium | High | 7 | Completed |
-| 14 | Stale state keys obscure the canonical Split model | Low | Medium-High | 5 | Pending |
-| 15 | Project documentation no longer matches ownership | Low | High | 1 | Pending |
+| 14 | Stale state keys obscure the canonical Split model | Low | Medium-High | 5 | Completed |
+| 15 | Project documentation no longer matches ownership | Low | High | 1 | Completed |
 | 16 | Critical Streamlit orchestration is untested | High | High | 3 | Completed |
 | 17 | Several tests enforce source text rather than behavior | Low | High | 5 | Completed |
 | 18 | Inherited Standard pages and dependency island removed | Medium | High | 8 | Completed |
 | 19 | Split coefficient sign guidance aligned to canonical code | High | High | 8 | Completed |
 | 20 | Orphan translations and stale compatibility text removed | Low | High | 8 | Completed |
-| 21 | Automatic-selection page is indirectly rendered | Informational | High | Preserve | Pending |
-| 22 | Package initializers execute through submodule imports | Informational | High | Phase 6 prerequisite | Pending |
-| 23 | Session and widget keys have dynamic references | Informational | High | Preserve | Pending |
-| 24 | Plotly is dynamically imported and required | Informational | High | Preserve | Pending |
-| 25 | Sample datasets have test and validation roles | Informational | High | Preserve | Pending |
-| 26 | Compatibility aliases may serve persisted or external consumers | Informational | Medium-High | Phase 8 prerequisite | Pending |
+| 21 | Automatic-selection page is indirectly rendered | Informational | High | Preserve | Completed — preserve |
+| 22 | Package initializers execute through submodule imports | Informational | High | Phase 6 prerequisite | Completed — preserve |
+| 23 | Session and widget keys have dynamic references | Informational | High | Preserve | Completed — preserve |
+| 24 | Plotly is dynamically imported and required | Informational | High | Preserve | Completed — preserve |
+| 25 | Sample datasets have test and validation roles | Informational | High | Preserve | Completed — preserve |
+| 26 | Compatibility aliases may serve persisted or external consumers | Informational | Medium-High | Phase 8 prerequisite | Completed — preserve |
 
 ## Potential Bugs
 
@@ -97,7 +98,12 @@ finding has been documented but no cleanup or behavior change has been applied.
   persisted-state migration needs them.
 - **Validation:** Create a test with clearly non-default fixed values, reopen it,
   and verify the ambient values used by the calculation page.
-- **Status:** Pending
+- **Resolution (2026-07-20):** New fixed-condition tests write both canonical
+  `split_fixed_*` keys and legacy aliases. Loading migrates legacy-only values
+  before defaults while preserving canonical-key precedence.
+- **Validation result:** Focused creation, save/load, switching, legacy
+  migration, and canonical-precedence regressions cover the active app path.
+- **Status:** Completed
 
 ### 3. Declared Streamlit minimum is incompatible with active API use
 
@@ -483,9 +489,9 @@ finding has been documented but no cleanup or behavior change has been applied.
   and semicolon metadata, line-1 date/minute/second fallbacks, both-pass order,
   malformed headers, and isolated unexpected failures. The public loader now
   measures complexity 33, 35 branches, and 150 statements; the extracted
-  compatibility helper measures 22, 28, and 94. Finding 13 remains In Progress
-  until a separate post-extraction cohesion review decides whether further
-  movement would clarify ownership or only fragment the loader.
+  compatibility helper measures 22, 28, and 94. Finding 13 remained In Progress
+  at this checkpoint until a separate post-extraction cohesion review decided
+  whether further movement would clarify ownership or only fragment the loader.
 - **Fifth-phase validation:** The 76-test focused loader suite and 443-test full
   suite pass. Ruff reports only the same eight inherited `data/loaders.py`
   findings, with none in the new tests; compile, Streamlit startup, and diff
@@ -922,7 +928,8 @@ recorded to prevent unsafe deletion.
 - **Recommended action:** Preserve it; document the nested ownership if the page
   structure is reorganized.
 - **Validation:** Open the coefficient page and execute automatic selection.
-- **Status:** Pending
+- **Resolution:** Confirmed as an active nested Split page and preserved.
+- **Status:** Completed — preserve
 
 ### 22. Package initializers execute through submodule imports
 
@@ -937,7 +944,9 @@ recorded to prevent unsafe deletion.
 - **Recommended action:** Treat this as the prerequisite for finding 12, not as
   dead code.
 - **Validation:** Import submodules and package-level aliases separately.
-- **Status:** Pending
+- **Resolution:** Finding 12 replaced eager exports with lazy package lookup
+  while preserving package initialization and supported aliases.
+- **Status:** Completed — preserve
 
 ### 23. Session and widget keys have dynamic references
 
@@ -955,7 +964,9 @@ recorded to prevent unsafe deletion.
   lifecycle trace and migration test prove them obsolete.
 - **Validation:** Exercise initialize, edit, save, load, reset, and widget
   callback paths.
-- **Status:** Pending
+- **Resolution:** Dynamic state consumers were retained and covered during the
+  canonical-state and stale-key findings.
+- **Status:** Completed — preserve
 
 ### 24. Plotly is dynamically imported and required
 
@@ -968,7 +979,9 @@ recorded to prevent unsafe deletion.
 - **Risk:** Removing it breaks calculated-pair graphs at runtime.
 - **Recommended action:** Preserve Plotly.
 - **Validation:** Render both graph paths in a clean environment.
-- **Status:** Pending
+- **Resolution:** Plotly remains an active runtime dependency for both graph
+  paths and was preserved.
+- **Status:** Completed — preserve
 
 ### 25. Sample datasets have test and validation roles
 
@@ -983,7 +996,9 @@ recorded to prevent unsafe deletion.
 - **Recommended action:** Preserve them until the tracked validation work is
   complete; remove only with an explicit replacement fixture/data decision.
 - **Validation:** Map every sample to its automated or manual validation case.
-- **Status:** Pending
+- **Resolution:** Split samples remain active integration fixtures; Standard
+  samples remain separate comparative loader fixtures.
+- **Status:** Completed — preserve
 
 ### 26. Compatibility aliases may serve persisted or external consumers
 
@@ -1000,7 +1015,10 @@ recorded to prevent unsafe deletion.
   consumer inventory, and persisted-state migration are defined.
 - **Validation:** Load representative old files and saved states and check known
   external import/use documentation.
-- **Status:** Pending
+- **Resolution:** Proven persisted/public aliases remain compatibility
+  contracts; only aliases conclusively owned by the retired Standard workflow
+  were removed in findings 18 and 20.
+- **Status:** Completed — preserve
 
 ## Staged Cleanup Plan
 
