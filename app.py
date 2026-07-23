@@ -562,7 +562,7 @@ def init_session_state():
     ):
         if key not in st.session_state:
             st.session_state[key] = 0
-    # Flat keys de compatibilidade com páginas 2-6
+    # Estado Split do teste ativo, espelhado em chaves planas da sessão
     for key, default in TEST_DEFAULTS.items():
         if key not in st.session_state:
             if isinstance(default, (dict, list)):

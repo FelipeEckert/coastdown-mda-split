@@ -2900,8 +2900,8 @@ mas o app nao restaura `calculated_pairs`, `individual_coeffs`,
 velocidades de referencia. A unica compatibilidade explicita e
 `_legacy_method_state.py`, que le `using_split_method`/`test_method` sem
 promove-los ao estado Split ativo. Por isso, paginas 5 e 6 podem ser removidas
-primeiro; paginas 1, 3 e 4 e o helper devem sair juntas quando seus testes de
-import direto forem aposentados.
+primeiro; paginas 1, 3 e 4 e o helper foram mantidos ate seus testes de import
+direto serem auditados.
 
 O primeiro lote removeu somente `page_5_comparativo.py`,
 `page_6_resultados.py` e `utils/pair_time_analysis.py`. A busca final confirmou
@@ -2909,6 +2909,13 @@ que o helper de tempos nao era exportado pelo pacote, importado por testes nem
 referenciado fora das duas paginas removidas. Nenhum teste precisou ser alterado;
 paginas 1, 3 e 4, `_legacy_method_state.py`, rotas Split, calculos e exportadores
 permaneceram intactos.
+
+O segundo lote confirmou que paginas 1, 3 e 4 e `_legacy_method_state.py`
+formavam uma ilha fechada: nenhum import ativo, export, referencia dinamica ou
+estado persistido reconstruia esse workflow. Os quatro arquivos e somente os
+tres testes de import direto foram removidos. Permaneceram os testes ativos que
+garantem que flags antigas ficam armazenadas no snapshot, nao entram no estado
+vivo e nao desviam a navegacao Split.
 
 ### Licao:
 
