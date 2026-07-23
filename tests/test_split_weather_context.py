@@ -4,7 +4,9 @@
 from copy import deepcopy
 from datetime import datetime
 import unittest
+from unittest.mock import patch
 
+from core import split_weather_context
 from core.split_weather_context import (
     build_fixed_split_correction_context,
     split_environmental_values,
@@ -72,6 +74,47 @@ class SplitWeatherContextTest(unittest.TestCase):
             self.assertIn(key, sync)
         self.assertEqual(metadata["high_synchronized"], 1)
         self.assertEqual(metadata["low_synchronized"], 1)
+
+    def test_batch_normalizes_once_and_matches_individual_sync_results(self):
+        parsed = self._parsed()
+        weather = self._weather() + self._weather(
+            timestamp=datetime(2024, 1, 1, 10, 2),
+            temp_c=36.0,
+            wind_ms=3.5,
+            warnings=["source warning"],
+        )
+        limits = {"wind_speed_max_mps": 3.0, "temperature_max_c": 35.0}
+        expected = {
+            role: [
+                split_weather_context._run_weather_sync(
+                    deepcopy(run),
+                    weather,
+                    300.0,
+                    limits,
+                )
+                for run in parsed[role]
+            ]
+            for role in ("high", "low")
+        }
+
+        with patch.object(
+            split_weather_context,
+            "_weather_records",
+            wraps=split_weather_context._weather_records,
+        ) as normalize:
+            enriched, _ = synchronize_weather_for_split_runs(
+                parsed,
+                weather,
+                max_time_diff_s=300.0,
+                weather_limits=limits,
+            )
+
+        self.assertEqual(normalize.call_count, 1)
+        for role in ("high", "low"):
+            self.assertEqual(
+                [run["weather_sync"] for run in enriched[role]],
+                expected[role],
+            )
 
     def test_wind_and_temperature_limits_invalidate_but_pressure_does_not(self):
         enriched, metadata = synchronize_weather_for_split_runs(

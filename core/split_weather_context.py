@@ -6,7 +6,7 @@ from __future__ import annotations
 from copy import deepcopy
 import math
 
-from core.weather_sync import sync_weather_to_run
+from core.weather_sync import _weather_records, sync_weather_to_run
 
 
 DEFAULT_SPLIT_WEATHER_LIMITS = {
@@ -142,12 +142,20 @@ def split_environmental_values(pair: dict) -> dict:
     }
 
 
-def _run_weather_sync(run: dict, weather_data, max_time_diff_s: float, limits: dict) -> dict:
+def _run_weather_sync(
+    run: dict,
+    weather_data,
+    max_time_diff_s: float,
+    limits: dict,
+    *,
+    normalized_weather_records: list[dict] | None = None,
+) -> dict:
     sync = sync_weather_to_run(
         run,
         weather_data,
         max_time_delta_seconds=max_time_diff_s,
         allow_time_only_fallback=True,
+        _normalized_weather_records=normalized_weather_records,
     )
     item = deepcopy(sync)
     temperature = _finite(sync.get("temperature"))
@@ -212,6 +220,11 @@ def synchronize_weather_for_split_runs(
     limits = _validated_limits(weather_limits)
     source = split_parsed_runs if isinstance(split_parsed_runs, dict) else {}
     enriched = deepcopy(source)
+    weather_records = (
+        _weather_records(weather_data)
+        if any(source.get(role) for role in ("high", "low"))
+        else None
+    )
     metadata = {
         "high_total": 0,
         "low_total": 0,
@@ -229,7 +242,13 @@ def synchronize_weather_for_split_runs(
         output_runs = []
         for run in source.get(role) or []:
             copied_run = deepcopy(run)
-            sync = _run_weather_sync(copied_run, weather_data, max_delta, limits)
+            sync = _run_weather_sync(
+                copied_run,
+                weather_data,
+                max_delta,
+                limits,
+                normalized_weather_records=weather_records,
+            )
             copied_run["weather_sync"] = sync
             output_runs.append(copied_run)
             metadata[f"{role}_total"] += 1

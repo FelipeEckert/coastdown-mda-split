@@ -3034,3 +3034,20 @@ O contrato deve ser protegido pela igualdade da saida e pela imutabilidade da
 entrada, nao pela profundidade da copia.
 
 ---
+
+## 2026-07-23 - Sincronizacao Meteorologica Reutiliza o Lote Normalizado
+
+### Decisao:
+
+`synchronize_weather_for_split_runs()` normaliza os registros meteorologicos
+uma vez e reutiliza a mesma lista somente para leitura em todos os runs.
+`_closest()` preserva a primeira fonte em empates, mas acompanha apenas as duas
+menores distancias em uma passagem, sem ordenar todos os candidatos.
+
+### Licao:
+
+Normalizacao pertence a fronteira do lote, nao ao loop por run. Para preservar
+empates sem `sorted()`, basta manter o menor e o segundo menor valor: o segundo
+define se existe outra distancia dentro da tolerancia do minimo final.
+
+---

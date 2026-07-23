@@ -137,9 +137,16 @@ def _matched_result(
 
 
 def _closest(candidates: list[tuple[float, dict]]) -> tuple[float, dict, bool]:
-    ordered = sorted(candidates, key=lambda item: item[0])
-    best_delta, best_record = ordered[0]
-    tied = sum(1 for delta, _ in ordered if abs(delta - best_delta) < 1e-9) > 1
+    best_delta, best_record = candidates[0]
+    second_delta = None
+    for index in range(1, len(candidates)):
+        delta, record = candidates[index]
+        if delta < best_delta:
+            second_delta = best_delta
+            best_delta, best_record = delta, record
+        elif second_delta is None or delta < second_delta:
+            second_delta = delta
+    tied = second_delta is not None and abs(second_delta - best_delta) < 1e-9
     return best_delta, best_record, tied
 
 
@@ -148,6 +155,8 @@ def sync_weather_to_run(
     weather_df,
     max_time_delta_seconds: float = DEFAULT_MAX_TIME_DELTA_SECONDS,
     allow_time_only_fallback: bool = True,
+    *,
+    _normalized_weather_records: list[dict] | None = None,
 ) -> dict:
     """Synchronize one run to the closest weather record with full audit data."""
     parsed_run, warnings = _parse_run_datetime(run_datetime)
@@ -164,7 +173,11 @@ def sync_weather_to_run(
             warnings + ["Maximum weather synchronization delta must be non-negative."],
         )
 
-    records = _weather_records(weather_df)
+    records = (
+        _normalized_weather_records
+        if _normalized_weather_records is not None
+        else _weather_records(weather_df)
+    )
     if not records:
         return _empty_result(parsed_run, warnings + ["No valid weather records are available."])
 

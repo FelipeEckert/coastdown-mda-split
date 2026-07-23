@@ -8,7 +8,7 @@ import unittest
 
 import pandas as pd
 
-from core.weather_sync import sync_weather_to_run
+from core.weather_sync import _closest, sync_weather_to_run
 from data.weather_loader import read_weather_file
 from pages.page_split_coefficient_calculation import (
     _translated_weather_warning,
@@ -53,6 +53,31 @@ class WeatherSyncTest(unittest.TestCase):
         self.assertTrue(result["matched"])
         self.assertEqual(result["weather_datetime"], datetime(2024, 4, 22, 18, 48))
         self.assertEqual(result["time_delta_seconds"], 30.0)
+
+    def test_single_pass_closest_matches_legacy_sorting_and_ties(self):
+        records = [{"id": value} for value in "abcd"]
+        cases = [
+            [(3.0, records[0]), (1.0, records[1]), (2.0, records[2])],
+            [(1.0000000005, records[0]), (2.0, records[1]), (1.0, records[2])],
+            [(1.0, records[0]), (1.0, records[1]), (2.0, records[2])],
+            [(2.0, records[0]), (1.0, records[1]), (1.000000002, records[2])],
+        ]
+
+        for candidates in cases:
+            with self.subTest(candidates=candidates):
+                ordered = sorted(candidates, key=lambda item: item[0])
+                best_delta, best_record = ordered[0]
+                tied = (
+                    sum(
+                        abs(delta - best_delta) < 1e-9
+                        for delta, _ in ordered
+                    )
+                    > 1
+                )
+                self.assertEqual(
+                    _closest(candidates),
+                    (best_delta, best_record, tied),
+                )
 
     def test_sync_falls_back_to_time_only_with_warning(self):
         target = datetime(2024, 4, 23, 18, 47, 30)
