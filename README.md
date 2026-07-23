@@ -3,9 +3,9 @@
 Streamlit application for coastdown analysis using the Split method.
 
 This repository was created from the Coastdown MDA Standard codebase, but the
-visible workflow is now quarantined for Split migration. Standard pages and
-calculations remain in the repository as inherited legacy code until each piece
-is either removed or explicitly reused as neutral infrastructure.
+inherited Standard workflow was removed in audit Finding 18. Active Split
+modules own the workflow; only explicitly reviewed neutral infrastructure is
+reused.
 
 ## Current Split Workflow
 

@@ -282,6 +282,16 @@
 - [x] Remove `core/corrections.py` and `data/exporters.py` after their last page callers, lazy exports, and compatibility-only tests were retired in finding 18 Batch 3.
 - [ ] Review the inherited 3% rotational-inertia default in Vehicle Data against the final Split normative workflow.
 - [x] Update the stale `app.py` comment that described pages 2-6 compatibility as the current architecture.
+- [x] Finding 20: classify all remaining translation keys by literal source,
+  bounded dynamic family, persisted compatibility, or orphan ownership.
+- [x] Finding 20: remove 148 orphan keys and stale translation section labels
+  without changing active text, routing, calculations, exports, or UI behavior.
+- [x] Finding 20: correct stale pages 2-6, README ownership, and retired page 4
+  documentation while preserving supported Split compatibility surfaces.
+- [x] Finding 20: pass 106 focused translation/UI tests, 8 active AppTests, the
+  435-test full suite, compile of 74 Python files, scoped Ruff, and diff checks.
+- [x] Finding 20 completed; repository-wide Ruff retains only the five existing
+  `app.py` E402 findings from the path bootstrap.
 
 ## Round 12A - Weather synchronization in Automatic Selection
 - [x] Synchronize weather once per high/low run without mutating `split_parsed_runs`.

@@ -8,7 +8,7 @@ Suporta múltiplos testes simultâneos e internacionalização (Português/Ingl�
 Arquitetura:
 - Flat session state = estado do TESTE ATIVO
 - tests[test_id] = snapshot salvo ao trocar de teste
-- Páginas 2-6 acessam flat keys sem modificação (compatibilidade total)
+- Páginas Split ativas leem desse estado por teste
 """
 
 import copy

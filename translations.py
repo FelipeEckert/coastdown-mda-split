@@ -6,24 +6,6 @@ Suporta Português (pt) e Inglês (en).
 """
 
 TRANSLATIONS = {
-    # ===== GERAL =====
-    "app_title": {
-        "pt": "Análise de Teste de Coastdown (ABNT 10312)",
-        "en": "Coastdown Test Analysis (ABNT 10312)"
-    },
-    "language_selector": {
-        "pt": "🌐 Idioma",
-        "en": "🌐 Language"
-    },
-    "portuguese": {
-        "pt": "Português",
-        "en": "Portuguese"
-    },
-    "english": {
-        "pt": "Inglês",
-        "en": "English"
-    },
-    
     # ===== NAVEGAÇÃO =====
     "page_vehicle_data": {
         "pt": "Dados do Veículo",
@@ -61,74 +43,6 @@ TRANSLATIONS = {
         "pt": "Data do Teste",
         "en": "Test Date"
     },
-    "mass_input_mode": {
-        "pt": "Modo de Entrada de Massa",
-        "en": "Mass Input Mode"
-    },
-    "total_mass_direct": {
-        "pt": "Massa Total (entrada direta)",
-        "en": "Total Mass (direct input)"
-    },
-    "component_masses": {
-        "pt": "Massas por Componente",
-        "en": "Component Masses"
-    },
-    "curb_mass": {
-        "pt": "Massa em Ordem de Marcha (kg)",
-        "en": "Curb Mass (kg)"
-    },
-    "driver_mass": {
-        "pt": "Massa do Condutor (kg)",
-        "en": "Driver Mass (kg)"
-    },
-    "equipment_mass": {
-        "pt": "Massa de Equipamentos (kg)",
-        "en": "Equipment Mass (kg)"
-    },
-    "inertia_mass": {
-        "pt": "Massa de Inércia (kg)",
-        "en": "Inertia Mass (kg)"
-    },
-    "mass_norm_note": {
-        "pt": "Nota: a norma recomenda considerar 136 kg adicionais referentes a motorista + equipamento.",
-        "en": "Note: the standard recommends considering an additional 136 kg for driver + equipment."
-    },
-    "calculate_coefficients": {
-        "pt": "Calcular Coeficientes Individuais",
-        "en": "Calculate Individual Coefficients"
-    },
-    "calculate_uncorrected_coefficients": {
-        "pt": "Calcular coeficientes individuais não corrigidos",
-        "en": "Calculate uncorrected individual coefficients"
-    },
-    "calculating_uncorrected_coefficients": {
-        "pt": "Calculando coeficientes individuais não corrigidos...",
-        "en": "Calculating uncorrected individual coefficients..."
-    },
-    "uncorrected_coefficients_success": {
-        "pt": "Coeficientes individuais não corrigidos calculados para {count} runs!",
-        "en": "Uncorrected individual coefficients calculated for {count} runs!"
-    },
-    "individual_uncorrected_coefficients": {
-        "pt": "Coeficientes individuais não corrigidos calculados",
-        "en": "Calculated uncorrected individual coefficients"
-    },
-    "uncorrected_coefficients_note": {
-        "pt": "Estes coeficientes são não corrigidos, antes da correção climática.",
-        "en": "These coefficients are uncorrected, before climate correction."
-    },
-    "individual_f0_coefficient": {
-        "pt": "f'0 (N)",
-        "en": "f'0 (N)"
-    },
-    "individual_f2_coefficient": {
-        "pt": "f'2 (N/(m/s)²)",
-        "en": "f'2 (N/(m/s)²)"
-    },
-    "proceed_to_pair_analysis": {
-        "pt": "Prosseguir para Análise de Pares",
-        "en": "Proceed to Pair Analysis"
-    },
     
     # ===== RÓTULOS METEOROLÓGICOS COMPARTILHADOS =====
     "temperature": {
@@ -138,10 +52,6 @@ TRANSLATIONS = {
     "pressure": {
         "pt": "Pressão (kPa)",
         "en": "Pressure (kPa)"
-    },
-    "wind_speed": {
-        "pt": "Velocidade do Vento (m/s)",
-        "en": "Wind Speed (m/s)"
     },
     # ===== MENSAGENS DE ERRO =====
     "error_no_file": {
@@ -153,26 +63,6 @@ TRANSLATIONS = {
         "en": "Please enter the vehicle mass."
     },
     
-    # ===== TABELAS =====
-    "actions": {
-        "pt": "Ações",
-        "en": "Actions"
-    },
-    
-    # ===== GRÁFICOS =====
-    "velocity_vs_time": {
-        "pt": "Velocidade vs Tempo",
-        "en": "Velocity vs Time"
-    },
-    "velocity_kmh": {
-        "pt": "Velocidade (km/h)",
-        "en": "Velocity (km/h)"
-    },
-    "deceleration_curve": {
-        "pt": "Curva de Desaceleração",
-        "en": "Deceleration Curve"
-    },
-    
     # ===== BOTÕES GERAIS =====
     "confirm": {
         "pt": "Confirmar",
@@ -182,31 +72,11 @@ TRANSLATIONS = {
         "pt": "Cancelar",
         "en": "Cancel"
     },
-    "reset": {
-        "pt": "Resetar",
-        "en": "Reset"
-    },
-    "next": {
-        "pt": "Próximo",
-        "en": "Next"
-    },
-    "previous": {
-        "pt": "Anterior",
-        "en": "Previous"
-    },
-    "save": {
-        "pt": "Salvar",
-        "en": "Save"
-    },
 
     # ===== MULTI-TESTE - SIDEBAR =====
     "new_test": {
         "pt": "Novo Teste",
         "en": "New Test"
-    },
-    "edit_test": {
-        "pt": "Editar",
-        "en": "Edit"
     },
     "edit_test_title": {
         "pt": "Editar teste",
@@ -244,10 +114,6 @@ TRANSLATIONS = {
         "pt": "Selecionar",
         "en": "Select"
     },
-    "navigation": {
-        "pt": "Navegação",
-        "en": "Navigation"
-    },
     "status": {
         "pt": "Status",
         "en": "Status"
@@ -259,14 +125,6 @@ TRANSLATIONS = {
     "confirm_remove_title": {
         "pt": "Confirmar remoção",
         "en": "Confirm removal"
-    },
-    "current_csv": {
-        "pt": "CSV atual",
-        "en": "Current CSV"
-    },
-    "current_meteo": {
-        "pt": "Meteo atual",
-        "en": "Current meteo"
     },
     "split_current_combined_file": {
         "pt": "Arquivo coastdown combinado atual",
@@ -323,10 +181,6 @@ TRANSLATIONS = {
     "split_no_low_file": {
         "pt": "Sem arquivo low-speed",
         "en": "No low-speed file"
-    },
-    "replace_csv": {
-        "pt": "Substituir CSV",
-        "en": "Replace CSV"
     },
     "split_replace_high_csv": {
         "pt": "Substituir arquivo high-speed",
@@ -411,10 +265,6 @@ TRANSLATIONS = {
     "fixed_conditions_hint": {
         "pt": "Valores usados para correção climática quando não há arquivo meteorológico.",
         "en": "Values used for climate correction when no meteorological file is provided."
-    },
-    "test_created": {
-        "pt": "Teste criado com sucesso!",
-        "en": "Test created successfully!"
     },
     "loading_files": {
         "pt": "Carregando arquivos...",
@@ -678,10 +528,6 @@ TRANSLATIONS = {
     },
     "split_auto_yes": {"pt": "Sim", "en": "Yes"},
     "split_auto_no": {"pt": "Não", "en": "No"},
-    "split_auto_search_limit_reached": {
-        "pt": "A busca atingiu o limite configurado de avaliações; pode haver combinações válidas fora da busca avaliada.",
-        "en": "The search reached the configured evaluation limit; valid combinations may exist outside the evaluated search."
-    },
     "split_auto_search_limited_warning": {
         "pt": "A busca foi limitada por tempo/quantidade de combinações avaliadas. Pode haver combinações válidas fora do universo avaliado.",
         "en": "The search was limited by time/evaluated-combination count. Valid combinations may exist outside the evaluated universe."
@@ -782,10 +628,6 @@ TRANSLATIONS = {
         "pt": "O total estimado excede o limite configurado. A gera\u00e7\u00e3o exata ser\u00e1 bloqueada. Em rodada futura ser\u00e1 implementado o modo otimizado por pr\u00e9-sele\u00e7\u00e3o direcional.",
         "en": "The estimated total exceeds the configured limit. Exact generation is blocked. A future round will implement optimized directional preselection."
     },
-    "split_auto_weather_sync_not_supported": {
-        "pt": "A sele\u00e7\u00e3o autom\u00e1tica desta rodada usa apenas condi\u00e7\u00f5es ambientais fixas. A sincroniza\u00e7\u00e3o meteo por candidato ser\u00e1 integrada em uma rodada futura.",
-        "en": "Automatic selection in this round supports fixed ambient conditions only. Per-candidate weather synchronization will be integrated in a future round."
-    },
     "split_auto_environment_section": {"pt": "Condições ambientais", "en": "Environmental conditions"},
     "split_auto_environment": {"pt": "Ambiente", "en": "Environment"},
     "split_auto_fixed_temperature_c": {"pt": "Temperatura padrão (°C)", "en": "Default temperature (°C)"},
@@ -840,14 +682,6 @@ TRANSLATIONS = {
         "pt": "Candidatos sugeridos",
         "en": "Suggested candidates"
     },
-    "split_auto_added_count": {
-        "pt": "Adicionados ao Comparativo",
-        "en": "Added to Comparison"
-    },
-    "split_auto_duplicates_count": {
-        "pt": "Duplicados encontrados",
-        "en": "Duplicates found"
-    },
     "split_auto_repeated_skipped": {
         "pt": "Repeti\u00e7\u00f5es ignoradas",
         "en": "Repeated runs skipped"
@@ -876,10 +710,6 @@ TRANSLATIONS = {
         "pt": "Sugest\u00e3o substitu\u00edda pelo pr\u00f3ximo candidato v\u00e1lido do ranking.",
         "en": "Suggestion replaced by the next valid candidate in the ranking."
     },
-    "split_auto_replacement_unavailable": {
-        "pt": "N\u00e3o h\u00e1 pr\u00f3xima sugest\u00e3o v\u00e1lida sem os conflitos configurados.",
-        "en": "There is no next valid suggestion under the configured conflict rules."
-    },
     "split_auto_replacement_unavailable_diagnostic": {
         "pt": "Nenhuma substitui\u00e7\u00e3o v\u00e1lida encontrada. Pool: {pool_size}; verificados: {checked}; pr\u00f3prio candidato: {old}; j\u00e1 vis\u00edveis: {existing}; conflito de passadas: {repeated}.",
         "en": "No valid replacement was found. Pool: {pool_size}; checked: {checked}; outgoing candidate: {old}; already visible: {existing}; run conflicts: {repeated}."
@@ -887,10 +717,6 @@ TRANSLATIONS = {
     "split_auto_pending_pool_outdated": {
         "pt": "Estas sugest\u00f5es foram geradas com uma estrat\u00e9gia de reserva anterior. Execute novamente a Sele\u00e7\u00e3o Autom\u00e1tica para habilitar substitui\u00e7\u00f5es.",
         "en": "These suggestions were generated with an older reserve strategy. Run Automatic Selection again to enable replacements."
-    },
-    "split_auto_replace_confirmation": {
-        "pt": "Voc\u00ea est\u00e1 prestes a substituir: {pair}. O sistema buscar\u00e1 a pr\u00f3xima sugest\u00e3o v\u00e1lida do ranking {ranking}, respeitando a configura\u00e7\u00e3o de passadas repetidas. Deseja continuar?",
-        "en": "You are about to replace: {pair}. The system will find the next valid suggestion in the {ranking} ranking while respecting the repeated-run setting. Continue?"
     },
     "split_auto_replace_confirm": {
         "pt": "Confirmar substitui\u00e7\u00e3o",
@@ -1085,41 +911,13 @@ TRANSLATIONS = {
         "pt": "Baixa velocidade",
         "en": "Low speed"
     },
-    "split_graph_run_visualization": {
-        "pt": "Visualização das passadas",
-        "en": "Run visualization"
-    },
-    "split_graph_calculated_pairs": {
-        "pt": "Pares calculados",
-        "en": "Calculated pairs"
-    },
-    "split_graph_interval_type": {
-        "pt": "Tipo de intervalo",
-        "en": "Interval type"
-    },
     "split_graph_direction_filter": {
         "pt": "Direção",
         "en": "Direction"
     },
-    "split_graph_both": {
-        "pt": "Ambos",
-        "en": "Both"
-    },
     "split_graph_both_directions": {
         "pt": "Ambas",
         "en": "Both"
-    },
-    "split_graph_high_speed": {
-        "pt": "High-speed",
-        "en": "High-speed"
-    },
-    "split_graph_low_speed": {
-        "pt": "Low-speed",
-        "en": "Low-speed"
-    },
-    "split_graph_runs_to_display": {
-        "pt": "Runs/passadas a exibir",
-        "en": "Runs to display"
     },
     "split_graph_selected_runs": {
         "pt": "Runs selecionadas",
@@ -1145,17 +943,9 @@ TRANSLATIONS = {
         "pt": "Nenhuma run selecionada.",
         "en": "No run is selected."
     },
-    "split_graph_no_runs_for_filters": {
-        "pt": "Nenhuma passada disponível para a direção e o intervalo selecionados.",
-        "en": "No run is available for the selected direction and interval."
-    },
     "split_graph_process_intervals_first": {
         "pt": "Processe os intervalos Split antes de visualizar as passadas.",
         "en": "Process the Split intervals before viewing the runs."
-    },
-    "split_graph_select_at_least_one_run": {
-        "pt": "Selecione pelo menos uma passada para visualizar o gráfico.",
-        "en": "Select at least one run to view the chart."
     },
     "split_graph_insufficient_curve_data": {
         "pt": "Os dados disponíveis não permitem montar a visualização das passadas selecionadas.",
@@ -1165,14 +955,6 @@ TRANSLATIONS = {
         "pt": "{count} passada(s) possui(em) apenas dados agregados; exibindo o segmento do intervalo.",
         "en": "{count} run(s) contain aggregate data only; displaying the interval segment."
     },
-    "split_graph_deceleration_title": {
-        "pt": "Curvas Split - Velocidade × Tempo",
-        "en": "Split Curves - Speed × Time"
-    },
-    "split_graph_section_curve_title": {
-        "pt": "{section} - Velocidade × tempo decorrido",
-        "en": "{section} - Speed × elapsed time"
-    },
     "split_graph_high_curve_title": {
         "pt": "Curvas de Desaceleração — Alta velocidade",
         "en": "Deceleration Curves — High speed"
@@ -1180,10 +962,6 @@ TRANSLATIONS = {
     "split_graph_low_curve_title": {
         "pt": "Curvas de Desaceleração — Baixa velocidade",
         "en": "Deceleration Curves — Low speed"
-    },
-    "split_graph_delta_t_title": {
-        "pt": "Tempo de desaceleração por passada",
-        "en": "Deceleration time by run"
     },
     "split_graph_section_delta_t_title": {
         "pt": "{section} - Delta t por passada",
@@ -1212,22 +990,6 @@ TRANSLATIONS = {
     "split_graph_delta_t_axis": {
         "pt": "Delta t [s]",
         "en": "Delta t [s]"
-    },
-    "split_graph_select_pair": {
-        "pt": "Par a visualizar",
-        "en": "Pair to view"
-    },
-    "split_graph_no_calculated_pairs": {
-        "pt": "Nenhum par foi adicionado ao Comparativo Final ainda.",
-        "en": "No pair has been added to Final Comparison yet."
-    },
-    "split_graph_pair_data_unavailable": {
-        "pt": "Os componentes deste par não possuem dados suficientes para visualização gráfica.",
-        "en": "This pair's components do not contain enough data for graphical visualization."
-    },
-    "split_graph_pair_title": {
-        "pt": "Componentes do par selecionado — Velocidade × Tempo",
-        "en": "Selected pair components — Speed × Time"
     },
     "split_graph_active_pair": {
         "pt": "Par ativo",
@@ -1265,18 +1027,6 @@ TRANSLATIONS = {
         "pt": "CV F2 [%]",
         "en": "F2 CV [%]"
     },
-    "split_results_cv_energy": {
-        "pt": "CV energia [%]",
-        "en": "Energy CV [%]"
-    },
-    "split_results_not_applicable": {
-        "pt": "N/A",
-        "en": "N/A"
-    },
-    "split_results_conformity": {
-        "pt": "Status de conformidade",
-        "en": "Conformity status"
-    },
     "split_results_status_conforming": {
         "pt": "Conforme",
         "en": "Conforming"
@@ -1293,41 +1043,13 @@ TRANSLATIONS = {
         "pt": "Não avaliável com menos de dois valores",
         "en": "Not evaluable with fewer than two values"
     },
-    "split_results_status_incomplete": {
-        "pt": "Incompleto: faltam coeficientes corrigidos",
-        "en": "Incomplete: corrected coefficients are missing"
-    },
     "split_results_status_warning": {
         "pt": "Consolidado com avisos",
         "en": "Consolidated with warnings"
     },
-    "split_results_status_ready": {
-        "pt": "Pronto",
-        "en": "Ready"
-    },
-    "split_results_selected_source_note": {
-        "pt": "{count} par(es) lido(s) diretamente da seleção do Comparativo Final.",
-        "en": "{count} pair(s) read directly from the Final Comparison selection."
-    },
     "split_results_validation": {
         "pt": "Validação dos resultados",
         "en": "Result validation"
-    },
-    "split_results_missing_corrected": {
-        "pt": "Coeficientes corrigidos ausentes: F0 em {f0}/{total} par(es) e F2 em {f2}/{total} par(es). As demais informações continuam disponíveis.",
-        "en": "Missing corrected coefficients: F0 in {f0}/{total} pair(s) and F2 in {f2}/{total} pair(s). Remaining information is still available."
-    },
-    "split_results_missing_energy": {
-        "pt": "Energia ausente em {missing}/{total} par(es). A média usa somente valores disponíveis.",
-        "en": "Energy is missing in {missing}/{total} pair(s). The mean uses available values only."
-    },
-    "split_results_warning_count": {
-        "pt": "{count} aviso(s) único(s) preservado(s) nos detalhes dos pares.",
-        "en": "{count} unique warning(s) preserved in pair details."
-    },
-    "split_results_no_pairs_available": {
-        "pt": "Nenhum par está disponível no Comparativo Final. Volte à sub-aba Cálculo dos Coeficientes em Análise de Pares para adicionar pares.",
-        "en": "No pair is available in Final Comparison. Return to the Coefficient Calculation sub-tab in Pair Analysis to add pairs."
     },
     "split_results_no_pairs_selected": {
         "pt": "Há pares no Comparativo Final, mas nenhum está selecionado. Volte ao Comparativo Final e marque os pares que devem compor o resultado.",
@@ -1336,38 +1058,6 @@ TRANSLATIONS = {
     "split_results_legacy_summary_only": {
         "pt": "Este teste preserva apenas um resumo final legado ({count} resultado(s)); faltam dados por par para reconstruir, exibir ou exportar os resultados.",
         "en": "This test preserves only a legacy final summary ({count} result(s)); pair-level data is unavailable for rebuilding, displaying, or exporting results."
-    },
-    "split_results_final_table": {
-        "pt": "Tabela final dos pares selecionados",
-        "en": "Final selected-pair table"
-    },
-    "split_results_pair_details": {
-        "pt": "Detalhamento rastreável por par",
-        "en": "Traceable details by pair"
-    },
-    "split_results_index": {
-        "pt": "Índice",
-        "en": "Index"
-    },
-    "split_results_uncorrected_f0": {
-        "pt": "f'0 não corrigido [N]",
-        "en": "Uncorrected f'0 [N]"
-    },
-    "split_results_uncorrected_f2": {
-        "pt": "f'2 não corrigido [N/(m/s)²]",
-        "en": "Uncorrected f'2 [N/(m/s)²]"
-    },
-    "split_results_deceleration_time": {
-        "pt": "Tempo de desaceleração [s]",
-        "en": "Deceleration time [s]"
-    },
-    "split_results_subintervals": {
-        "pt": "Subintervalos",
-        "en": "Subintervals"
-    },
-    "split_results_no_ambient_traceability": {
-        "pt": "Este par não possui rastreabilidade ambiental por componente.",
-        "en": "This pair has no component-level ambient traceability."
     },
     "split_results_card_conformity": {
         "pt": "Conformidade",
@@ -1437,25 +1127,9 @@ TRANSLATIONS = {
         "pt": "Gerar Excel",
         "en": "Generate Excel"
     },
-    "split_results_export_pending": {
-        "pt": "Exportação Split pendente de adaptação ao novo consolidado. Nenhum exportador Standard está conectado a esta página.",
-        "en": "Split export is pending adaptation to the new consolidation. No Standard exporter is connected to this page."
-    },
-    "split_coefficient_calculation_placeholder": {
-        "pt": "A seleção de high/low e o cálculo do par serão implementados na próxima rodada.",
-        "en": "High/low selection and pair coefficient calculation will be implemented in the next round."
-    },
     "split_manual_pair_selection": {
         "pt": "Seleção manual do par",
         "en": "Manual pair selection"
-    },
-    "split_select_high_run": {
-        "pt": "Run high-speed",
-        "en": "High-speed run"
-    },
-    "split_select_low_run": {
-        "pt": "Run low-speed",
-        "en": "Low-speed run"
     },
     "split_ida_plus": {
         "pt": "Ida (+)",
@@ -1537,14 +1211,6 @@ TRANSLATIONS = {
         "pt": "Low -",
         "en": "Low -"
     },
-    "split_complete_pair_components": {
-        "pt": "Componentes do par completo",
-        "en": "Complete pair components"
-    },
-    "split_selected_pair_results": {
-        "pt": "Resultados ida, volta e media",
-        "en": "Ida, volta and average results"
-    },
     "split_uncorrected_results": {
         "pt": "Coeficientes não corrigidos",
         "en": "Uncorrected coefficients"
@@ -1589,10 +1255,6 @@ TRANSLATIONS = {
         "pt": "Fixo",
         "en": "Fixed"
     },
-    "split_ambient_mode_weather_sync_short": {
-        "pt": "Sincronização meteo",
-        "en": "Weather sync"
-    },
     "split_ambient_change_invalidated": {
         "pt": "As condições ambientais mudaram. Resultados e cards anteriores foram limpos; recalcule os coeficientes.",
         "en": "Ambient conditions changed. Previous results and cards were cleared; recalculate the coefficients."
@@ -1605,37 +1267,9 @@ TRANSLATIONS = {
         "pt": "Pressão fixa (kPa)",
         "en": "Fixed pressure (kPa)"
     },
-    "split_fixed_conditions_apply_all": {
-        "pt": "A mesma temperatura e pressão serão aplicadas às quatro passadas do par.",
-        "en": "The same temperature and pressure will be applied to all four runs in the pair."
-    },
-    "split_fixed_conditions_card": {
-        "pt": "Correção calculada com temperatura e pressão fixas. Valores exibidos como ida / volta.",
-        "en": "Correction calculated with fixed temperature and pressure. Values are shown as ida / volta."
-    },
     "split_weather_correction_unavailable": {
         "pt": "A sincronização meteorológica está incompleta. O cálculo não corrigido continuará disponível, mas F0/F2 não serão preenchidos.",
         "en": "Weather synchronization is incomplete. Uncorrected calculation remains available, but F0/F2 will not be populated."
-    },
-    "split_ambient_source_summary": {
-        "pt": "Fonte das condições ambientais: {source}.",
-        "en": "Ambient condition source: {source}."
-    },
-    "split_ambient_source_manual_fixed": {
-        "pt": "temperatura e pressão fixas",
-        "en": "fixed temperature and pressure"
-    },
-    "split_ambient_source_weather_file_sync": {
-        "pt": "sincronização com arquivo meteorológico",
-        "en": "weather file synchronization"
-    },
-    "split_selected_pair_inputs": {
-        "pt": "Resumo técnico do par selecionado",
-        "en": "Selected pair technical summary"
-    },
-    "split_calculate_selected_pair": {
-        "pt": "Calcular par selecionado",
-        "en": "Calculate selected pair"
     },
     "split_calculate_coefficients": {
         "pt": "Calcular Coeficientes",
@@ -1657,10 +1291,6 @@ TRANSLATIONS = {
         "pt": "Adicionar par ao Comparativo Final",
         "en": "Add pair to Final Comparison"
     },
-    "split_comparison_pairs_count": {
-        "pt": "{count} par(es) na tabela comparativa final.",
-        "en": "{count} pair(s) in the final comparison table."
-    },
     "split_pair_added_to_comparison": {
         "pt": "Par adicionado à tabela comparativa final.",
         "en": "Pair added to final comparison."
@@ -1668,10 +1298,6 @@ TRANSLATIONS = {
     "split_no_calculated_pair_to_add": {
         "pt": "Calcule um par selecionado antes de adicionar à tabela comparativa.",
         "en": "Calculate a selected pair before adding it to the comparison table."
-    },
-    "split_final_comparison_table": {
-        "pt": "Tabela comparativa final",
-        "en": "Final comparison table"
     },
     "split_selection_source_manual": {
         "pt": "Manual",
@@ -1721,10 +1347,6 @@ TRANSLATIONS = {
         "pt": "Estes pares não possuem coeficientes corrigidos e não podem ser incluídos no cálculo de resultados finais.",
         "en": "These pairs do not have corrected coefficients and cannot be included in final-results calculation."
     },
-    "split_selected_pair_statistics_title": {
-        "pt": "Estatísticas dos Pares Selecionados ({count} pares)",
-        "en": "Selected Pair Statistics ({count} pairs)"
-    },
     "split_select_pairs_for_final_hint": {
         "pt": "Selecione pelo menos um par para ver as estatísticas e calcular os resultados finais.",
         "en": "Select at least one pair to view statistics and calculate final results."
@@ -1732,22 +1354,6 @@ TRANSLATIONS = {
     "split_calculate_final_results": {
         "pt": "Calcular resultados finais",
         "en": "Calculate final results"
-    },
-    "split_go_to_results": {
-        "pt": "Ir para Resultados Split",
-        "en": "Go to Split Results"
-    },
-    "split_selected_pairs_traceability": {
-        "pt": "Rastreabilidade dos pares selecionados",
-        "en": "Selected pair traceability"
-    },
-    "split_selected_pairs_traceability_empty": {
-        "pt": "Nenhuma rastreabilidade disponível para os pares selecionados.",
-        "en": "No traceability is available for the selected pairs."
-    },
-    "split_cv_not_applicable_single_pair": {
-        "pt": "N/A",
-        "en": "N/A"
     },
     "split_no_corrected_pairs": {
         "pt": "Nenhum par com correção climática calculado ainda.",
@@ -1768,10 +1374,6 @@ TRANSLATIONS = {
     "split_comparison_legend": {
         "pt": "Legenda",
         "en": "Legend"
-    },
-    "split_legend_selected_pair": {
-        "pt": "Par selecionado",
-        "en": "Selected pair"
     },
     "split_legend_manual_pair": {
         "pt": "Manual",
@@ -1801,30 +1403,6 @@ TRANSLATIONS = {
         "pt": "Sel",
         "en": "Sel"
     },
-    "split_pair_id": {
-        "pt": "ID do par",
-        "en": "Pair ID"
-    },
-    "split_high_plus_run_short": {
-        "pt": "High+ run",
-        "en": "High+ run"
-    },
-    "split_low_plus_run_short": {
-        "pt": "Low+ run",
-        "en": "Low+ run"
-    },
-    "split_high_minus_run_short": {
-        "pt": "High- run",
-        "en": "High- run"
-    },
-    "split_low_minus_run_short": {
-        "pt": "Low- run",
-        "en": "Low- run"
-    },
-    "split_corrected_coefficients": {
-        "pt": "Coeficientes corrigidos",
-        "en": "Corrected coefficients"
-    },
     "split_corrected_f0_mean": {
         "pt": "F0 médio [N]",
         "en": "Mean F0 [N]"
@@ -1844,22 +1422,6 @@ TRANSLATIONS = {
     "split_pressure_plus_minus": {
         "pt": "Pressão ida/volta [kPa]",
         "en": "Ida/volta pressure [kPa]"
-    },
-    "split_comparison_status": {
-        "pt": "Status/avisos",
-        "en": "Status/warnings"
-    },
-    "split_comparison_status_ready": {
-        "pt": "Pronto",
-        "en": "Ready"
-    },
-    "split_comparison_status_warning": {
-        "pt": "{count} aviso(s)",
-        "en": "{count} warning(s)"
-    },
-    "split_comparison_status_incomplete": {
-        "pt": "Incompleto",
-        "en": "Incomplete"
     },
     "split_comparison_empty": {
         "pt": "Nenhum par calculado ainda.",
@@ -1881,30 +1443,6 @@ TRANSLATIONS = {
         "pt": "Remover par",
         "en": "Remove pair"
     },
-    "split_remove_pair_short": {
-        "pt": "Remover",
-        "en": "Remove"
-    },
-    "split_pair_to_remove": {
-        "pt": "Par a remover",
-        "en": "Pair to remove"
-    },
-    "split_card_high_source": {
-        "pt": "Fonte high-speed",
-        "en": "High-speed source"
-    },
-    "split_card_low_source": {
-        "pt": "Fonte low-speed",
-        "en": "Low-speed source"
-    },
-    "split_card_coefficients": {
-        "pt": "Coeficientes e entradas",
-        "en": "Coefficients and inputs"
-    },
-    "split_card_meteo": {
-        "pt": "Meteorologia",
-        "en": "Weather/meteo"
-    },
     "split_card_energy": {
         "pt": "Energia",
         "en": "Energy"
@@ -1917,53 +1455,9 @@ TRANSLATIONS = {
         "pt": "Condições Ambientais",
         "en": "Ambient Conditions"
     },
-    "split_card_temp_ida_volta": {
-        "pt": "Temp ida/volta",
-        "en": "Ida/volta temp"
-    },
-    "split_card_pressure_ida_volta": {
-        "pt": "Pressão ida/volta",
-        "en": "Ida/volta pressure"
-    },
-    "split_temp_plus_used": {
-        "pt": "Temp ida usada (média high+/low+)",
-        "en": "Ida temperature used (high+/low+ mean)"
-    },
-    "split_temp_minus_used": {
-        "pt": "Temp volta usada (média high-/low-)",
-        "en": "Volta temperature used (high-/low- mean)"
-    },
-    "split_press_plus_used": {
-        "pt": "Pressão ida usada (média high+/low+)",
-        "en": "Ida pressure used (high+/low+ mean)"
-    },
-    "split_press_minus_used": {
-        "pt": "Pressão volta usada (média high-/low-)",
-        "en": "Volta pressure used (high-/low- mean)"
-    },
-    "split_ambient_traceability": {
-        "pt": "Rastreabilidade ambiental das quatro passadas",
-        "en": "Ambient traceability for the four runs"
-    },
-    "split_card_wind_ida_volta": {
-        "pt": "Vento ida/volta",
-        "en": "Ida/volta wind"
-    },
     "split_card_variations": {
         "pt": "Variações",
         "en": "Variations"
-    },
-    "split_card_warnings": {
-        "pt": "Avisos",
-        "en": "Warnings"
-    },
-    "split_card_traceability": {
-        "pt": "Rastreabilidade das passadas",
-        "en": "Run traceability"
-    },
-    "split_f2_explicit_conversion_note": {
-        "pt": "F2 corrigido usa conversão explícita de N/(m/s)² para N/(km/h)².",
-        "en": "Corrected F2 uses an explicit conversion from N/(m/s)² to N/(km/h)²."
     },
     "split_energy_unavailable_contract": {
         "pt": "Energia indisponível porque F0/F2 corrigidos não estão disponíveis.",
@@ -1997,10 +1491,6 @@ TRANSLATIONS = {
         "pt": "A data meteorológica difere da passagem; a sincronização usou somente o horário.",
         "en": "Weather date differs from the run date; synchronization used time of day only."
     },
-    "split_warning_count": {
-        "pt": "{count} aviso(s); consulte os detalhes do par.",
-        "en": "{count} warning(s); see pair details."
-    },
     "split_file": {
         "pt": "Arquivo",
         "en": "File"
@@ -2012,18 +1502,6 @@ TRANSLATIONS = {
     "split_direction": {
         "pt": "Direção",
         "en": "Direction"
-    },
-    "split_timestamp": {
-        "pt": "Horário",
-        "en": "Timestamp"
-    },
-    "split_meteo_not_synced_for_pair": {
-        "pt": "Meteo não sincronizado para este par.",
-        "en": "Meteo was not synchronized for this pair."
-    },
-    "split_meteo_display_only_warning": {
-        "pt": "A sincronização é exibida com rastreabilidade completa; somente temperatura e pressão de matches válidos são usadas na correção.",
-        "en": "Synchronization is shown with full traceability; only temperature and pressure from valid matches are used for correction."
     },
     "split_meteo_matched": {
         "pt": "Sincronizado",
@@ -2056,10 +1534,6 @@ TRANSLATIONS = {
     "split_meteo_sync_limit": {
         "pt": "Limite automático de sincronização: {seconds} s.",
         "en": "Automatic synchronization limit: {seconds} s."
-    },
-    "split_meteo_pair_average": {
-        "pt": "Resumo médio de {count} passagem(ns) sincronizada(s): {temperature} °C, {pressure} kPa, vento {wind} m/s.",
-        "en": "Average summary from {count} matched run(s): {temperature} °C, {pressure} kPa, wind {wind} m/s."
     },
     "split_meteo_component": {
         "pt": "Componente",
@@ -2109,14 +1583,6 @@ TRANSLATIONS = {
         "pt": "Nenhum intervalo high ou low foi parseado. Revise a aba Seleção de Intervalos.",
         "en": "No high or low interval was parsed. Review the Interval Selection tab."
     },
-    "split_no_high_records_for_calculation": {
-        "pt": "Nenhum intervalo high-speed foi parseado. O cálculo do par está bloqueado.",
-        "en": "No high-speed interval was parsed. Pair calculation is blocked."
-    },
-    "split_no_low_records_for_calculation": {
-        "pt": "Nenhum intervalo low-speed foi parseado. O cálculo do par está bloqueado.",
-        "en": "No low-speed interval was parsed. Pair calculation is blocked."
-    },
     "split_effective_mass_required_for_calculation": {
         "pt": "Informe e confirme a massa efetiva em Dados do Veículo antes de calcular.",
         "en": "Enter and confirm the effective mass in Vehicle Data before calculating."
@@ -2124,22 +1590,6 @@ TRANSLATIONS = {
     "split_meteo_not_available_warning": {
         "pt": "Arquivo meteorológico não disponível. Os coeficientes não corrigidos podem ser calculados, mas F0/F2 por sincronização não serão preenchidos.",
         "en": "Weather/meteo file is not available. Uncorrected coefficients can be calculated, but synchronized F0/F2 will not be populated."
-    },
-    "split_meteo_loaded_not_applied_warning": {
-        "pt": "Arquivo meteorológico carregado; sincronização atual: {mode}. A aplicação meteorológica no cálculo Split ainda não foi implementada.",
-        "en": "Weather/meteo file loaded; current synchronization: {mode}. Meteo application in the Split calculation is not implemented yet."
-    },
-    "split_meteo_loaded_for_correction": {
-        "pt": "Arquivo meteorológico carregado; sincronização para correção: {mode}.",
-        "en": "Weather/meteo file loaded; synchronization for correction: {mode}."
-    },
-    "split_high_records_available": {
-        "pt": "High parseado",
-        "en": "Parsed high"
-    },
-    "split_low_records_available": {
-        "pt": "Low parseado",
-        "en": "Parsed low"
     },
     "split_effective_mass_available": {
         "pt": "Massa efetiva",
@@ -2161,10 +1611,6 @@ TRANSLATIONS = {
         "pt": "Arquivos CSV do metodo Split",
         "en": "Split method CSV files"
     },
-    "split_input_layout": {
-        "pt": "Formato de entrada Split",
-        "en": "Split input layout"
-    },
     "split_input_mode": {
         "pt": "Modo de entrada",
         "en": "Input mode"
@@ -2176,18 +1622,6 @@ TRANSLATIONS = {
     "split_input_mode_combined": {
         "pt": "Um unico arquivo de desaceleracao combinado",
         "en": "Single combined coastdown file"
-    },
-    "split_input_layout_separate": {
-        "pt": "Arquivos separados",
-        "en": "Separate files"
-    },
-    "split_input_layout_combined": {
-        "pt": "Arquivo unico/combinado",
-        "en": "Single/combined file"
-    },
-    "split_upload_primary_csv": {
-        "pt": "CSV principal: full coastdown, combinado ou alta velocidade",
-        "en": "Primary CSV: full coastdown, combined, or high speed"
     },
     "split_upload_high_csv": {
         "pt": "CSV high-speed",
@@ -2240,38 +1674,6 @@ TRANSLATIONS = {
     "split_input_mode_combined_none": {
         "pt": "Modo de entrada Split: um unico arquivo de desaceleracao combinado - nenhum intervalo valido de alta ou baixa velocidade foi encontrado.",
         "en": "Split input mode: single combined coastdown file - no valid high-speed or low-speed interval was found."
-    },
-    "split_input_mode_two_files_complete": {
-        "pt": "Modo de entrada Split: 2 arquivos de coastdown detectados - intervalos de alta e baixa velocidade estao sendo processados separadamente.",
-        "en": "Split input mode: 2 coastdown files detected - high-speed and low-speed intervals are being processed separately."
-    },
-    "split_input_mode_two_files_high_only": {
-        "pt": "Modo de entrada Split: 2 arquivos de coastdown detectados - intervalo de alta velocidade encontrado, mas nenhum intervalo de baixa velocidade foi detectado.",
-        "en": "Split input mode: 2 coastdown files detected - high-speed interval found, but no low-speed interval was detected."
-    },
-    "split_input_mode_two_files_low_only": {
-        "pt": "Modo de entrada Split: 2 arquivos de coastdown detectados - intervalo de baixa velocidade encontrado, mas nenhum intervalo de alta velocidade foi detectado.",
-        "en": "Split input mode: 2 coastdown files detected - low-speed interval found, but no high-speed interval was detected."
-    },
-    "split_input_mode_two_files_none": {
-        "pt": "Modo de entrada Split: 2 arquivos de coastdown detectados - nenhum intervalo de alta ou baixa velocidade foi detectado.",
-        "en": "Split input mode: 2 coastdown files detected - no high-speed or low-speed interval was detected."
-    },
-    "split_input_mode_one_file_complete": {
-        "pt": "Modo de entrada Split: 1 arquivo de coastdown detectado - intervalos de alta e baixa velocidade foram extraidos do mesmo arquivo.",
-        "en": "Split input mode: 1 coastdown file detected - high-speed and low-speed intervals were extracted from the same file."
-    },
-    "split_input_mode_one_file_high_only": {
-        "pt": "Modo de entrada Split: 1 arquivo de coastdown detectado - intervalo de alta velocidade encontrado, mas nenhum intervalo de baixa velocidade foi detectado.",
-        "en": "Split input mode: 1 coastdown file detected - high-speed interval found, but no low-speed interval was detected."
-    },
-    "split_input_mode_one_file_low_only": {
-        "pt": "Modo de entrada Split: 1 arquivo de coastdown detectado - intervalo de baixa velocidade encontrado, mas nenhum intervalo de alta velocidade foi detectado.",
-        "en": "Split input mode: 1 coastdown file detected - low-speed interval found, but no high-speed interval was detected."
-    },
-    "split_input_mode_one_file_none": {
-        "pt": "Modo de entrada Split: 1 arquivo de coastdown detectado - nenhum intervalo de alta ou baixa velocidade foi detectado.",
-        "en": "Split input mode: 1 coastdown file detected - no high-speed or low-speed interval was detected."
     },
     "split_confirm_vehicle_data": {
         "pt": "Confirmar dados do veiculo para Split",

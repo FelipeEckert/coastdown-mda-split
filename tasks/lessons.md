@@ -2958,3 +2958,23 @@ que protegiam. Antes disso, separar helpers neutros por caller real evita apagar
 dependencias compartilhadas junto com a ilha legada.
 
 ---
+
+## 2026-07-23 - Traducoes Dinamicas Exigem Familias Limitadas
+
+### Decisao:
+
+O finding 20 removeu somente chaves sem referencia literal, familia dinamica
+limitada ou compatibilidade persistida ativa. As 18 chaves sem referencia
+literal restantes pertencem a quatro familias construidas em runtime: modo de
+entrada, metodo meteorologico, status de desvio e status de resultado.
+Aliases de snapshot e APIs publicas de compatibilidade foram preservados.
+
+### Licao:
+
+Contagem por busca textual encontra candidatos, nao prova codigo morto. Uma
+traducao dinamica e segura de auditar quando o produtor tem dominio fechado;
+fora dele, remocao exige rastrear o contrato persistido ou publico. Comentarios
+e documentos devem ser atualizados junto da remocao para nao manter ownership
+historico em tempo presente.
+
+---

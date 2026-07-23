@@ -48,7 +48,7 @@ that initial audit.
 - `pages/page_split_coefficient_calculation.py`
 - `pages/page_split_final_comparison.py`
 - `pages/page_split_results.py`
-- `pages/page_4_selecao_algoritmo.py`
+- `pages/page_4_selecao_algoritmo.py` (removed in audit Finding 18)
 - `core/split_calculations.py`
 - `core/split_corrections.py`
 - `core/split_energy.py`
@@ -152,12 +152,11 @@ while avoiding collisions between separate files or repeated run labels.
 
 ## 3. Manual Split Pair Calculation Flow
 
-The active Split navigation imports `page_split_coefficient_calculation`,
+At that baseline, the active Split navigation imported `page_split_coefficient_calculation`,
 `page_split_final_comparison`, and `page_split_results`. The inherited
-`pages/page_4_selecao_algoritmo.py` is not in the active Split navigation and
-still writes to legacy Standard-style state such as `calculated_pairs` and
-`pares_finais_selecionados`; it must not be reused as the Split algorithm
-implementation.
+`pages/page_4_selecao_algoritmo.py` was outside that navigation and wrote to
+legacy Standard-style state such as `calculated_pairs` and
+`pares_finais_selecionados`; audit Finding 18 later removed it.
 
 The manual calculation flow is:
 
@@ -491,9 +490,9 @@ same calculation path.
 
 ## 11. Risks
 
-- The inherited `page_4_selecao_algoritmo.py` already contains algorithm code, but
-  it writes to Standard-style state and sets `selected=True`; reusing it directly
-  would violate the Split contract.
+- The inherited `page_4_selecao_algoritmo.py` contained algorithm code, but
+  wrote to Standard-style state and set `selected=True`; audit Finding 18 later
+  removed it instead of reusing it.
 - `selection_source="algorithm"` exists, but energy-vs-target visual flags do not
   exist in active Split comparison rendering.
 - Current manual comparison insertion defaults to `selected=True`; automatic

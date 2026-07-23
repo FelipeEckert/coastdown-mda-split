@@ -34,7 +34,7 @@ finding has been documented but no cleanup or behavior change has been applied.
 | 17 | Several tests enforce source text rather than behavior | Low | High | 5 | Completed |
 | 18 | Inherited Standard pages and dependency island removed | Medium | High | 8 | Completed |
 | 19 | Split coefficient sign convention conflicts across repository guidance | High | High conflict / Low resolution | 8 | Pending |
-| 20 | Translation and compatibility cleanup cannot rely on static counts | Low | High | 8 | Pending |
+| 20 | Orphan translations and stale compatibility text removed | Low | High | 8 | Completed |
 | 21 | Automatic-selection page is indirectly rendered | Informational | High | Preserve | Pending |
 | 22 | Package initializers execute through submodule imports | Informational | High | Phase 6 prerequisite | Pending |
 | 23 | Session and widget keys have dynamic references | Informational | High | Preserve | Pending |
@@ -867,7 +867,7 @@ state, and export modules.
   implementation, and expected report signs for the same reference inputs.
 - **Status:** Pending
 
-### 20. Translation and compatibility cleanup cannot rely on static counts
+### 20. Orphan translations and stale compatibility text removed
 
 - **Severity:** Low
 - **Confidence:** High
@@ -882,16 +882,31 @@ state, and export modules.
   `format_split_pair_public_label` has no internal caller but is explicitly a
   compatibility alias. Similar compatibility surfaces exist for old input
   layouts, vehicle mass names, wind names, and the v1 selector wrapper.
+- **Finding 20 result (2026-07-23):** Removed 148 keys (592 lines) with neither
+  an active literal owner nor a live dynamic-family owner. The remaining 487
+  keys comprise 469 with literal source evidence and 18 reached through the
+  bounded dynamic input-mode, meteo-method, deviation-status, and result-status
+  families. Empty translation section labels, the obsolete pages 2-6 comment,
+  the README's pre-removal ownership text, and present-tense references to the
+  retired page 4 were removed or corrected. No test was tied exclusively to the
+  deleted text.
+- **Retained compatibility:** Persisted Split summary, input-layout,
+  vehicle-mass, and weather aliases remain active. The module-level
+  `format_split_pair_public_label` alias and selector compatibility wrapper were
+  retained because removing them would change a public compatibility surface,
+  outside this text-only cleanup.
 - **Why it is a problem:** Bulk deletion based on a single text search can break
   dynamic translations, persisted data, or external consumers.
 - **Risk:** High for bulk removal; low when keys are removed with a proven dead
   owning workflow.
-- **Recommended action:** Delete translation families only alongside their
-  removed pages/features. Keep compatibility aliases until an external and
-  persisted-state migration inventory proves them unnecessary.
-- **Validation:** Render every locale and workflow, scan for missing-key output,
-  and load old persisted inputs before and after each removal.
-- **Status:** Pending
+- **Recommended action:** Keep dynamic translation families explicit during
+  future audits and remove compatibility APIs only in a separately authorized
+  export/persisted-state migration.
+- **Validation:** 106 focused translation/UI tests, 8 active AppTests, the
+  435-test full suite, compile of 74 Python files, scoped Ruff, and diff checks
+  passed. Repository-wide Ruff still reports only the five unchanged `app.py`
+  E402 findings caused by the existing path bootstrap.
+- **Status:** Completed
 
 ## Confirmed Indirect Usage
 
