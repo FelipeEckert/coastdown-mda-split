@@ -623,7 +623,8 @@
 - [x] Correct active page names and parser, weather, results, and exporter ownership.
 - [x] Mark superseded milestones and round-local design limitations as historical.
 - [x] Separate implemented automatic-selection behavior from deferred work.
-- [x] Preserve the coefficient sign ambiguity for the dedicated finding 19 decision.
+- [x] Preserve the coefficient sign ambiguity during finding 15; resolve it
+  separately in finding 19 without changing calculation behavior.
 - [x] Verify paths, ownership statements, Markdown links, non-document scope, and diff hygiene.
 
 ## Audit finding 16 - Streamlit orchestration coverage - 2026-07-20
@@ -648,6 +649,16 @@
 - [x] Confirm zero `inspect.getsource` tests remain.
 - [x] Confirm the behavioral missing-coefficient guarantee and mark finding 17 complete.
 - [x] Re-run final-batch focused/full tests, Ruff, compile validation, and diff checks.
+
+## Audit finding 19 - Split coefficient sign guidance - 2026-07-23
+
+- [x] Treat the existing Split calculation and positive road-load outputs as canonical.
+- [x] Reproduce `F0 = 139.4112` and `F2 = 0.646178` from the Eliezer samples.
+- [x] Confirm positive values through correction, comparison, Results, and export.
+- [x] Correct only conflicting guidance; preserve formulas, outputs, and UI behavior.
+- [x] Pass 62 focused tests, 13 sample-data tests, the 435-test full suite,
+  compile of 74 Python files, scoped Ruff, and diff checks.
+- [x] Mark finding 19 Completed.
 
 ## Fixed-condition state compatibility - 2026-07-20
 

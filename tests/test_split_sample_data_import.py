@@ -3,10 +3,22 @@
 
 from datetime import datetime
 from pathlib import Path
+import io
 import math
 import unittest
 
+from openpyxl import load_workbook
+
 from core.split_calculations import calculate_split_result
+from core.split_comparison import (
+    build_split_comparison_pair,
+    calculate_complete_split_pair,
+)
+from core.split_corrections import (
+    apply_split_pair_correction,
+    fixed_ambient_conditions,
+)
+from core.split_results import consolidate_split_final_results
 from core.split_state import (
     clear_split_final_state,
     invalidate_split_ambient_state,
@@ -14,6 +26,7 @@ from core.split_state import (
 )
 from core.weather_sync import sync_weather_to_run
 from data.loaders import carregar_dados_csv_robusto
+from data.split_exporters import export_split_final_results_to_excel
 from data.split_parser import default_split_interval_config, parse_split_sources
 from data.weather_loader import read_weather_file
 
@@ -58,6 +71,58 @@ class SplitSampleDataImportTest(unittest.TestCase):
         )
         self.assertTrue(math.isclose(result["f0_prime"], 139.41119395239252, rel_tol=1e-12))
         self.assertTrue(math.isclose(result["f2_prime"], 0.6461779091694823, rel_tol=1e-12))
+
+        high_minus = next(record for record in parsed["high"] if record["run_id"] == 2)
+        low_minus = next(record for record in parsed["low"] if record["run_id"] == 2)
+        complete = calculate_complete_split_pair(
+            high_record,
+            low_record,
+            high_minus,
+            low_minus,
+            1545.0,
+            default_split_interval_config(),
+        )
+        corrected = apply_split_pair_correction(
+            complete,
+            fixed_ambient_conditions(20.0, 101.325),
+        )
+        comparison_pair = build_split_comparison_pair(
+            corrected,
+            pair_id="sample-positive-road-load",
+        )
+        summary = consolidate_split_final_results([comparison_pair])
+        workbook = load_workbook(
+            io.BytesIO(
+                export_split_final_results_to_excel(
+                    final_results=summary,
+                    selected_pairs=[comparison_pair],
+                    vehicle_data={"effective_mass_kg": 1545.0},
+                )
+            ),
+            data_only=True,
+        )
+        exported_summary = [
+            value
+            for label, value, *_ in workbook["Resumo Final"].iter_rows(values_only=True)
+            if str(label).startswith(("F0 final", "F2 final"))
+        ]
+        pair_headers = [cell.value for cell in workbook["Pares Selecionados"][2]]
+        pair_values = [cell.value for cell in workbook["Pares Selecionados"][3]]
+        exported_pair = [
+            pair_values[pair_headers.index(label)]
+            for label in ("F0 [N]", "F2 [N/(km/h)²]")
+        ]
+
+        self.assertTrue(all(value > 0 for value in (
+            corrected["F0_plus"],
+            corrected["F2_plus"],
+            comparison_pair["F0_mean"],
+            comparison_pair["F2_mean"],
+            summary["mean_f0"],
+            summary["mean_f2"],
+            *exported_summary,
+            *exported_pair,
+        )))
 
     def test_separate_mode_high_only_csv_reports_missing_low_interval(self):
         high_path = SAMPLE_DIR / "coastdown" / "split eliezer high.csv"

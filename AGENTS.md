@@ -168,20 +168,26 @@ f'0,n =
 Me / (V2² - V1²)
 ×
 [
-  (Delta V2 / Delta t2) × V1²
-  -
   (Delta V1 / Delta t1) × V2²
+  -
+  (Delta V2 / Delta t2) × V1²
 ]
 
 f'2,n =
 Me / (V2² - V1²)
 ×
 [
-  (Delta V1 / Delta t1)
-  -
   (Delta V2 / Delta t2)
+  -
+  (Delta V1 / Delta t1)
 ]
 ```
+
+These are the canonical road-load-positive equations for the application's
+positive `Delta V` storage convention. Do not negate the coefficients or apply
+`abs()` in presentation code. For the reference inputs `Me = 1545 kg`,
+`Delta t1 = 19.58 s`, and `Delta t2 = 18.72 s`, they return
+`f'0 = 139.4112 N` and `f'2 = 0.646178 N/(m/s)²`.
 
 ---
 

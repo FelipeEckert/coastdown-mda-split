@@ -100,20 +100,26 @@ f'0,n =
 Me / (V2² - V1²)
 ×
 [
-  (Delta V2 / Delta t2) × V1²
-  -
   (Delta V1 / Delta t1) × V2²
+  -
+  (Delta V2 / Delta t2) × V1²
 ]
 
 f'2,n =
 Me / (V2² - V1²)
 ×
 [
-  (Delta V1 / Delta t1)
-  -
   (Delta V2 / Delta t2)
+  -
+  (Delta V1 / Delta t1)
 ]
 ```
+
+Esta é a forma road-load-positive canônica para o `Delta V` positivo
+armazenado pelo aplicativo. Não inverter o sinal ao retornar nem aplicar
+`abs()` na exibição. Para `Me = 1545 kg`, `Delta t1 = 19,58 s` e
+`Delta t2 = 18,72 s`, o resultado de referência é
+`f'0 = 139,4112 N` e `f'2 = 0,646178 N/(m/s)²`.
 
 ---
 

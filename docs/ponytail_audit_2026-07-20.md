@@ -33,7 +33,7 @@ finding has been documented but no cleanup or behavior change has been applied.
 | 16 | Critical Streamlit orchestration is untested | High | High | 3 | Completed |
 | 17 | Several tests enforce source text rather than behavior | Low | High | 5 | Completed |
 | 18 | Inherited Standard pages and dependency island removed | Medium | High | 8 | Completed |
-| 19 | Split coefficient sign convention conflicts across repository guidance | High | High conflict / Low resolution | 8 | Pending |
+| 19 | Split coefficient sign guidance aligned to canonical code | High | High | 8 | Completed |
 | 20 | Orphan translations and stale compatibility text removed | Low | High | 8 | Completed |
 | 21 | Automatic-selection page is indirectly rendered | Informational | High | Preserve | Pending |
 | 22 | Package initializers execute through submodule imports | Informational | High | Phase 6 prerequisite | Pending |
@@ -573,7 +573,8 @@ finding has been documented but no cleanup or behavior change has been applied.
   milestones and round-local limitations remain available but are explicitly
   historical or superseded. The automatic-selection plan now separates current
   behavior, deferred work, and its implementation history. The independent
-  coefficient-sign conflict remains assigned to finding 19 and was not changed.
+  coefficient-sign conflict remained assigned to finding 19 at that checkpoint;
+  finding 19 was resolved separately on 2026-07-23.
 - **Validation result:** Repository-wide stale-name and ownership searches found
   only explicitly historical, legacy, removed, or intentionally nonexistent
   references. Documented active paths were checked against the import graph;
@@ -844,28 +845,24 @@ state, and export modules.
 - **Status:** Completed — all three batches are complete and no inherited
   Standard page dependency remains.
 
-### 19. Split coefficient sign convention conflicts across repository guidance
+### 19. Split coefficient sign guidance aligned to canonical code
 
 - **Severity:** High
-- **Confidence:** High that the conflict exists; Low on which source must change
-- **Locations:** `AGENTS.md:151-166`; `CLAUDE.md:128-130`;
-  `docs/calculations.txt`; `core/split_calculations.py:103-109`;
-  `tasks/lessons.md:350-359`; calculation tests and examples.
-- **Evidence:** AGENTS and CLAUDE describe positive `Delta V` with
-  `f0 = a2*V1^2 - a1*V2^2` and `f2 = a1 - a2`. The implementation, examples,
-  lessons, and tests use the opposite signs to produce positive road-load
-  coefficients. The implemented behavior is deliberate and test-locked.
-- **Why it is a problem:** Maintainers following repository instructions can
-  "correct" working code to the opposite convention, or reports can document a
-  formula different from the calculation.
-- **Risk:** Critical. Equations and domain behavior must not change during
-  cleanup.
-- **Recommended action:** Independently reproduce one authoritative ABNT
-  reference case, obtain domain sign-off, and then reconcile documentation or
-  implementation in a dedicated normative change.
-- **Validation:** Compare hand calculation, independent spreadsheet, current
-  implementation, and expected report signs for the same reference inputs.
-- **Status:** Pending
+- **Confidence:** High
+- **Obsolete evidence (before resolution):** `AGENTS.md`, `CLAUDE.md`, and
+  `docs/calculations.txt` showed signs opposite to the deliberate,
+  test-locked road-load-positive implementation.
+- **Resolution (2026-07-23):** Treated `core/split_calculations.py` as
+  canonical and corrected only conflicting guidance. Positive `Delta V` feeds
+  `f0 = a1*V2^2 - a2*V1^2` and `f2 = a2 - a1`; guidance now forbids sign
+  inversion and display-time `abs()`. No production formula or output changed.
+- **Full-flow evidence:** `split eliezer high.csv` and
+  `split eliezer low.csv` reproduce `F0 = 139.4112` and `F2 = 0.646178`.
+  Correction, comparison, Results consolidation, and workbook export preserve
+  positive coefficients.
+- **Validation:** 62 focused tests, 13 sample-data tests, and the 435-test full
+  suite passed. All 74 Python files compile, scoped Ruff and diff checks pass.
+- **Status:** Completed
 
 ### 20. Orphan translations and stale compatibility text removed
 

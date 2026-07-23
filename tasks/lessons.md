@@ -2978,3 +2978,21 @@ e documentos devem ser atualizados junto da remocao para nao manter ownership
 historico em tempo presente.
 
 ---
+
+## 2026-07-23 - Finding 19: O Codigo Define O Sinal Road-Load-Positive
+
+### Decisao:
+
+O calculo Split existente foi tratado como canonico. Com `Delta V` positivo,
+`f'0` usa `a1*V2² - a2*V1²` e `f'2` usa `a2 - a1`. Os arquivos Eliezer
+reproduzem `F0 = 139,4112` e `F2 = 0,646178`; correcao, comparacao, Resultados e
+exportacao preservam coeficientes positivos. Somente orientacao conflitante foi
+corrigida.
+
+### Licao:
+
+Convencao de sinal deve ser fixada no calculo, nao reparada com `abs()` na
+exibicao. Um caso real deve atravessar todas as superficies consumidoras para
+provar que nenhuma camada posterior reintroduz a ambiguidade.
+
+---

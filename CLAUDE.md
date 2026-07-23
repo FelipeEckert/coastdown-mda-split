@@ -131,10 +131,16 @@ F = Me × (ΔV / Δt)
 ### Coeficientes f'0 e f'2
 
 ```
-f'0 = Me / (V2² - V1²) × [(ΔV2/Δt2)×V1² − (ΔV1/Δt1)×V2²]
+f'0 = Me / (V2² - V1²) × [(ΔV1/Δt1)×V2² − (ΔV2/Δt2)×V1²]
 
-f'2 = Me / (V2² - V1²) × [(ΔV1/Δt1) − (ΔV2/Δt2)]
+f'2 = Me / (V2² - V1²) × [(ΔV2/Δt2) − (ΔV1/Δt1)]
 ```
+
+Como `ΔV` é armazenado como amplitude positiva, estas são as formas canônicas
+road-load-positive usadas pelo código. Não inverter o sinal nem aplicar `abs()`
+na exibição. O caso de referência (`Me = 1545 kg`, `Δt1 = 19,58 s`,
+`Δt2 = 18,72 s`) retorna `f'0 = 139,4112 N` e
+`f'2 = 0,646178 N/(m/s)²`.
 
 Onde:
 - `V1`, `V2` = velocidades de referência (baixa e alta), em m/s
