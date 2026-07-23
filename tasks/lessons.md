@@ -2881,3 +2881,36 @@ pagina, aceitar apenas formas historicas comprovadas e nunca dirigir a rota
 canonica.
 
 ---
+
+## 2026-07-23 - Pagina Oculta Ainda E Rota, Mas Nao E Workflow
+
+### Decisao:
+
+O inventario do finding 18 separa tres conceitos que antes estavam misturados:
+roteamento interno de `app.py`, descoberta automatica do diretorio `pages/` e
+compatibilidade de snapshot. O app ativo renderiza somente Dados do Veiculo e
+as paginas Split. Mesmo com `showSidebarNavigation=false`, o Streamlit 1.57
+registra todos os arquivos `pages/*.py`, exceto `__init__.py`; como os scripts
+herdados apenas definem funcoes e nao chamam `render()`, suas URLs diretas sao
+paginas vazias.
+
+Snapshots antigos preservam campos Standard dentro do dicionario armazenado,
+mas o app nao restaura `calculated_pairs`, `individual_coeffs`,
+`algorithm_results`, `final_results`, `pares_finais_selecionados` nem as
+velocidades de referencia. A unica compatibilidade explicita e
+`_legacy_method_state.py`, que le `using_split_method`/`test_method` sem
+promove-los ao estado Split ativo. Por isso, paginas 5 e 6 podem ser removidas
+primeiro; paginas 1, 3 e 4 e o helper devem sair juntas quando seus testes de
+import direto forem aposentados.
+
+### Licao:
+
+Esconder a navegacao nao remove rotas, e preservar campos em um snapshot nao
+significa que um workflow antigo ainda possa ser reconstruido. Antes de apagar
+uma pagina herdada, verificar separadamente registro de URL, importadores,
+estado restaurado e testes diretos. Dependencias neutras compartilhadas devem
+ser decididas pelo grafo de chamadas atual: `carregar_dados_csv_robusto` e
+`calcular_energia` continuam sustentando o Split mesmo depois da remocao das
+paginas Standard.
+
+---
