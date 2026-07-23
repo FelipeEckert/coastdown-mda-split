@@ -707,15 +707,19 @@ equivalent behavioral coverage exists; 4 = consolidate duplicated coverage.
 - **Confidence:** High on internal routing/import/state/test ownership; Medium
   on external import or bookmarked-URL compatibility, which the repository
   cannot prove
-- **Current locations:** all 13 Python modules under `pages/`, especially
-  `_page_1_obsoleto.py`, `page_3_analise_pares.py`,
-  `page_4_selecao_algoritmo.py`, `page_5_comparativo.py`,
-  `page_6_resultados.py`, and `_legacy_method_state.py`.
+- **Current locations:** 11 Python modules remain under `pages/`. The inherited
+  surface is now `_page_1_obsoleto.py`, `page_3_analise_pares.py`,
+  `page_4_selecao_algoritmo.py`, and `_legacy_method_state.py`.
 - **Correction to the initial audit:** The earlier location list named
   `page_3_analise_individual.py`, `page_4_comparacao.py`,
   `page_5_resultados.py`, and `page_6_resultados_finais.py`; those files do not
-  exist in the current tree. The five current inherited page files total 4,922
-  lines; the compatibility helper adds 53 lines.
+  exist in the current tree. The first inventory found five inherited page
+  files totaling 4,922 lines plus the 53-line compatibility helper.
+- **Batch 1 result (2026-07-23):** Removed `page_5_comparativo.py` (544 lines)
+  and `page_6_resultados.py` (541 lines). Their only helper,
+  `utils/pair_time_analysis.py` (178 lines), had no package export, test,
+  dynamic import, or remaining code caller after those deletions and was
+  removed too. Batch 1 deleted 1,263 production lines and changed no tests.
 
 #### Route model
 
@@ -746,8 +750,6 @@ widget/tab/cache keys remain session-local unless noted.
 | `pages/page_2_dados_veiculo.py` | Actively routed | Main tab 1 in `app.render_test_analysis()` | Uses persisted `data_loaded`, `vehicle_info`, `total_mass`, vehicle widget values, and completion state. `app.load_test_state()` supplies canonical defaults and old vehicle-widget fallbacks. | `test_app_orchestration.py`, `test_split_tab_routing.py` |
 | `pages/page_3_analise_pares.py` | Legacy but directly loadable | Hidden Streamlit page path; not imported by `app.py` | Persisted inputs include run data, weather, mass, and sync mode. Its essential Standard outputs and controls (`calculated_pairs`, `individual_coeffs`, `current_pair_results`, `pairs_calculated`, and reference velocities) are not restored or persisted. Only the method branch can read old snapshots through the helper. | `test_app_orchestration.py` |
 | `pages/page_4_selecao_algoritmo.py` | Legacy but directly loadable | Hidden Streamlit page path; not imported by `app.py` | Some input frames/runs/weather/mass are persisted. Essential Standard state (`individual_coeffs`, `calculated_pairs`, `algorithm_results`, `pares_finais_selecionados`, `pairs_calculated`, and reference velocities) is not. Only the method branch has snapshot fallback. | `test_app_orchestration.py` |
-| `pages/page_5_comparativo.py` | Legacy but directly loadable; render body unreachable internally | Hidden Streamlit page path; no repository import | Requires unpersisted `calculated_pairs`, `algorithm_results`, `final_results`, `pares_finais_selecionados`, and `pairs_calculated`; only mass, vehicle data, run data, and `excel_buffer` overlap current snapshots. It has no old-snapshot adapter. | None |
-| `pages/page_6_resultados.py` | Legacy but directly loadable; render body unreachable internally | Hidden Streamlit page path; no repository import | Requires unpersisted `final_results`, `calculated_pairs`, and `pares_finais_selecionados`; `all_run_data` and `excel_buffer` alone cannot reconstruct the page. It has no old-snapshot adapter. | None |
 | `pages/page_split_auto_selection.py` | Actively routed nested page | Imported by `page_split_coefficient_calculation.py` for nested tab 3 | Uses persisted parsed runs, interval config, mass/vehicle/weather, comparison pairs, pending selection, replacement request/dialog state, and last result. Error and widget keys are transient. | `test_split_auto_selection_page.py`, `test_split_tab_routing.py` |
 | `pages/page_split_coefficient_calculation.py` | Actively routed | Main tab 3 in `app.render_test_analysis()`; imports Automatic Selection | Uses persisted parsed/input/ambient/mass/weather/result/comparison state. Tab, graph-selection, legacy-final marker, and some caches are transient compatibility/UI state. | `test_split_comparison.py`, `test_split_display.py`, `test_split_final_state_migration.py`, `test_split_tab_routing.py`, `test_weather_sync.py` |
 | `pages/page_split_final_comparison.py` | Actively routed | Main tab 4 in `app.render_test_analysis()` | `split_comparison_pairs` is persisted and canonical. Deviation cache, checkbox keys, and `navigate_to_results` are derived/transient. | `test_split_comparison.py`, `test_split_final_comparison_performance.py`, `test_split_final_comparison_visual.py`, `test_split_final_state_migration.py`, `test_split_tab_routing.py` |
@@ -757,13 +759,13 @@ widget/tab/cache keys remain session-local unless noted.
 No whole page module is both unimportable and unreachable because legacy
 pages-directory discovery still registers every module except `__init__.py`.
 Within repository-controlled navigation, however, the render bodies of pages
-1 and 3-6 are unreachable; pages 5 and 6 also have no direct importer or test.
+1, 3, and 4 are unreachable.
 No module has `test-only compatibility` as its sole classification: the legacy
 modules imported by tests are also registered as hidden direct pages.
 
 #### Shared-helper boundary
 
-- No active Split page imports any helper from inherited pages 1 or 3-6, and
+- No active Split page imports any helper from inherited pages 1, 3, or 4, and
   no active Split page imports `_legacy_method_state.py`.
 - `data.loaders.carregar_dados_csv_robusto` must remain: `app.py` and Split
   parser characterization tests still use it. Removing the obsolete page-1
@@ -774,10 +776,11 @@ modules imported by tests are also registered as hidden direct pages.
 - `core.corrections.py` is not used by active Split pages, but its public lazy
   package exports and compatibility tests remain. It is not part of a page-only
   deletion.
-- `data/exporters.py` is used by legacy page 6 and public package compatibility
-  tests, not by active Split results, which owns `data/split_exporters.py`.
-- `utils/pair_time_analysis.py` is imported only by legacy pages 5 and 6. It
-  becomes an immediate dead-code candidate after those two pages are removed.
+- `data/exporters.py` remains behind public lazy package exports and package
+  compatibility tests. Active Split results owns `data/split_exporters.py`;
+  Batch 1 did not change either exporter.
+- `utils/pair_time_analysis.py` was removed after pages 5 and 6 because the
+  final repository-wide caller check found no remaining code caller.
 - `find_closest_weather_record`, `read_weather_station_csv`, and the inherited
   Standard calculation adapters need a separate caller/public-export audit
   after the page deletion; they are not required by active Split pages as page
@@ -793,13 +796,11 @@ modules imported by tests are also registered as hidden direct pages.
 
 #### Safest cleanup plan
 
-1. **Batch 1 — removable now:** Delete `page_5_comparativo.py` and
-   `page_6_resultados.py`. They have no repository importer, no direct test, no
-   active Split dependency, no viable snapshot reconstruction, and their
-   direct pages are blank. In the same batch, remove
-   `utils/pair_time_analysis.py` only after one final repository-wide caller
-   check. Keep `data/exporters.py` because its public compatibility exports are
-   independently tested.
+1. **Batch 1 — completed 2026-07-23:** Deleted `page_5_comparativo.py`,
+   `page_6_resultados.py`, and conclusively unreferenced
+   `utils/pair_time_analysis.py`. No test referenced any target, so no test
+   edit was necessary. `data/exporters.py` remains unchanged because its public
+   compatibility exports are independently tested.
 2. **Batch 2 — retire explicit legacy-page compatibility:** Delete
    `_page_1_obsoleto.py`, `page_3_analise_pares.py`,
    `page_4_selecao_algoritmo.py`, and `_legacy_method_state.py` together.
@@ -816,23 +817,26 @@ modules imported by tests are also registered as hidden direct pages.
 **Must remain for compatibility now:** all five `page_split_*` modules,
 `page_2_dados_veiculo.py`, and `pages/__init__.py`; pages 1, 3, 4, and
 `_legacy_method_state.py` until Batch 2 deliberately retires their direct
-compatibility tests. **Can be removed now, assuming undocumented external
-imports and blank bookmarks are not supported:** pages 5 and 6, followed by
-their now-unreferenced time-analysis helper.
+compatibility tests. Batch 1 removed only the already confirmed targets.
 
-- **Validation result (2026-07-23):** Direct `AppTest.from_file()` execution of
-  all 13 page modules completed with zero Streamlit exceptions and zero
-  titles/headers, confirming importable blank scripts. Existing orchestration
-  AppTests cover canonical tab routing, incomplete/legacy snapshots, and
-  results navigation. The 28 focused orchestration, routing, and package-import
-  tests pass; focused routing tests cover every active main and nested
-  renderer, and all page modules compile. The Windows test process emitted a
-  post-success temporary-directory permission warning without changing the
-  zero exit status. No production code was changed during this inventory.
+- **Inventory validation (2026-07-23):** Before Batch 1, direct
+  `AppTest.from_file()` execution of all 13 page modules completed with zero
+  Streamlit exceptions and zero titles/headers, confirming importable blank
+  scripts.
+- **Batch 1 validation (2026-07-23):** Direct AppTests load all 11 remaining
+  page modules without exceptions. The 28 focused orchestration, routing, and
+  package-import tests and the 443-test full suite pass. All 81 remaining
+  Python files compile, and scoped Ruff over active routing, tests, and
+  remaining utilities passes. Repository-wide Ruff reports 22 pre-existing
+  findings only in explicitly untouched calculations, Standard exports,
+  loader code, and retained legacy pages 1, 3, and 4. Focused AppTest processes
+  emitted post-success Windows temporary-directory permission warnings without
+  changing their zero exit status.
 - **Remaining validation before Batch 2:** Confirm whether external consumers
   import the legacy render functions or rely on the blank page paths. No
   repository evidence of either use exists.
-- **Status:** In Progress — inventory complete; cleanup not started
+- **Status:** In Progress — inventory and Batch 1 complete; Batches 2 and 3
+  remain explicitly out of scope
 
 ### 19. Split coefficient sign convention conflicts across repository guidance
 

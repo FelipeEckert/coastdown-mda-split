@@ -1346,9 +1346,9 @@ a nova pagina deve possuir seu proprio estado, helpers e contratos metodologicos
 ## 2026-06-10 - Split: Resultados Reutilizam Hierarquia Visual, Nao O Resumo Standard
 
 ### Decisao:
-A pagina `page_6_resultados.py` serve apenas como referencia para a hierarquia de
+A pagina `page_6_resultados.py` serviu apenas como referencia para a hierarquia de
 apresentacao: metricas principais, informacoes do veiculo, tabela final, validacao,
-detalhes e area de exportacao.
+detalhes e area de exportacao. Ela foi removida no finding 18 Batch 1.
 
 O consolidado Split e calculado por helpers puros em `core/split_results.py` a
 partir de `split_comparison_pairs` marcados com `selected=True`. As chaves canonicas
@@ -2902,6 +2902,13 @@ velocidades de referencia. A unica compatibilidade explicita e
 promove-los ao estado Split ativo. Por isso, paginas 5 e 6 podem ser removidas
 primeiro; paginas 1, 3 e 4 e o helper devem sair juntas quando seus testes de
 import direto forem aposentados.
+
+O primeiro lote removeu somente `page_5_comparativo.py`,
+`page_6_resultados.py` e `utils/pair_time_analysis.py`. A busca final confirmou
+que o helper de tempos nao era exportado pelo pacote, importado por testes nem
+referenciado fora das duas paginas removidas. Nenhum teste precisou ser alterado;
+paginas 1, 3 e 4, `_legacy_method_state.py`, rotas Split, calculos e exportadores
+permaneceram intactos.
 
 ### Licao:
 

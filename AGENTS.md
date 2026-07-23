@@ -48,8 +48,9 @@ Split-specific areas must remain owned and validated by Split modules:
   Split workbook; `data/weather_loader.py` owns weather-file loading.
 - `core/split_*.py` modules own Split calculations, correction, validation,
   automatic selection, state, comparison, and results.
-- Inherited pages 3-6 and `data/exporters.py` are legacy Standard surfaces, not
-  active Split owners. Preserve compatibility until their separate audit is done.
+- Inherited pages 3-4 and `data/exporters.py` are legacy Standard surfaces, not
+  active Split owners. Pages 5-6 were removed in finding 18 Batch 1. Preserve
+  remaining compatibility until its separate audit is done.
 
 ---
 
