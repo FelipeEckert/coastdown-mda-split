@@ -3016,3 +3016,21 @@ Um fallback raro e mais seguro do que restringir formatos aceitos para forcar
 todo lote pelo caminho rapido.
 
 ---
+
+## 2026-07-23 - Ranking Target Copia Apenas a Fronteira Mutada
+
+### Decisao:
+
+`rank_candidates_by_target()` cria uma copia rasa do candidato antes de
+acrescentar os tres campos escalares de score. Os dados aninhados permanecem
+compartilhados e somente para leitura; a regressao fixa o ranking completo,
+a imutabilidade da entrada e a preservacao dessas referencias.
+
+### Licao:
+
+Quando uma transformacao acrescenta apenas campos no primeiro nivel, `dict.copy()`
+preserva o isolamento necessario sem percorrer novamente todo o grafo aninhado.
+O contrato deve ser protegido pela igualdade da saida e pela imutabilidade da
+entrada, nao pela profundidade da copia.
+
+---

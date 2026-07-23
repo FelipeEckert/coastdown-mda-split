@@ -1,6 +1,7 @@
 # coding: utf-8
 """Tests for pure Split automatic selection ranking helpers."""
 
+from copy import deepcopy
 import math
 import unittest
 from unittest.mock import patch
@@ -405,6 +406,50 @@ class SplitSelectionAlgorithmsTest(unittest.TestCase):
 
         self.assertAlmostEqual(ranked[0]["target_error_f0_pct"], 10.0)
         self.assertAlmostEqual(ranked[0]["target_error_f2_pct"], 10.0)
+
+    def test_target_ranking_preserves_results_and_input_candidates(self):
+        usage_a = (_usage("high", "+", 1, "a.csv", "high", "ha"),)
+        usage_b = (_usage("high", "+", 2, "b.csv", "high", "hb"),)
+        candidates = [
+            _candidate("far", f0=120.0, f2=0.006),
+            _candidate("b", f0=101.0, f2=0.0041, run_usage=usage_b),
+            _candidate("a", f0=101.0, f2=0.0041, run_usage=usage_a),
+        ]
+        original = deepcopy(candidates)
+
+        ranked = rank_candidates_by_target(candidates, 100.0, 0.004)
+
+        expected = {candidate["id"]: candidate for candidate in deepcopy(original)}
+        for expected_candidate in expected.values():
+            error_f0 = abs(expected_candidate["F0_mean"] - 100.0) / 100.0
+            error_f2 = abs(expected_candidate["F2_mean"] - 0.004) / 0.004
+            expected_candidate.update({
+                "target_score": math.hypot(error_f0, error_f2),
+                "target_error_f0_pct": error_f0 * 100.0,
+                "target_error_f2_pct": error_f2 * 100.0,
+            })
+
+        self.assertEqual(ranked, [expected["a"], expected["b"], expected["far"]])
+        self.assertEqual(candidates, original)
+        self.assertTrue(all(
+            ranked_candidate is not input_candidate
+            for ranked_candidate in ranked
+            for input_candidate in candidates
+        ))
+
+    def test_target_ranking_does_not_copy_or_mutate_nested_data(self):
+        nested = {
+            "subintervals": ["90-85", "85-80"],
+            "traceability": {"source_columns": ["time_90_85", "time_85_80"]},
+        }
+        candidate = _candidate("candidate", f0=101.0, f2=0.0041)
+        candidate["high_plus"] = nested
+        original_nested = deepcopy(nested)
+
+        ranked = rank_candidates_by_target([candidate], 100.0, 0.004)
+
+        self.assertIs(ranked[0]["high_plus"], nested)
+        self.assertEqual(nested, original_nested)
 
     def test_target_ranking_rejects_zero_target(self):
         with self.assertRaises(ValueError):

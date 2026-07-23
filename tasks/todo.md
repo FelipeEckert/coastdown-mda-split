@@ -323,6 +323,7 @@
 - [x] Keep workbook units in headers and quantitative cells numeric.
 - [x] Add behavioral tests for lazy rendering, cache reuse/invalidation, on-demand export and unit formatting.
 - [x] Vectorize weather timestamp parsing while preserving scalar parsing rules and exact Split fixture records.
+- [x] Replace per-candidate Target-ranking deep copies with top-level copies while preserving ranking and input immutability.
 - [ ] Complete real-browser performance comparison and visual/export validation.
 
 ## Round 10A - Final Comparison deviation analysis

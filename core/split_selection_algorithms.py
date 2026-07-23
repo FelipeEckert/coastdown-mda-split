@@ -107,7 +107,7 @@ def rank_candidates_by_target(
             continue
         error_f0 = abs(f0 - target_f0_value) / abs(target_f0_value)
         error_f2 = abs(f2 - target_f2_value) / abs(target_f2_value)
-        item = deepcopy(candidate)
+        item = candidate.copy()
         item["target_score"] = math.hypot(error_f0, error_f2)
         item["target_error_f0_pct"] = error_f0 * 100.0
         item["target_error_f2_pct"] = error_f2 * 100.0
