@@ -280,6 +280,56 @@ def _parse_datetime(value) -> tuple[object | None, list[str]]:
     return parsed.to_pydatetime(), warnings
 
 
+def _parse_datetime_series(values) -> list[tuple[object | None, list[str]]]:
+    """Parse weather timestamps in ISO/day-first batches with scalar fallback."""
+    source = list(values)
+    if int(pd.__version__.split(".", 1)[0]) < 2:
+        return [_parse_datetime(value) for value in source]
+
+    parsed_values = [(None, []) for _ in source]
+    groups = {True: [], False: []}
+    for index, value in enumerate(source):
+        if value is None or pd.isna(value):
+            continue
+        if isinstance(value, pd.Timestamp):
+            parsed_values[index] = (value.to_pydatetime(), [])
+            continue
+
+        text = str(value).strip()
+        if not text:
+            continue
+        warnings = []
+        if _date_is_ambiguous(text):
+            warnings.append(
+                f"Ambiguous date '{text}' was interpreted using day-first order."
+            )
+        parsed_values[index] = (None, warnings)
+        iso_order = bool(re.match(r"^\d{4}-\d{1,2}-\d{1,2}", text))
+        groups[iso_order].append((index, text))
+
+    for iso_order, items in groups.items():
+        if not items:
+            continue
+        indexes, texts = zip(*items)
+        try:
+            parsed = pd.to_datetime(
+                pd.Series(texts, index=indexes),
+                errors="coerce",
+                dayfirst=not iso_order,
+                format="mixed",
+            )
+        except (TypeError, ValueError):
+            for index, text in items:
+                parsed_values[index] = _parse_datetime(text)
+            continue
+        for index, value in parsed.items():
+            parsed_values[index] = (
+                None if pd.isna(value) else value.to_pydatetime(),
+                parsed_values[index][1],
+            )
+    return parsed_values
+
+
 def _normalize_weather_frame(frame: pd.DataFrame) -> list[dict]:
     frame, declared_units = _unit_row(frame)
     columns = {_normalize_column_name(column): column for column in frame.columns}
@@ -300,14 +350,23 @@ def _normalize_weather_frame(frame: pd.DataFrame) -> list[dict]:
     if not datetime_column and not (date_column and time_column):
         raise ValueError("Weather file must contain datetime or separate date/time columns.")
 
+    raw_datetimes = (
+        frame[datetime_column].tolist()
+        if datetime_column
+        else [
+            f"{date_value} {time_value}"
+            for date_value, time_value in zip(
+                frame[date_column],
+                frame[time_column],
+            )
+        ]
+    )
+    parsed_datetimes = _parse_datetime_series(raw_datetimes)
     records = []
-    for row_index, row in frame.iterrows():
-        raw_datetime = (
-            row.get(datetime_column)
-            if datetime_column
-            else f"{row.get(date_column, '')} {row.get(time_column, '')}"
-        )
-        timestamp, warnings = _parse_datetime(raw_datetime)
+    for (row_index, row), (timestamp, warnings) in zip(
+        frame.iterrows(),
+        parsed_datetimes,
+    ):
         temperature = _numeric(row.get(temperature_column))
         pressure = _numeric(row.get(pressure_column))
         if timestamp is None or temperature is None or pressure is None:

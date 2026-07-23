@@ -322,6 +322,7 @@
 - [x] Remove repeated units from Split Results metric and table values.
 - [x] Keep workbook units in headers and quantitative cells numeric.
 - [x] Add behavioral tests for lazy rendering, cache reuse/invalidation, on-demand export and unit formatting.
+- [x] Vectorize weather timestamp parsing while preserving scalar parsing rules and exact Split fixture records.
 - [ ] Complete real-browser performance comparison and visual/export validation.
 
 ## Round 10A - Final Comparison deviation analysis

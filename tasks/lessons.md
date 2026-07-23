@@ -2996,3 +2996,23 @@ exibicao. Um caso real deve atravessar todas as superficies consumidoras para
 provar que nenhuma camada posterior reintroduz a ambiguidade.
 
 ---
+
+## 2026-07-23 - Parsing Vetorizado Preserva Um Oraculo Escalar
+
+### Decisao:
+
+O carregador meteorologico agrupa timestamps ISO e day-first e executa uma
+conversao Pandas por grupo. `_parse_datetime()` permanece inalterado como
+contrato escalar e fallback para Pandas anterior a 2 ou lotes incompativeis,
+como fusos mistos. A regressao compara todos os registros do arquivo Split
+representativo com o caminho escalar e cobre formatos, invalidos, avisos de
+ambiguidade, ordenacao e duplicatas com casos pequenos.
+
+### Licao:
+
+Ao vetorizar um parser flexivel, mantenha a semantica escalar como fronteira de
+compatibilidade e compare o registro completo, nao apenas o campo otimizado.
+Um fallback raro e mais seguro do que restringir formatos aceitos para forcar
+todo lote pelo caminho rapido.
+
+---
