@@ -1344,10 +1344,19 @@ def render(t) -> None:
     ):
         progress = st.progress(0.0)
         phase_placeholder = st.empty()
+        last_progress_percent = 0
+
+        def update_progress(value):
+            nonlocal last_progress_percent
+            progress_value = min(max(float(value), 0.0), 1.0)
+            progress_percent = int(progress_value * 100)
+            if progress_percent != last_progress_percent:
+                progress.progress(progress_value)
+                last_progress_percent = progress_percent
 
         def progress_callback(value):
             generation_progress = min(max(float(value), 0.0), 1.0)
-            progress.progress(0.05 + generation_progress * 0.50)
+            update_progress(0.05 + generation_progress * 0.50)
 
         def phase_callback(phase):
             phase_config = {
@@ -1360,7 +1369,7 @@ def render(t) -> None:
                 phase,
                 (0.0, "split_auto_running"),
             )
-            progress.progress(progress_value)
+            update_progress(progress_value)
             phase_placeholder.caption(t(label_key))
 
         try:
@@ -1391,7 +1400,7 @@ def render(t) -> None:
             progress.empty()
             st.error(str(exc))
         else:
-            progress.progress(1.0)
+            update_progress(1.0)
             selection_metadata = metadata.get("selection") or {}
             if (
                 selection_metadata.get("timeout_reached")

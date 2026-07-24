@@ -3051,3 +3051,19 @@ empates sem `sorted()`, basta manter o menor e o segundo menor valor: o segundo
 define se existe outra distancia dentro da tolerancia do minimo final.
 
 ---
+
+## 2026-07-24 - Progresso Automatico Muda Apenas com o Percentual Visivel
+
+### Decisao:
+
+A geracao exata chama o callback somente quando muda o percentual inteiro de
+tentativas. A pagina aplica a mesma regra depois de mapear a geracao para sua
+faixa visual de 5% a 55%, e as fases seguintes usam a mesma fronteira.
+
+### Licao:
+
+Progresso e observabilidade, nao parte do calculo. Limitar atualizacoes pela
+unidade realmente exibida preserva ordem, candidatos e conclusao em 100% sem
+repetir milhares de operacoes de UI indistinguiveis.
+
+---

@@ -253,6 +253,7 @@ def generate_full_split_candidates_exact(
             return [], metadata
 
     candidates = []
+    last_progress_percent = None
     for run_group in iter_full_candidate_run_groups(grouped):
         metadata["attempted_count"] += 1
         try:
@@ -277,6 +278,10 @@ def generate_full_split_candidates_exact(
                     "the builder did not return a mapping."
                 )
         if progress_callback:
-            progress_callback(metadata["attempted_count"] / estimated_total)
+            progress_value = metadata["attempted_count"] / estimated_total
+            progress_percent = int(progress_value * 100)
+            if progress_percent != last_progress_percent:
+                progress_callback(progress_value)
+                last_progress_percent = progress_percent
 
     return candidates, metadata

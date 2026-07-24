@@ -188,6 +188,44 @@ class SplitCandidateGenerationTest(unittest.TestCase):
 
         self.assertEqual(progress, [1.0])
 
+    def test_large_generation_preserves_candidates_and_throttles_progress(self):
+        parsed = {
+            "high": (
+                [_run("high", "+", index) for index in range(10)]
+                + [_run("high", "-", 100 + index) for index in range(10)]
+            ),
+            "low": (
+                [_run("low", "+", 200 + index) for index in range(10)]
+                + [_run("low", "-", 300 + index) for index in range(10)]
+            ),
+        }
+        vehicle_data = {"effective_mass": 1.0}
+        grouped = split_runs_by_role_and_heading(parsed)
+        expected = [
+            _fake_builder(
+                **run_group,
+                vehicle_data=vehicle_data,
+            )
+            for run_group in iter_full_candidate_run_groups(grouped)
+        ]
+        progress = []
+
+        candidates, metadata = generate_full_split_candidates_exact(
+            parsed,
+            vehicle_data=vehicle_data,
+            candidate_builder=_fake_builder,
+            progress_callback=progress.append,
+            use_mad_prefilter=False,
+        )
+
+        self.assertEqual(candidates, expected)
+        self.assertEqual(metadata["generated_count"], 10_000)
+        self.assertTrue(
+            all(first < second for first, second in zip(progress, progress[1:]))
+        )
+        self.assertEqual(progress[-1], 1.0)
+        self.assertLessEqual(len(progress), 101)
+
     def test_metadata_contains_expected_counters(self):
         _, metadata = generate_full_split_candidates_exact(
             _parsed(),

@@ -125,7 +125,8 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
 
         def run_selection(*_args, **kwargs):
             kwargs["phase_callback"]("generating")
-            kwargs["progress_callback"](1.0)
+            for attempted in range(1, 10_001):
+                kwargs["progress_callback"](attempted / 10_000)
             kwargs["phase_callback"]("ranking")
             kwargs["phase_callback"]("searching")
             kwargs["phase_callback"]("finalizing")
@@ -244,6 +245,13 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
         progress_values = [call.args[0] for call in progress.progress.call_args_list]
         self.assertEqual(progress_values[-1], 1.0)
         self.assertTrue(all(value < 1.0 for value in progress_values[:-1]))
+        self.assertTrue(
+            all(
+                first < second
+                for first, second in zip(progress_values, progress_values[1:])
+            )
+        )
+        self.assertLessEqual(len(progress_values), 101)
         phase_labels = [
             call.args[0] for call in phase_placeholder.caption.call_args_list
         ]
