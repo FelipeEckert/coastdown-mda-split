@@ -843,8 +843,20 @@ TRANSLATIONS = {
         "en": "⚠️ No approved combination was found within the configured search limits for the time criteria."
     },
     "split_auto_use_fallback": {
-        "pt": "Preencher sugestões mesmo assim",
-        "en": "Fill suggestions anyway"
+        "pt": "Usar melhor conjunto disponível",
+        "en": "Use best available set"
+    },
+    "split_auto_cancel_fallback": {
+        "pt": "Cancelar",
+        "en": "Cancel"
+    },
+    "split_auto_fallback_nonconforming": {
+        "pt": "O melhor conjunto disponível não atende a todos os critérios normativos. Revise cada par e os diagnósticos antes de confirmar.",
+        "en": "The best available set is nonconforming. Review every pair and its diagnostics before confirming."
+    },
+    "split_auto_best_available_set": {
+        "pt": "Melhor conjunto disponível",
+        "en": "Best available set"
     },
     "split_auto_constraint_diagnostic": {
         "pt": "Diagnóstico do melhor conjunto encontrado",
@@ -886,6 +898,14 @@ TRANSLATIONS = {
     "split_auto_time_value": {
         "pt": "Valor [%]",
         "en": "Value [%]"
+    },
+    "split_auto_time_limit": {
+        "pt": "Limite permitido [%]",
+        "en": "Allowed limit [%]"
+    },
+    "split_auto_time_status": {
+        "pt": "Status",
+        "en": "Status"
     },
     "split_auto_high_direction_difference": {
         "pt": "Diferen\u00e7a high ida/volta",

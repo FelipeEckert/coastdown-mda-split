@@ -636,13 +636,15 @@ def _render_constraint_validation(
         return
     groups = validation.get("time_group_results") or {}
     opposite = validation.get("opposite_time_results") or {}
+    time_cv_limit = validation.get("time_cv_limit_pct", 2.5)
+    opposite_limit = validation.get("opposite_time_limit_pct", 10.0)
     rows = [
-        ("split_auto_constraint_cv_high_plus", (groups.get("high_plus") or {}).get("cv_pct")),
-        ("split_auto_constraint_cv_high_minus", (groups.get("high_minus") or {}).get("cv_pct")),
-        ("split_auto_constraint_cv_low_plus", (groups.get("low_plus") or {}).get("cv_pct")),
-        ("split_auto_constraint_cv_low_minus", (groups.get("low_minus") or {}).get("cv_pct")),
-        ("split_auto_constraint_diff_high", (opposite.get("high") or {}).get("diff_pct")),
-        ("split_auto_constraint_diff_low", (opposite.get("low") or {}).get("diff_pct")),
+        ("split_auto_constraint_cv_high_plus", groups.get("high_plus") or {}, time_cv_limit),
+        ("split_auto_constraint_cv_high_minus", groups.get("high_minus") or {}, time_cv_limit),
+        ("split_auto_constraint_cv_low_plus", groups.get("low_plus") or {}, time_cv_limit),
+        ("split_auto_constraint_cv_low_minus", groups.get("low_minus") or {}, time_cv_limit),
+        ("split_auto_constraint_diff_high", opposite.get("high") or {}, opposite_limit),
+        ("split_auto_constraint_diff_low", opposite.get("low") or {}, opposite_limit),
     ]
     with st.expander(t("split_auto_constraint_diagnostic"), expanded=expanded):
         st.dataframe(
@@ -650,9 +652,16 @@ def _render_constraint_validation(
                 [
                     {
                         t("split_auto_time_check"): t(label_key),
-                        t("split_auto_time_value"): _format_number(value),
+                        t("split_auto_time_value"): _format_number(
+                            result.get("cv_pct", result.get("diff_pct"))
+                        ),
+                        t("split_auto_time_limit"): _format_number(limit),
+                        t("split_auto_time_status"): _constraint_status_label(
+                            result.get("passed"),
+                            t,
+                        ),
                     }
-                    for label_key, value in rows
+                    for label_key, result, limit in rows
                 ]
             ),
             width="stretch",
@@ -1074,6 +1083,7 @@ def _render_execution_result(pending: dict, t) -> None:
 
 def _render_fallback_offer(offer: dict, t) -> None:
     st.warning(t("split_auto_constraints_no_valid_set"))
+    st.error(t("split_auto_fallback_nonconforming"))
     _render_selection_diagnostics(offer.get("metadata"), t)
     _render_constraint_validation(
         offer.get("constraint_validation"),
@@ -1084,14 +1094,40 @@ def _render_fallback_offer(offer: dict, t) -> None:
     if warnings:
         with st.expander(t("split_auto_constraint_warnings"), expanded=False):
             st.warning("\n".join(str(item) for item in warnings))
-    if offer.get("candidates") and st.button(
+    candidates = list(offer.get("candidates") or [])
+    algorithm = (
+        (offer.get("metadata") or {}).get("algorithm")
+        or offer.get("algorithm")
+        or "energy"
+    )
+    if candidates:
+        st.subheader(t("split_auto_best_available_set"))
+        for candidate in candidates:
+            with st.container(border=True):
+                st.markdown(f"### {format_split_pair_label(candidate)}")
+                _render_weather_candidate_summary(candidate, t)
+                st.dataframe(
+                    _candidate_table(candidate, algorithm, t),
+                    width="stretch",
+                    hide_index=True,
+                )
+    use_column, cancel_column = st.columns([0.72, 0.28])
+    if use_column.button(
         t("split_auto_use_fallback"),
         type="primary",
         width="stretch",
         key="split_auto_use_fallback",
+        disabled=not candidates,
     ):
         _store_pending_selection(_pending_from_fallback_offer(offer))
         _clear_replace_request()
+        st.rerun()
+    if cancel_column.button(
+        t("split_auto_cancel_fallback"),
+        width="stretch",
+        key="split_auto_cancel_fallback",
+    ):
+        _clear_pending_suggestions()
         st.rerun()
 
 

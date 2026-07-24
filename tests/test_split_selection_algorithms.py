@@ -6,6 +6,7 @@ import math
 import unittest
 from unittest.mock import patch
 
+from core.split_candidate_set_validation import validate_split_candidate_set
 from core.split_selection_algorithms import (
     mark_algorithm_source,
     rank_candidates_by_energy,
@@ -310,6 +311,39 @@ class SplitSelectionAlgorithmsTest(unittest.TestCase):
         )
         self.assertEqual(metadata["best_failed_score"], 1)
         self.assertTrue(metadata["best_failed_validation"]["failed_checks"])
+
+    def test_v2_fallback_and_diagnostics_use_the_same_best_failed_set(self):
+        shared_b = _usage("high", "+", 1, "h.csv", "high", "hash-b")
+        shared_c = _usage("high", "+", 2, "h.csv", "high", "hash-c")
+        shared_d = _usage("high", "+", 3, "h.csv", "high", "hash-d")
+        ranked = [
+            _constrained_candidate(
+                "a",
+                high_minus=40.0,
+                run_usage=(shared_b, shared_c, shared_d),
+            ),
+            _constrained_candidate("b", high_minus=25.0, run_usage=(shared_b,)),
+            _constrained_candidate("c", high_minus=25.1, run_usage=(shared_c,)),
+            _constrained_candidate("d", high_minus=35.0, run_usage=(shared_d,)),
+            _constrained_candidate("e", high_minus=39.0),
+        ]
+
+        selected, metadata = select_top_k_candidates_with_constraints_v2(
+            ranked,
+            2,
+        )
+
+        fallback = metadata["fallback_candidates"]
+        self.assertEqual(selected, [])
+        self.assertEqual([item["id"] for item in fallback], ["b", "c"])
+        self.assertEqual(
+            metadata["best_failed_validation"],
+            validate_split_candidate_set(fallback),
+        )
+        self.assertNotEqual(
+            metadata["best_failed_validation"],
+            validate_split_candidate_set([ranked[0], ranked[4]]),
+        )
 
     def test_constrained_selector_respects_max_set_evaluations(self):
         ranked = [

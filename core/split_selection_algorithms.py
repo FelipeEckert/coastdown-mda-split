@@ -617,8 +617,15 @@ def select_top_k_candidates_with_constraints_v2(
         )
         return best_valid, metadata
 
-    if len(fallback_candidates) < requested_k and best_failed_candidates is not None:
+    if best_failed_candidates is not None:
         fallback_candidates = best_failed_candidates
+    elif fallback_candidates:
+        best_failed_validation = validate_split_candidate_set(
+            fallback_candidates,
+            coefficient_cv_limit_pct=coefficient_cv_limit_pct,
+            time_cv_limit_pct=time_cv_limit_pct,
+            opposite_time_limit_pct=opposite_time_limit_pct,
+        )
     metadata["fallback_candidates"] = list(fallback_candidates)
     metadata["best_failed_validation"] = best_failed_validation
     if fallback_candidates:

@@ -3102,3 +3102,20 @@ cada lado na sua cardinalidade real e monte o produto apenas depois. Preserve o
 caminho escalar como oraculo para formulas, ordem, IDs e campos aninhados.
 
 ---
+
+## 2026-07-24 - Fallback e Diagnostico Devem Ter a Mesma Identidade
+
+### Decisao:
+
+Quando a busca nao encontra conjunto conforme, o fallback passa a ser o melhor
+conjunto completo reprovado que foi realmente avaliado. A propria validacao
+desse conjunto segue ate a UI, que mostra todos os pares, valor medido, limite
+e status de cada criterio antes das acoes explicitas de usar ou cancelar.
+
+### Licao:
+
+Um diagnostico so e rastreavel quando descreve exatamente o objeto oferecido ao
+usuario. Nao combine candidatos de um fallback guloso com metricas de outro
+conjunto avaliado, mesmo que ambos falhem os mesmos criterios.
+
+---

@@ -127,6 +127,8 @@ def validate_split_candidate_set(
         "coefficient_diagnostic_only": True,
         "coefficient_warnings": list(dict.fromkeys(coefficient_warnings)),
         "time_status": time_status,
+        "time_cv_limit_pct": time_cv_limit_pct,
+        "opposite_time_limit_pct": opposite_time_limit_pct,
         "cv_f0_pct": cv_f0_pct,
         "cv_f2_pct": cv_f2_pct,
         "time_group_results": time_validation["groups"],

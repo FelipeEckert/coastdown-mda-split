@@ -385,6 +385,129 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
             "constraint_first_v2",
         )
 
+    def test_fallback_renders_exact_pairs_diagnostics_and_explicit_actions(self):
+        fallback = [
+            {
+                **self._norm_candidate("a", high_minus=30.0),
+                "high_plus_run": 1,
+                "low_plus_run": 2,
+                "high_minus_run": 3,
+                "low_minus_run": 4,
+            },
+            {
+                **self._norm_candidate("b", high_minus=30.1),
+                "high_plus_run": 5,
+                "low_plus_run": 6,
+                "high_minus_run": 7,
+                "low_minus_run": 8,
+            },
+        ]
+        from core.split_candidate_set_validation import validate_split_candidate_set
+        validation = validate_split_candidate_set(fallback)
+        metadata = self._selection_metadata(
+            satisfied=False,
+            validation=validation,
+            fallback=fallback,
+        )
+        _, offer = _build_selection_state(
+            algorithm="energy", candidates=[], ranked_pool=[],
+            metadata=metadata, avoid_repeated_runs=True,
+            target_f0=None, target_f2=None, ambient_mode="fixed",
+            weather_metadata=None,
+        )
+        use_column = Mock()
+        cancel_column = Mock()
+        use_column.button.return_value = False
+        cancel_column.button.return_value = False
+
+        with (
+            patch("pages.page_split_auto_selection.st") as streamlit,
+            patch(
+                "pages.page_split_auto_selection._render_selection_diagnostics"
+            ),
+            patch(
+                "pages.page_split_auto_selection._render_weather_candidate_summary"
+            ),
+            patch(
+                "pages.page_split_auto_selection._candidate_table",
+                side_effect=[Mock(), Mock()],
+            ) as candidate_table,
+            patch(
+                "pages.page_split_auto_selection._store_pending_selection"
+            ) as store_pending,
+        ):
+            streamlit.expander.return_value = nullcontext()
+            streamlit.container.return_value = nullcontext()
+            streamlit.columns.return_value = [use_column, cancel_column]
+
+            _render_fallback_offer(offer, self.t)
+
+        self.assertEqual(
+            [call.args[0] for call in candidate_table.call_args_list],
+            fallback,
+        )
+        diagnostic = streamlit.dataframe.call_args_list[0].args[0]
+        failed_rows = diagnostic[
+            diagnostic[self.t("split_auto_time_status")]
+            == self.t("split_auto_constraints_status_failed")
+        ]
+        self.assertEqual(
+            failed_rows[self.t("split_auto_time_check")].tolist(),
+            [self.t("split_auto_constraint_diff_high")],
+        )
+        self.assertEqual(
+            failed_rows[self.t("split_auto_time_value")].tolist(),
+            ["40.16"],
+        )
+        self.assertEqual(
+            failed_rows[self.t("split_auto_time_limit")].tolist(),
+            ["10.00"],
+        )
+        streamlit.error.assert_called_once_with(
+            self.t("split_auto_fallback_nonconforming")
+        )
+        use_column.button.assert_called_once_with(
+            self.t("split_auto_use_fallback"),
+            type="primary",
+            width="stretch",
+            key="split_auto_use_fallback",
+            disabled=False,
+        )
+        cancel_column.button.assert_called_once_with(
+            self.t("split_auto_cancel_fallback"),
+            width="stretch",
+            key="split_auto_cancel_fallback",
+        )
+        store_pending.assert_not_called()
+
+    def test_fallback_cancel_clears_offer_without_selecting_it(self):
+        use_column = Mock()
+        cancel_column = Mock()
+        use_column.button.return_value = False
+        cancel_column.button.return_value = True
+        with (
+            patch("pages.page_split_auto_selection.st") as streamlit,
+            patch(
+                "pages.page_split_auto_selection._render_selection_diagnostics"
+            ),
+            patch(
+                "pages.page_split_auto_selection._render_constraint_validation"
+            ),
+            patch(
+                "pages.page_split_auto_selection._clear_pending_suggestions"
+            ) as clear_offer,
+            patch(
+                "pages.page_split_auto_selection._store_pending_selection"
+            ) as store_pending,
+        ):
+            streamlit.columns.return_value = [use_column, cancel_column]
+
+            _render_fallback_offer({"candidates": []}, self.t)
+
+        clear_offer.assert_called_once_with()
+        store_pending.assert_not_called()
+        streamlit.rerun.assert_called_once_with()
+
     def test_confirmed_fallback_becomes_pending_and_warns_cards(self):
         offer = {
             "candidates": [self._norm_candidate("a")],
@@ -454,14 +577,14 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
             "cv_f0_pct": 97.0,
             "cv_f2_pct": 98.0,
             "time_group_results": {
-                "high_plus": {"cv_pct": 1.0},
-                "high_minus": {"cv_pct": 2.0},
-                "low_plus": {"cv_pct": 3.0},
-                "low_minus": {"cv_pct": 4.0},
+                "high_plus": {"cv_pct": 1.0, "passed": True},
+                "high_minus": {"cv_pct": 2.0, "passed": True},
+                "low_plus": {"cv_pct": 3.0, "passed": False},
+                "low_minus": {"cv_pct": 4.0, "passed": False},
             },
             "opposite_time_results": {
-                "high": {"diff_pct": 5.0},
-                "low": {"diff_pct": 6.0},
+                "high": {"diff_pct": 5.0, "passed": True},
+                "low": {"diff_pct": 6.0, "passed": True},
             },
         }
         with patch("pages.page_split_auto_selection.st") as streamlit:
@@ -474,6 +597,21 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
             ["1.00", "2.00", "3.00", "4.00", "5.00", "6.00"],
         )
         self.assertEqual(len(table), 6)
+        self.assertEqual(
+            table[self.t("split_auto_time_limit")].tolist(),
+            ["2.50", "2.50", "2.50", "2.50", "10.00", "10.00"],
+        )
+        self.assertEqual(
+            table[self.t("split_auto_time_status")].tolist(),
+            [
+                self.t("split_auto_constraints_status_approved"),
+                self.t("split_auto_constraints_status_approved"),
+                self.t("split_auto_constraints_status_failed"),
+                self.t("split_auto_constraints_status_failed"),
+                self.t("split_auto_constraints_status_approved"),
+                self.t("split_auto_constraints_status_approved"),
+            ],
+        )
 
     def test_disabled_constraints_keep_legacy_pending_flow(self):
         candidate = self._norm_candidate("a")

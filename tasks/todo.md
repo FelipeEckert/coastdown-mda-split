@@ -391,6 +391,7 @@
 - [x] Replace the absolute no-valid wording with a result scoped to the performed search.
 - [x] Show a specific warning when `max_set_evaluations_reached=True` indicates an incomplete search.
 - [x] Preserve explicit fallback confirmation, selector-v2 metadata and failed-set warnings in pending cards.
+- [x] Offer the exact best failed K-set with its own measured normative diagnostics, pair cards, and explicit use/cancel actions.
 - [x] Preserve current/after constraint diagnostics in replacement preview without blocking replacement.
 - [x] Add PT/EN strings and automated coverage for defaults, advanced controls, metrics, limited-search wording, fallback and legacy top-k.
 - [ ] Complete real-browser Energy/Target validation with approved, exhaustive-failed, limited-failed and fallback scenarios.
