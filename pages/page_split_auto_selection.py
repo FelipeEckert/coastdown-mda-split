@@ -1146,9 +1146,8 @@ def render(t) -> None:
     )
     algorithm = algorithm_labels[algorithm_label]
 
-    settings_columns = st.columns(3)
     k = int(
-        settings_columns[0].number_input(
+        st.number_input(
             t("split_auto_k"),
             min_value=1,
             max_value=50,
@@ -1157,46 +1156,47 @@ def render(t) -> None:
             key="split_auto_k",
         )
     )
-    max_combinations = int(
-        settings_columns[1].number_input(
-            t("split_auto_max_combinations"),
-            min_value=100,
-            max_value=1_000_000,
-            value=200_000,
-            step=10_000,
-            key="split_auto_max_combinations",
-        )
-    )
-    avoid_repeated_runs = settings_columns[2].checkbox(
-        t("split_auto_avoid_repeated"),
-        value=True,
-        key="split_auto_avoid_repeated",
-    )
-    settings_columns[2].caption(t("split_auto_avoid_repeated_help"))
-
-    st.markdown(f"#### {t('split_auto_constraint_section')}")
-    st.caption(t("split_auto_constraint_description"))
-    constraint_columns = st.columns(2)
-    require_time_cv = constraint_columns[0].checkbox(
-        t("split_auto_require_time_cv"),
-        value=True,
-        key="split_auto_require_time_cv",
-    )
-    require_opposite_time_difference = constraint_columns[1].checkbox(
-        t("split_auto_require_opposite_difference"),
-        value=True,
-        key="split_auto_require_opposite_difference",
-    )
-    constraints_enabled = any(
-        (
-            require_time_cv,
-            require_opposite_time_difference,
-        )
-    )
     with st.expander(
         t("split_auto_search_advanced_settings"),
         expanded=False,
     ):
+        settings_columns = st.columns(2)
+        max_combinations = int(
+            settings_columns[0].number_input(
+                t("split_auto_max_combinations"),
+                min_value=100,
+                max_value=1_000_000,
+                value=200_000,
+                step=10_000,
+                key="split_auto_max_combinations",
+            )
+        )
+        avoid_repeated_runs = settings_columns[1].checkbox(
+            t("split_auto_avoid_repeated"),
+            value=True,
+            key="split_auto_avoid_repeated",
+        )
+        settings_columns[1].caption(t("split_auto_avoid_repeated_help"))
+
+        st.markdown(f"#### {t('split_auto_constraint_section')}")
+        st.caption(t("split_auto_constraint_description"))
+        constraint_columns = st.columns(2)
+        require_time_cv = constraint_columns[0].checkbox(
+            t("split_auto_require_time_cv"),
+            value=True,
+            key="split_auto_require_time_cv",
+        )
+        require_opposite_time_difference = constraint_columns[1].checkbox(
+            t("split_auto_require_opposite_difference"),
+            value=True,
+            key="split_auto_require_opposite_difference",
+        )
+        constraints_enabled = any(
+            (
+                require_time_cv,
+                require_opposite_time_difference,
+            )
+        )
         search_columns = st.columns(3)
         search_pool_size = int(
             search_columns[0].number_input(
@@ -1234,90 +1234,90 @@ def render(t) -> None:
         if not constraints_enabled:
             st.caption(t("split_auto_search_disabled_help"))
 
-    st.markdown(f"#### {t('split_auto_environment_section')}")
-    ambient_options = {
-        t("split_ambient_mode_fixed"): "fixed",
-        t("split_ambient_mode_weather_sync"): "weather_sync",
-    }
-    ambient_label = st.radio(
-        t("split_ambient_mode_label"),
-        options=list(ambient_options),
-        horizontal=True,
-        key="split_auto_ambient_mode_selector",
-    )
-    ambient_mode = ambient_options[ambient_label]
-    exclude_invalid_weather = False
-    parsed_runs_for_selection = parsed_runs
-    weather_metadata = None
-    fixed_temperature_c = None
-    fixed_pressure_kpa = None
-    if ambient_mode == "fixed":
-        test_id = str(st.session_state.get("active_test_id") or "test")
-        fixed_columns = st.columns(2)
-        # Initial values only; both fixed parameters remain user-editable.
-        fixed_temperature_c = float(fixed_columns[0].number_input(
-            t("split_auto_fixed_temperature_c"),
-            value=20.0,
-            step=0.5,
-            key=f"split_auto_fixed_temperature_c_{test_id}",
-        ))
-        fixed_pressure_kpa = float(fixed_columns[1].number_input(
-            t("split_auto_fixed_pressure_kpa"),
-            min_value=0.001,
-            value=101.325,
-            step=0.1,
-            format="%.3f",
-            key=f"split_auto_fixed_pressure_kpa_{test_id}",
-        ))
-        if fixed_temperature_c > 35.0:
-            st.warning(t("split_auto_fixed_temperature_warning"))
-    if ambient_mode == "weather_sync":
-        weather_columns = st.columns(2)
-        max_time_diff_s = float(weather_columns[0].number_input(
-            t("split_auto_weather_sync_limit"), min_value=0.0, value=300.0, step=30.0,
-            key="split_auto_weather_sync_limit_s",
-        ))
-        exclude_invalid_weather = weather_columns[1].checkbox(
-            t("split_auto_exclude_invalid_weather"), value=True,
-            key="split_auto_exclude_invalid_weather",
+        st.markdown(f"#### {t('split_auto_environment_section')}")
+        ambient_options = {
+            t("split_ambient_mode_fixed"): "fixed",
+            t("split_ambient_mode_weather_sync"): "weather_sync",
+        }
+        ambient_label = st.radio(
+            t("split_ambient_mode_label"),
+            options=list(ambient_options),
+            horizontal=True,
+            key="split_auto_ambient_mode_selector",
         )
-        weather_data = st.session_state.get("weather_data")
-        if weather_data:
-            parsed_runs_for_selection, weather_metadata = synchronize_weather_for_split_runs(
-                parsed_runs, weather_data, max_time_diff_s=max_time_diff_s,
+        ambient_mode = ambient_options[ambient_label]
+        exclude_invalid_weather = False
+        parsed_runs_for_selection = parsed_runs
+        weather_metadata = None
+        fixed_temperature_c = None
+        fixed_pressure_kpa = None
+        if ambient_mode == "fixed":
+            test_id = str(st.session_state.get("active_test_id") or "test")
+            fixed_columns = st.columns(2)
+            # Initial values only; both fixed parameters remain user-editable.
+            fixed_temperature_c = float(fixed_columns[0].number_input(
+                t("split_auto_fixed_temperature_c"),
+                value=20.0,
+                step=0.5,
+                key=f"split_auto_fixed_temperature_c_{test_id}",
+            ))
+            fixed_pressure_kpa = float(fixed_columns[1].number_input(
+                t("split_auto_fixed_pressure_kpa"),
+                min_value=0.001,
+                value=101.325,
+                step=0.1,
+                format="%.3f",
+                key=f"split_auto_fixed_pressure_kpa_{test_id}",
+            ))
+            if fixed_temperature_c > 35.0:
+                st.warning(t("split_auto_fixed_temperature_warning"))
+        if ambient_mode == "weather_sync":
+            weather_columns = st.columns(2)
+            max_time_diff_s = float(weather_columns[0].number_input(
+                t("split_auto_weather_sync_limit"), min_value=0.0, value=300.0, step=30.0,
+                key="split_auto_weather_sync_limit_s",
+            ))
+            exclude_invalid_weather = weather_columns[1].checkbox(
+                t("split_auto_exclude_invalid_weather"), value=True,
+                key="split_auto_exclude_invalid_weather",
             )
-            metrics = st.columns(6)
-            values = (
-                ("split_auto_weather_high_synced", weather_metadata["high_synchronized"]),
-                ("split_auto_weather_low_synced", weather_metadata["low_synchronized"]),
-                ("split_auto_weather_missing", weather_metadata["missing_count"]),
-                ("split_auto_weather_wind_invalid", weather_metadata["wind_above_limit_count"]),
-                ("split_auto_weather_temp_invalid", weather_metadata["temperature_above_limit_count"]),
-                ("split_auto_weather_max_delta", _format_number(weather_metadata["max_time_diff_s_found"], 1)),
-            )
-            for column, (label_key, value) in zip(metrics, values):
-                column.metric(t(label_key), str(value))
-        else:
-            st.warning(t("split_auto_weather_required"))
+            weather_data = st.session_state.get("weather_data")
+            if weather_data:
+                parsed_runs_for_selection, weather_metadata = synchronize_weather_for_split_runs(
+                    parsed_runs, weather_data, max_time_diff_s=max_time_diff_s,
+                )
+                metrics = st.columns(6)
+                values = (
+                    ("split_auto_weather_high_synced", weather_metadata["high_synchronized"]),
+                    ("split_auto_weather_low_synced", weather_metadata["low_synchronized"]),
+                    ("split_auto_weather_missing", weather_metadata["missing_count"]),
+                    ("split_auto_weather_wind_invalid", weather_metadata["wind_above_limit_count"]),
+                    ("split_auto_weather_temp_invalid", weather_metadata["temperature_above_limit_count"]),
+                    ("split_auto_weather_max_delta", _format_number(weather_metadata["max_time_diff_s_found"], 1)),
+                )
+                for column, (label_key, value) in zip(metrics, values):
+                    column.metric(t(label_key), str(value))
+            else:
+                st.warning(t("split_auto_weather_required"))
 
-    target_f0 = None
-    target_f2 = None
-    if algorithm == "target":
-        target_columns = st.columns(2)
-        target_f0 = target_columns[0].number_input(
-            t("split_auto_target_f0"),
-            min_value=0.000001,
-            value=100.0,
-            format="%.6f",
-            key="split_auto_target_f0",
-        )
-        target_f2 = target_columns[1].number_input(
-            t("split_auto_target_f2"),
-            min_value=0.000001,
-            value=0.004,
-            format="%.8f",
-            key="split_auto_target_f2",
-        )
+        target_f0 = None
+        target_f2 = None
+        if algorithm == "target":
+            target_columns = st.columns(2)
+            target_f0 = target_columns[0].number_input(
+                t("split_auto_target_f0"),
+                min_value=0.000001,
+                value=100.0,
+                format="%.6f",
+                key="split_auto_target_f0",
+            )
+            target_f2 = target_columns[1].number_input(
+                t("split_auto_target_f2"),
+                min_value=0.000001,
+                value=0.004,
+                format="%.8f",
+                key="split_auto_target_f2",
+            )
 
     exceeds_limit = estimated_total > max_combinations
     if exceeds_limit:
