@@ -28,6 +28,46 @@ current ownership.
   exceed the exact `max_combinations` guard.
 - The manual and real-data validations still listed in `tasks/todo.md`.
 
+## Current Constraint And Limit Flow
+
+Reviewed 2026-07-24. The table separates normative checks from optional data
+filters, ranking inputs, and computational limits.
+
+| Setting and default | UI definition | Passed through | Effective point | Role |
+|---|---|---|---|---|
+| Requested pairs `K = 5` | `render()`: `split_auto_k` | `run_split_auto_selection_exact(k=...)` | Sets final cardinality and the MAD minimum pool (`max(K + 2, 4)`) | Selection size, not a normative check |
+| Exact combinations `200,000` | `render()`: `split_auto_max_combinations` | `max_combinations` to the orchestrator and generator | UI blocks an oversized unfiltered estimate; generation rechecks the post-MAD estimate | Generation safety limit |
+| Avoid repeated runs `True` | `render()`: `split_auto_avoid_repeated` | Orchestrator, top-k/constrained selector, and replacement helpers | Rejects a set when two candidates share a `run_usage` identity | Structural selection constraint; not a numeric ABNT limit |
+| Delta-t group CV enabled, limit fixed at `2.5%` | `render()`: `split_auto_require_time_cv` | `require_time_cv` to the constrained selector | `validate_split_candidate_set()` checks high+/high-/low+/low- groups | Normative |
+| Opposite-direction difference enabled, limit fixed at `10%` | `render()`: `split_auto_require_opposite_difference` | `require_opposite_time_difference` to the constrained selector | `validate_split_candidate_set()` checks high and low direction means | Normative |
+| Search pool `max(120, 30*K, K+60)` | Advanced `split_auto_search_pool_size` | `search_pool_size` to the constrained selector | `_constraint_search_pool()` takes a ranked, deduplicated prefix and may expand it for run diversity | Search-scope limit only |
+| Evaluated sets `6,000` | Advanced `split_auto_search_max_set_evaluations` | `max_set_evaluations` to the constrained selector | Stops after this many complete set validations | Search-work limit only |
+| Search time `30 s` | Advanced `split_auto_search_max_seconds` | `max_search_seconds` to the constrained selector | Stops recursive traversal and validation on wall-clock expiry | Search-time limit only |
+| Weather match delta `300 s` | Weather mode: `split_auto_weather_sync_limit` | `max_time_diff_s` to `synchronize_weather_for_split_runs()` | Records outside the nearest-time window remain unmatched | Data-association limit; not normative |
+| Exclude invalid weather `True` in weather mode | `render()`: `split_auto_exclude_invalid_weather` | `exclude_invalid_weather` to the orchestrator | Removes candidates with `weather_summary.status` equal to `missing` or `invalid` before ranking | Optional quality filter; not a Split time norm |
+| MAD prefilter enabled, multiplier `2.5`, minimum `K + 2` | No current UI control; configurable in the pure orchestrator API | `use_mad_prefilter`, `mad_multiplier`, `mad_min_pool_size` | Filters each raw high+/low+/high-/low- run group before the Cartesian product | Non-normative generation prefilter |
+| Corrected F0/F2 CV limit `10%` | No active checkbox | Retained by the validator API for diagnostics | Calculated and returned as `coefficient_diagnostic_only=True`; ignored by constraint satisfaction | Diagnostic only; never filters |
+| Target F0 `100` and F2 `0.004` | Target algorithm inputs | `target_f0`, `target_f2` to target ranking | Changes normalized ranking score only | Ranking objective; never filters |
+
+Fixed temperature and pressure are correction inputs, and Energy/Target chooses
+the ranking objective. Neither is a selection constraint. Disabling both
+normative time checkboxes bypasses constrained search and uses ordered top-k
+selection with the repeated-run rule still applied.
+
+## Default Expansion Decision - 2026-07-24
+
+Only search breadth and evaluated-set budget were expanded:
+
+| Default | Previous | Adopted | Evidence |
+|---|---:|---:|---|
+| Pool for K=5 | 100 | 150 | The formula changes from `max(80, 20*K, K+40)` to `max(120, 30*K, K+60)`, adding ranked alternatives while retaining automatic diversity expansion. |
+| Complete set evaluations | 3,000 | 6,000 | A 300-candidate, K=5 benchmark rose from 0.590 s median at 3,000 evaluations to 2.859 s at 6,000, preserved selected IDs, and remained well below the unchanged 30 s hard stop. |
+
+The exact-generation guard remains 200,000: the performance audit measured about
+100 MiB and 2.3 s for only 10,000 production-shaped candidates, so raising that
+guard is not safe. The 30 s wall-clock limit, 300 s weather window, MAD settings,
+run uniqueness, and all normative/diagnostic thresholds remain unchanged.
+
 ### Superseded design text
 
 Sections 1-12 below preserve the pre-implementation audit and proposal. Their

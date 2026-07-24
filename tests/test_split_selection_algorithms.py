@@ -88,6 +88,16 @@ class SplitSelectionAlgorithmsTest(unittest.TestCase):
         self.assertEqual(metadata["strategy"], "constraint_first_v2")
         self.assertEqual(metadata["valid_sets_found"], 1)
 
+    def test_v2_uses_expanded_default_search_pool(self):
+        selected, metadata = select_top_k_candidates_with_constraints_v2(
+            [_constrained_candidate("a")],
+            1,
+        )
+
+        self.assertEqual([item["id"] for item in selected], ["a"])
+        self.assertEqual(metadata["requested_pool_size"], 120)
+        self.assertEqual(metadata["max_search_seconds"], 30.0)
+
     def test_v2_finds_valid_set_outside_previous_top_100_pool(self):
         ranked = [
             _constrained_candidate(f"bad-{index}", high_minus=30.0)

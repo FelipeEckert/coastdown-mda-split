@@ -3067,3 +3067,20 @@ unidade realmente exibida preserva ordem, candidatos e conclusao em 100% sem
 repetir milhares de operacoes de UI indistinguiveis.
 
 ---
+
+## 2026-07-24 - Defaults Maiores Precisam Manter um Limite Duro
+
+### Decisao:
+
+O inventario separou restricoes normativas, filtros opcionais e orcamentos de
+busca. Somente a pool padrao (`max(120, 30*K, K+60)`) e o limite de conjuntos
+avaliados (6.000) foram ampliados. O timeout de 30 s, o guard de 200.000
+candidatos, filtros, formulas e limites normativos permaneceram inalterados.
+
+### Licao:
+
+Melhorias em parsing, ranking e callbacks nao tornam o produto cartesiano
+barato. Expanda primeiro a busca ja protegida por timeout; nao aumente o guard
+de geracao quando a medicao de memoria ainda cresce com cada candidato.
+
+---

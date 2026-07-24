@@ -287,7 +287,7 @@ def run_split_auto_selection_exact(
     require_time_cv: bool = False,
     require_opposite_time_difference: bool = False,
     search_pool_size: int | None = None,
-    max_set_evaluations: int = 3000,
+    max_set_evaluations: int = 6000,
     max_search_seconds: float = 30.0,
     use_mad_prefilter: bool = True,
     mad_multiplier: float = 2.5,

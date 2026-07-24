@@ -362,7 +362,7 @@ def select_top_k_candidates_with_constraints_v2(
     time_cv_limit_pct: float = 2.5,
     opposite_time_limit_pct: float = 10.0,
     search_pool_size: int | None = None,
-    max_set_evaluations: int = 3000,
+    max_set_evaluations: int = 6000,
     max_search_seconds: float = 30.0,
 ) -> tuple[list[dict], dict]:
     """Find valid sets first, then choose the best aggregate ranking score."""
@@ -382,7 +382,7 @@ def select_top_k_candidates_with_constraints_v2(
     if search_seconds is None or search_seconds <= 0:
         raise ValueError("max_search_seconds must be a positive finite number.")
 
-    default_pool_size = max(80, requested_k * 20, requested_k + 40)
+    default_pool_size = max(120, requested_k * 30, requested_k + 60)
     if search_pool_size is None:
         requested_pool_size = default_pool_size
     else:
@@ -659,7 +659,7 @@ def select_top_k_candidates_with_constraints(
     time_cv_limit_pct: float = 2.5,
     opposite_time_limit_pct: float = 10.0,
     search_pool_size: int | None = None,
-    max_set_evaluations: int = 3000,
+    max_set_evaluations: int = 6000,
     max_search_seconds: float = 30.0,
 ) -> tuple[list[dict], dict]:
     """Compatibility wrapper for the constraint-first v2 selector."""

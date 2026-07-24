@@ -366,7 +366,7 @@ def _constraints_active(constraints_enabled: dict | None) -> bool:
 
 
 def _default_constraint_search_pool_size(k: int) -> int:
-    return max(80, int(k) * 20, int(k) + 40)
+    return max(120, int(k) * 30, int(k) + 60)
 
 
 def _search_diagnostic_values(metadata: dict | None) -> dict | None:
@@ -1214,7 +1214,7 @@ def render(t) -> None:
                 t("split_auto_search_max_set_evaluations"),
                 min_value=1,
                 max_value=1000000,
-                value=3000,
+                value=6000,
                 step=500,
                 key="split_auto_search_max_set_evaluations",
                 disabled=not constraints_enabled,

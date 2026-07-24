@@ -235,6 +235,20 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
         self.assertTrue(
             all(not call["disabled"] for call in advanced_calls.values())
         )
+        self.assertEqual(
+            advanced_calls[self.t("split_auto_search_pool_size")]["value"],
+            150,
+        )
+        self.assertEqual(
+            advanced_calls[
+                self.t("split_auto_search_max_set_evaluations")
+            ]["value"],
+            6_000,
+        )
+        self.assertEqual(
+            advanced_calls[self.t("split_auto_search_max_seconds")]["value"],
+            30.0,
+        )
         submitted = run_exact.call_args.kwargs
         self.assertTrue(submitted["require_time_cv"])
         self.assertTrue(submitted["require_opposite_time_difference"])
@@ -260,9 +274,9 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
         self.assertEqual(phase_labels[-1], self.t("split_auto_phase_completed"))
 
     def test_v2_search_defaults_follow_k(self):
-        self.assertEqual(_default_constraint_search_pool_size(1), 80)
-        self.assertEqual(_default_constraint_search_pool_size(4), 80)
-        self.assertEqual(_default_constraint_search_pool_size(5), 100)
+        self.assertEqual(_default_constraint_search_pool_size(1), 120)
+        self.assertEqual(_default_constraint_search_pool_size(4), 120)
+        self.assertEqual(_default_constraint_search_pool_size(5), 150)
 
     def test_search_diagnostic_exposes_v2_strategy_and_counts(self):
         metadata = {

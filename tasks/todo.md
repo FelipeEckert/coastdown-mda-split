@@ -326,6 +326,7 @@
 - [x] Replace per-candidate Target-ranking deep copies with top-level copies while preserving ranking and input immutability.
 - [x] Normalize weather records once per Split synchronization batch and use a single-pass nearest-record lookup.
 - [x] Throttle automatic-selection progress callbacks to displayed integer-percentage changes.
+- [x] Document automatic-selection constraints and safely expand only the search pool and evaluated-set defaults.
 - [ ] Complete real-browser performance comparison and visual/export validation.
 
 ## Round 10A - Final Comparison deviation analysis
