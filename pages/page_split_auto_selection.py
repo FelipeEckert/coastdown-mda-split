@@ -1090,10 +1090,6 @@ def _render_fallback_offer(offer: dict, t) -> None:
         t,
         expanded=True,
     )
-    warnings = offer.get("constraint_warnings") or []
-    if warnings:
-        with st.expander(t("split_auto_constraint_warnings"), expanded=False):
-            st.warning("\n".join(str(item) for item in warnings))
     candidates = list(offer.get("candidates") or [])
     algorithm = (
         (offer.get("metadata") or {}).get("algorithm")
@@ -1170,17 +1166,30 @@ def render(t) -> None:
 
     st.markdown("---")
     st.subheader(t("split_auto_settings"))
+    configuration_columns = st.columns(2)
     algorithm_labels = {
         t("split_auto_algorithm_energy"): "energy",
         t("split_auto_algorithm_target"): "target",
     }
-    algorithm_label = st.radio(
+    algorithm_label = configuration_columns[0].radio(
         t("split_auto_algorithm"),
         options=list(algorithm_labels),
         horizontal=True,
         key="split_auto_algorithm_selector",
     )
     algorithm = algorithm_labels[algorithm_label]
+
+    ambient_options = {
+        "Condições fixas": "fixed",
+        "Arquivo meteorológico": "weather_sync",
+    }
+    ambient_label = configuration_columns[1].radio(
+        t("split_ambient_mode_label"),
+        options=list(ambient_options),
+        horizontal=True,
+        key="split_auto_ambient_mode_selector",
+    )
+    ambient_mode = ambient_options[ambient_label]
 
     k = int(
         st.number_input(
@@ -1270,18 +1279,6 @@ def render(t) -> None:
         if not constraints_enabled:
             st.caption(t("split_auto_search_disabled_help"))
 
-        st.markdown(f"#### {t('split_auto_environment_section')}")
-        ambient_options = {
-            t("split_ambient_mode_fixed"): "fixed",
-            t("split_ambient_mode_weather_sync"): "weather_sync",
-        }
-        ambient_label = st.radio(
-            t("split_ambient_mode_label"),
-            options=list(ambient_options),
-            horizontal=True,
-            key="split_auto_ambient_mode_selector",
-        )
-        ambient_mode = ambient_options[ambient_label]
         exclude_invalid_weather = False
         parsed_runs_for_selection = parsed_runs
         weather_metadata = None

@@ -94,6 +94,7 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
             self.t("split_auto_require_opposite_difference"): True,
         }
         widget_calls = []
+        ui_events = []
 
         def record_widget(kind, values, label, **kwargs):
             widget_calls.append(
@@ -122,6 +123,21 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
 
         progress = Mock()
         phase_placeholder = Mock()
+
+        def select_radio(label, **_kwargs):
+            ui_events.append(("radio", label))
+            return {
+                self.t("split_auto_algorithm"): self.t(
+                    "split_auto_algorithm_energy"
+                ),
+                self.t("split_ambient_mode_label"): self.t(
+                    "split_ambient_mode_fixed"
+                ),
+            }[label]
+
+        def open_expander(label, **_kwargs):
+            ui_events.append(("expander", label))
+            return nullcontext(make_layout())
 
         def run_selection(*_args, **kwargs):
             kwargs["phase_callback"]("generating")
@@ -177,23 +193,35 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
                 "number_input", number_values, label, **kwargs
             )
             streamlit.container.side_effect = lambda **_kwargs: make_layout()
-            streamlit.radio.side_effect = lambda label, **_kwargs: {
-                self.t("split_auto_algorithm"): self.t(
-                    "split_auto_algorithm_energy"
-                ),
-                self.t("split_ambient_mode_label"): self.t(
-                    "split_ambient_mode_fixed"
-                ),
-            }[label]
-            streamlit.expander.side_effect = lambda *args, **kwargs: nullcontext(
-                make_layout()
-            )
+            streamlit.radio.side_effect = select_radio
+            streamlit.expander.side_effect = open_expander
             streamlit.spinner.return_value = nullcontext()
             streamlit.button.return_value = True
             streamlit.progress.return_value = progress
             streamlit.empty.return_value = phase_placeholder
 
             render(self.t)
+
+        self.assertEqual(
+            ui_events[:3],
+            [
+                ("radio", self.t("split_auto_algorithm")),
+                ("radio", self.t("split_ambient_mode_label")),
+                (
+                    "expander",
+                    self.t("split_auto_search_advanced_settings"),
+                ),
+            ],
+        )
+        streamlit.radio.assert_any_call(
+            self.t("split_ambient_mode_label"),
+            options=[
+                self.t("split_ambient_mode_fixed"),
+                self.t("split_ambient_mode_weather_sync"),
+            ],
+            horizontal=True,
+            key="split_auto_ambient_mode_selector",
+        )
 
         constraint_labels = {
             self.t("split_auto_require_time_cv"),
@@ -445,6 +473,14 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
         self.assertEqual(
             [call.args[0] for call in candidate_table.call_args_list],
             fallback,
+        )
+        self.assertTrue(offer["constraint_warnings"])
+        self.assertEqual(
+            [call.args[0] for call in streamlit.expander.call_args_list],
+            [self.t("split_auto_constraint_diagnostic")],
+        )
+        streamlit.warning.assert_called_once_with(
+            self.t("split_auto_constraints_no_valid_set")
         )
         diagnostic = streamlit.dataframe.call_args_list[0].args[0]
         failed_rows = diagnostic[
