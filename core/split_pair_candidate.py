@@ -5,7 +5,10 @@ from __future__ import annotations
 
 from copy import deepcopy
 
-from core.split_calculations import DEFAULT_SPLIT_INTERVAL_CONFIG
+from core.split_calculations import (
+    DEFAULT_SPLIT_INTERVAL_CONFIG,
+    calculate_split_result,
+)
 from core.split_comparison import (
     SELECTION_SOURCE_ALGORITHM,
     build_split_comparison_pair,
@@ -154,6 +157,40 @@ def _ambient_conditions(correction_context: dict | None) -> dict:
     return {}
 
 
+def precompute_algorithm_split_direction_results(
+    high_runs: list[dict],
+    low_runs: list[dict],
+    *,
+    vehicle_data: dict,
+    correction_context: dict | None = None,
+) -> dict:
+    """Calculate each invariant high/low direction pair once."""
+    try:
+        effective_mass = _effective_mass_from_vehicle_data(vehicle_data)
+        config = _split_interval_config(correction_context)
+    except Exception as exc:
+        return {
+            (id(high_run), id(low_run)): exc
+            for high_run in high_runs
+            for low_run in low_runs
+        }
+
+    results = {}
+    for high_run in high_runs:
+        for low_run in low_runs:
+            try:
+                result = calculate_split_result(
+                    high_run,
+                    low_run,
+                    effective_mass,
+                    config,
+                )
+            except Exception as exc:
+                result = exc
+            results[(id(high_run), id(low_run))] = result
+    return results
+
+
 def build_algorithm_split_pair_candidate(
     *,
     high_plus_run: dict,
@@ -162,6 +199,8 @@ def build_algorithm_split_pair_candidate(
     low_minus_run: dict,
     vehicle_data: dict,
     correction_context: dict | None = None,
+    precomputed_result_plus: dict | None = None,
+    precomputed_result_minus: dict | None = None,
 ) -> dict:
     """
     Build one comparison-compatible Split candidate for automatic selection.
@@ -207,6 +246,8 @@ def build_algorithm_split_pair_candidate(
         low_minus=low_minus_run,
         effective_mass=effective_mass,
         config=config,
+        precomputed_result_plus=precomputed_result_plus,
+        precomputed_result_minus=precomputed_result_minus,
     )
     corrected_result = apply_split_pair_correction(result, ambient_conditions)
     pair = build_split_comparison_pair(

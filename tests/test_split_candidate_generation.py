@@ -2,7 +2,9 @@
 """Tests for exact Split candidate generation helpers."""
 
 import unittest
+from unittest.mock import patch
 
+from core.split_calculations import calculate_split_result
 from core.split_candidate_generation import (
     estimate_full_candidate_count,
     filter_group_by_mad,
@@ -10,6 +12,7 @@ from core.split_candidate_generation import (
     iter_full_candidate_run_groups,
     split_runs_by_role_and_heading,
 )
+from core.split_pair_candidate import build_algorithm_split_pair_candidate
 
 
 def _run(role, heading, run_id, filename=None, delta_t_s=10.0):
@@ -140,6 +143,38 @@ class SplitCandidateGenerationTest(unittest.TestCase):
         self.assertEqual(metadata["estimated_total"], 16)
         self.assertEqual(metadata["attempted_count"], 16)
         self.assertEqual(metadata["failed_count"], 0)
+
+    def test_default_generation_matches_scalar_builder_candidate_for_candidate(self):
+        vehicle_data = {"effective_mass": 1545.0}
+        correction_context = {
+            "temperature_c": 20.0,
+            "pressure_kpa": 101.325,
+            "pair_id": "stable-candidate",
+        }
+        grouped = split_runs_by_role_and_heading(_parsed())
+        expected = [
+            build_algorithm_split_pair_candidate(
+                **run_group,
+                vehicle_data=vehicle_data,
+                correction_context=correction_context,
+            )
+            for run_group in iter_full_candidate_run_groups(grouped)
+        ]
+
+        with patch(
+            "core.split_pair_candidate.calculate_split_result",
+            wraps=calculate_split_result,
+        ) as direction_calculation:
+            candidates, metadata = generate_full_split_candidates_exact(
+                _parsed(),
+                vehicle_data=vehicle_data,
+                correction_context=correction_context,
+                use_mad_prefilter=False,
+            )
+
+        self.assertEqual(candidates, expected)
+        self.assertEqual(metadata["generated_count"], len(expected))
+        self.assertEqual(direction_calculation.call_count, 8)
 
     def test_candidate_error_does_not_abort_generation(self):
         def flaky_builder(**kwargs):

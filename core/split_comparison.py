@@ -321,6 +321,9 @@ def calculate_complete_split_pair(
     low_minus: dict,
     effective_mass: float,
     config: dict,
+    *,
+    precomputed_result_plus: dict | None = None,
+    precomputed_result_minus: dict | None = None,
 ) -> dict:
     """Calculate one complete Split ida/volta pair and its arithmetic mean."""
     selection = {
@@ -333,8 +336,18 @@ def calculate_complete_split_pair(
     if errors:
         raise ValueError("; ".join(errors))
 
-    result_plus = calculate_split_result(high_plus, low_plus, effective_mass, config)
-    result_minus = calculate_split_result(high_minus, low_minus, effective_mass, config)
+    result_plus = (
+        dict(precomputed_result_plus)
+        if precomputed_result_plus is not None
+        else calculate_split_result(high_plus, low_plus, effective_mass, config)
+    )
+    result_minus = (
+        dict(precomputed_result_minus)
+        if precomputed_result_minus is not None
+        else calculate_split_result(high_minus, low_minus, effective_mass, config)
+    )
+    result_plus["warnings"] = list(result_plus.get("warnings") or [])
+    result_minus["warnings"] = list(result_minus.get("warnings") or [])
     f0_pair = (result_plus["f0_prime"] + result_minus["f0_prime"]) / 2.0
     f2_pair = (result_plus["f2_prime"] + result_minus["f2_prime"]) / 2.0
     result_pair_mean = {

@@ -3084,3 +3084,21 @@ barato. Expanda primeiro a busca ja protegida por timeout; nao aumente o guard
 de geracao quando a medicao de memoria ainda cresce com cada candidato.
 
 ---
+
+## 2026-07-24 - Resultados Direcionais Pertencem ao Lote de Candidatos
+
+### Decisao:
+
+A geracao automatica calcula cada par high/low uma vez por sentido e reutiliza
+o resultado bruto no produto cartesiano de quatro runs. Builders injetados
+mantem o contrato anterior. Em 4.096 candidatos, as chamadas direcionais cairam
+de 8.192 para 128; a mediana intercalada caiu de 0,540 s para 0,512 s (5,2%).
+A regressao compara cada candidato completo com o builder escalar.
+
+### Licao:
+
+Quando um produto cartesiano combina dois resultados independentes, calcule
+cada lado na sua cardinalidade real e monte o produto apenas depois. Preserve o
+caminho escalar como oraculo para formulas, ordem, IDs e campos aninhados.
+
+---

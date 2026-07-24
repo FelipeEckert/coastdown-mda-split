@@ -7,7 +7,10 @@ import itertools
 import math
 import statistics
 
-from core.split_pair_candidate import build_algorithm_split_pair_candidate
+from core.split_pair_candidate import (
+    build_algorithm_split_pair_candidate,
+    precompute_algorithm_split_direction_results,
+)
 
 
 GROUP_KEYS = ("high_plus", "low_plus", "high_minus", "low_minus")
@@ -202,6 +205,7 @@ def generate_full_split_candidates_exact(
     mad_min_pool_size: int = 4,
 ) -> tuple[list[dict], dict]:
     """Generate exact complete Split candidates by cartesian product."""
+    uses_default_builder = candidate_builder is None
     builder = candidate_builder or build_algorithm_split_pair_candidate
     grouped = split_runs_by_role_and_heading(split_parsed_runs)
 
@@ -252,16 +256,57 @@ def generate_full_split_candidates_exact(
             metadata["skipped_count"] = estimated_total
             return [], metadata
 
+    direction_results = None
+    if uses_default_builder:
+        direction_results = {
+            "plus": precompute_algorithm_split_direction_results(
+                grouped["high_plus"],
+                grouped["low_plus"],
+                vehicle_data=vehicle_data,
+                correction_context=correction_context,
+            ),
+            "minus": precompute_algorithm_split_direction_results(
+                grouped["high_minus"],
+                grouped["low_minus"],
+                vehicle_data=vehicle_data,
+                correction_context=correction_context,
+            ),
+        }
+
     candidates = []
     last_progress_percent = None
     for run_group in iter_full_candidate_run_groups(grouped):
         metadata["attempted_count"] += 1
         try:
-            candidate = builder(
+            builder_kwargs = {
                 **run_group,
-                vehicle_data=vehicle_data,
-                correction_context=correction_context,
-            )
+                "vehicle_data": vehicle_data,
+                "correction_context": correction_context,
+            }
+            if direction_results is not None:
+                result_plus = direction_results["plus"][
+                    (
+                        id(run_group["high_plus_run"]),
+                        id(run_group["low_plus_run"]),
+                    )
+                ]
+                result_minus = direction_results["minus"][
+                    (
+                        id(run_group["high_minus_run"]),
+                        id(run_group["low_minus_run"]),
+                    )
+                ]
+                if isinstance(result_plus, Exception):
+                    raise result_plus
+                if isinstance(result_minus, Exception):
+                    raise result_minus
+                builder_kwargs.update(
+                    {
+                        "precomputed_result_plus": result_plus,
+                        "precomputed_result_minus": result_minus,
+                    }
+                )
+            candidate = builder(**builder_kwargs)
         except Exception as exc:  # candidate-level failure must not abort generation
             metadata["failed_count"] += 1
             metadata["warnings"].append(
