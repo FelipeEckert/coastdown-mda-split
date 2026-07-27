@@ -1703,11 +1703,9 @@ def render_test_analysis(t):
 
     st.title(test_name)
 
-    # Mostra alerta de data incompatível se existir
+    # Oferece o modo explícito por horário sem pedir confirmação redundante.
     warning_msg = st.session_state.get("date_mismatch_warning")
     if warning_msg:
-        st.warning(warning_msg)
-        st.caption(t("sync_meteo_time_only_help"))
         sync_enabled = st.checkbox(
             t("sync_meteo_time_only_label"),
             key="sync_meteo_by_time_only"
@@ -1715,6 +1713,8 @@ def render_test_analysis(t):
         _sync_meteo_mode_changed(st.session_state.active_test_id, sync_enabled)
         if sync_enabled:
             st.info(t("sync_meteo_time_only_active"))
+        else:
+            st.warning(warning_msg)
 
     tab_pages = [
         ("2_dados_veiculo", t("page_vehicle_data")),

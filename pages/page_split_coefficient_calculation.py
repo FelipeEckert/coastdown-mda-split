@@ -216,6 +216,13 @@ def _render_weather_sync_details(
                 hide_index=True,
             )
         warnings = _weather_sync_warnings(weather_sync, t)
+        if st.session_state.get("sync_meteo_by_time_only"):
+            date_mismatch_warning = t("split_weather_warning_date_differs")
+            warnings = [
+                warning
+                for warning in warnings
+                if warning != date_mismatch_warning
+            ]
         warnings.extend(
             _translated_weather_warning(warning, t)
             for warning in (extra_warnings or [])

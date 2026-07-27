@@ -391,8 +391,8 @@ TRANSLATIONS = {
         "en": "Coefficient Calculation"
     },
     "page_split_pair_analysis": {
-        "pt": "3. Análise de Pares",
-        "en": "3. Pair Analysis"
+        "pt": "Análise de Pares",
+        "en": "Pair Analysis"
     },
     "split_auto_tab": {
         "pt": "Sele\u00e7\u00e3o Autom\u00e1tica",
