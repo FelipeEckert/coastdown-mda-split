@@ -16,6 +16,7 @@ from core.split_display import (
     format_split_time_group_label,
     get_split_reference_speeds,
 )
+from core.split_energy import calculate_split_energy
 from core.split_results import consolidate_split_final_results
 from core.split_state import split_final_results_status
 from core.split_weather_context import split_environmental_values
@@ -27,7 +28,6 @@ from data.split_exporters import (
 )
 
 
-COMPONENTS = ("high_plus", "low_plus", "high_minus", "low_minus")
 TIME_GROUP_COMPONENTS = ("high_plus", "high_minus", "low_plus", "low_minus")
 OPPOSITE_SPEED_GROUPS = ("high", "low")
 
@@ -73,13 +73,6 @@ def _display(value, precision=2, suffix=""):
         return f"{number:.{precision}f}{suffix}"
     text = str(value).strip() if value is not None else ""
     return text if text and text.lower() not in {"nan", "none", "n/a"} else "-"
-
-
-def _cv_status(value, t):
-    number = _number(value)
-    if number is None:
-        return t("split_results_status_not_evaluable")
-    return t("split_results_status_conforming" if number <= 10.0 else "split_results_status_nonconforming")
 
 
 def _check_status_label(passed, t):
@@ -320,6 +313,177 @@ def _pair_rows(pairs, t):
     return rows
 
 
+def _card_display(value, precision):
+    number = _number(value)
+    return f"{number:.{precision}f}" if number is not None else "—"
+
+
+def _directional_pair_values(pair, suffix):
+    f0 = _number(pair.get(f"F0_{suffix}"))
+    f2 = _number(pair.get(f"F2_{suffix}"))
+    energy = (
+        calculate_split_energy(f0, f2)["energy"]
+        if f0 is not None and f2 is not None
+        else None
+    )
+    return {
+        "F0 [N]": _card_display(f0, 4),
+        "F2 [N/(km/h)²]": _card_display(f2, 6),
+        "Energia [MJ/km]": _card_display(energy, 4),
+        "Temperatura [°C]": _card_display(pair.get(f"temp_{suffix}_used"), 1),
+        "Pressão [kPa]": _card_display(pair.get(f"press_{suffix}_used"), 2),
+        "Vento [m/s]": _card_display(
+            pair.get(f"wind_{suffix}_ms", pair.get(f"wind_{suffix}_used")),
+            2,
+        ),
+    }
+
+
+def _component_run_label(pair, component):
+    record = pair.get(component)
+    run = record.get("run_id") if isinstance(record, dict) else None
+    if run in (None, ""):
+        run = pair.get(f"{component}_run")
+    return str(run).strip() if run not in (None, "") else "—"
+
+
+def _pair_result_card_css():
+    from textwrap import dedent
+
+    return dedent("""
+        <style>
+        .split-pair-result-card {
+            box-sizing: border-box;
+            height: 100%;
+            padding: 12px;
+            border: 2px solid rgba(127, 127, 127, 0.28);
+            border-radius: 10px;
+            background: var(--secondary-background-color);
+        }
+        .split-pair-result-card.footer {
+            height: auto;
+            margin-top: 8px;
+            padding: 14px;
+            border: 2px solid color-mix(in srgb, var(--primary-color) 48%, transparent);
+            background: color-mix(
+                in srgb,
+                var(--secondary-background-color) 90%,
+                var(--primary-color) 10%
+            );
+        }
+        .split-pair-result-card.footer .split-pair-result-title {
+            font-weight: 600;
+        }
+        .split-pair-result-title {
+            margin-bottom: 9px;
+            color: var(--text-color);
+            font-size: 1rem;
+            font-weight: 700;
+        }
+        .split-pair-primary,
+        .split-pair-secondary {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 6px;
+        }
+        .split-pair-primary > div {
+            padding: 8px 5px;
+            border-radius: 7px;
+            background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+            text-align: center;
+        }
+        .split-pair-secondary {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(127, 127, 127, 0.2);
+            text-align: center;
+        }
+        .split-pair-metric-label {
+            color: color-mix(in srgb, var(--text-color) 68%, transparent);
+            font-size: 0.72rem;
+            line-height: 1.15;
+        }
+        .split-pair-primary .split-pair-metric-value {
+            margin-top: 3px;
+            color: var(--text-color);
+            font-size: 1.08rem;
+            font-weight: 700;
+            line-height: 1.15;
+        }
+        .split-pair-secondary .split-pair-metric-value {
+            margin-top: 2px;
+            color: var(--text-color);
+            font-size: 0.88rem;
+            font-weight: 600;
+            line-height: 1.15;
+        }
+        </style>
+    """).strip()
+
+
+def _build_pair_result_card_html(title, values, *, footer=False):
+    items = list(values.items())
+
+    def metric_cells(selected):
+        return "".join(
+            f'<div><div class="split-pair-metric-label">{html.escape(label)}</div>'
+            f'<div class="split-pair-metric-value">{html.escape(value)}</div></div>'
+            for label, value in selected
+        )
+
+    footer_class = " footer" if footer else ""
+    card_html = (
+        f'<div class="split-pair-result-card{footer_class}">'
+        f'<div class="split-pair-result-title">{html.escape(title)}</div>'
+        f'<div class="split-pair-primary">{metric_cells(items[:3])}</div>'
+        f'<div class="split-pair-secondary">{metric_cells(items[3:])}</div>'
+        "</div>"
+    )
+    return (_pair_result_card_css() if footer else "") + card_html
+
+
+def _pair_average_values(pair):
+    return {
+        "F0 [N]": _card_display(pair.get("F0_mean"), 4),
+        "F2 [N/(km/h)²]": _card_display(pair.get("F2_mean"), 6),
+        "Energia [MJ/km]": _card_display(pair.get("energy"), 4),
+        "Temperatura [°C]": _card_display(pair.get("temp_c"), 1),
+        "Pressão [kPa]": _card_display(pair.get("baro_kpa"), 2),
+        "Vento [m/s]": _card_display(pair.get("wind_ms"), 2),
+    }
+
+
+def _render_selected_pairs(pairs, t):
+    for pair in pairs:
+        with st.expander(format_split_pair_label(pair), expanded=False):
+            plus_column, minus_column = st.columns(2, gap="small")
+            for column, suffix, direction in (
+                (plus_column, "plus", "+"),
+                (minus_column, "minus", "-"),
+            ):
+                title = (
+                    f"[{direction}] Run "
+                    f"{_component_run_label(pair, f'high_{suffix}')} / Run "
+                    f"{_component_run_label(pair, f'low_{suffix}')}"
+                )
+                column.markdown(
+                    _build_pair_result_card_html(
+                        title,
+                        _directional_pair_values(pair, suffix),
+                    ),
+                    unsafe_allow_html=True,
+                )
+
+            st.markdown(
+                _build_pair_result_card_html(
+                    t("split_pair_average"),
+                    _pair_average_values(pair),
+                    footer=True,
+                ),
+                unsafe_allow_html=True,
+            )
+
+
 def _result_rows(results, t=None):
     """Compatibility projection retained for pure callers and older tests."""
     if t is not None:
@@ -373,13 +537,12 @@ def _render_vehicle(summary, t):
 def _render_coefficients(summary, t):
     st.markdown("---")
     st.subheader(t("split_results_validation"))
-    diagnostic_label = t("split_results_diagnostic_label")
     rows = [
-        (f"F0 [N] {diagnostic_label}", _display(summary.get("mean_f0"), 4), _display(summary.get("cv_f0"), 2), _cv_status(summary.get("cv_f0"), t)),
-        (f"F2 [N/(km/h)²] {diagnostic_label}", _display(summary.get("mean_f2"), 6), _display(summary.get("cv_f2"), 2), _cv_status(summary.get("cv_f2"), t)),
-        ("Energia [MJ/km]", _display(summary.get("mean_energy"), 4), _display(summary.get("cv_energy"), 2), t("split_results_status_not_evaluable")),
+        (f"F0 [N] {t('split_results_diagnostic_label')}", _display(summary.get("mean_f0"), 4), _display(summary.get("cv_f0"), 2)),
+        (f"F2 [N/(km/h)²] {t('split_results_diagnostic_label')}", _display(summary.get("mean_f2"), 6), _display(summary.get("cv_f2"), 2)),
+        ("Energia [MJ/km]", _display(summary.get("mean_energy"), 4), _display(summary.get("cv_energy"), 2)),
     ]
-    st.dataframe(pd.DataFrame(rows, columns=("Coeficiente", "Valor médio", "CV [%]", "Status")), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(rows, columns=("Coeficiente", "Valor médio", "CV [%]")), use_container_width=True, hide_index=True)
     critical_warnings, _ = _split_warnings_by_audience(summary.get("warnings"))
     for warning in critical_warnings:
         st.warning(warning)
@@ -462,26 +625,6 @@ def _render_deviation_summary(analysis, selected_pairs, t):
     st.caption(t("split_results_deviation_details_note"))
 
 
-def _render_traceability(pairs, t):
-    with st.expander("🔎 Rastreabilidade", expanded=False):
-        rows = []
-        for pair in pairs:
-            for component in COMPONENTS:
-                record = pair.get(component) if isinstance(pair.get(component), dict) else {}
-                ambient = (pair.get("ambient_by_component") or {}).get(component) or {}
-                rows.append({
-                    "Par": format_split_pair_label(pair), "pair_id": pair.get("id"), "Componente": component,
-                    t("split_file"): _display(record.get("filename", pair.get(f"{component}_file"))),
-                    t("split_run"): _display(record.get("run_id", pair.get(f"{component}_run"))),
-                    "Papel da fonte": _display(record.get("source_role")),
-                    "Hash": _display(record.get("content_sha256") or record.get("source_sha256")),
-                    "Fonte meteo": _display(ambient.get("source") or pair.get("ambient_source")),
-                    "Sync meteo": _display(ambient.get("sync_method") or ambient.get("method")),
-                    "Warnings": "; ".join([*(pair.get("warnings") or []), *(ambient.get("warnings") or [])]) or "-",
-                })
-        st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-
-
 def render(t):
     """Render a read-only projection of explicitly selected Split pairs."""
     st.header("📊 " + t("page_split_results"))
@@ -515,8 +658,7 @@ def render(t):
 
     st.markdown("---")
     st.subheader(f"📋 {t('split_selected_pairs')}")
-    st.dataframe(pd.DataFrame(_pair_rows(selected_pairs, t)), use_container_width=True, hide_index=True)
-    _render_traceability(selected_pairs, t)
+    _render_selected_pairs(selected_pairs, t)
 
     st.markdown("---")
     st.subheader(f"📥 {t('split_results_export')}")

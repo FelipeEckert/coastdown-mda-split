@@ -2,7 +2,7 @@
 """Tests for unit formatting and on-demand Split workbook generation."""
 
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, call, patch
 
 from data.split_exporters import (
     build_split_export_signature,
@@ -15,6 +15,7 @@ from pages.page_split_results import (
     _pair_rows,
     _render_coefficients,
     _render_deviation_summary,
+    _render_selected_pairs,
     _render_summary,
     _split_warnings_by_audience,
     is_meteo_sync_warning,
@@ -183,6 +184,71 @@ class SplitResultsFormattingTest(unittest.TestCase):
         self.assertEqual(row["CV F0 [%]"], "2.31")
         self.assertNotIn("%", row["CV F0 [%]"])
 
+    def test_selected_pair_card_uses_canonical_directional_energy(self):
+        pair = {
+            "high_plus_run": "HP", "high_plus_delta_t_s": 11.0,
+            "low_plus_run": "LP", "low_plus_delta_t_s": 12.0,
+            "high_minus_run": "HM", "high_minus_delta_t_s": 13.0,
+            "low_minus_run": "LM", "low_minus_delta_t_s": 14.0,
+            "F0_plus": 100.12345, "F2_plus": 0.0043219,
+            "temp_plus_used": 20.0, "press_plus_used": 101.325,
+            "wind_plus_ms": 0.0,
+            "F0_minus": 200.0, "F2_minus": 0.005,
+            "temp_minus_used": 40.0, "press_minus_used": 99.0,
+            "wind_minus_ms": 2.5,
+            "F0_mean": 123.4567, "F2_mean": 0.004444,
+            "energy": 0.3333, "temp_c": 25.5,
+            "baro_kpa": 100.25, "wind_ms": 0.75,
+        }
+        original = dict(pair)
+        fake_st = Mock()
+        fake_st.expander.return_value = MagicMock()
+        plus_column, minus_column = Mock(), Mock()
+        fake_st.columns.return_value = [plus_column, minus_column]
+        t = get_translator("pt")
+
+        with patch("pages.page_split_results.st", fake_st), patch(
+            "pages.page_split_results.calculate_split_energy",
+            side_effect=[{"energy": 0.11119}, {"energy": 0.22229}],
+        ) as calculate_energy:
+            _render_selected_pairs([pair], t)
+
+        fake_st.expander.assert_called_once_with(
+            "[+]: Run HP / Run LP | [-]: Run HM / Run LM",
+            expanded=False,
+        )
+        fake_st.columns.assert_called_once_with(2, gap="small")
+        self.assertEqual(
+            calculate_energy.call_args_list,
+            [
+                call(100.12345, 0.0043219),
+                call(200.0, 0.005),
+            ],
+        )
+        plus_html = plus_column.markdown.call_args.args[0]
+        minus_html = minus_column.markdown.call_args.args[0]
+        self.assertIn("[+] Run HP / Run LP", plus_html)
+        self.assertIn("[-] Run HM / Run LM", minus_html)
+        self.assertIn("0.1112", plus_html)
+        self.assertIn("0.2223", minus_html)
+        self.assertIn("0.00", plus_html)
+        self.assertIn("split-pair-primary", plus_html)
+        self.assertIn("split-pair-secondary", plus_html)
+        self.assertIn(
+            "border:",
+            fake_st.markdown.call_args_list[0].args[0],
+        )
+
+        footer_html = fake_st.markdown.call_args_list[-1].args[0]
+        self.assertIn(t("split_pair_average"), footer_html)
+        self.assertIn("footer", footer_html)
+        self.assertIn("123.4567", footer_html)
+        self.assertIn("0.3333", footer_html)
+        self.assertIn("25.5", footer_html)
+        self.assertIn("0.75", footer_html)
+        self.assertEqual(calculate_energy.call_count, 2)
+        self.assertEqual(pair, original)
+
     def test_display_does_not_add_unit_unless_explicitly_requested(self):
         self.assertEqual(_display(130.2186, 4), "130.2186")
         self.assertEqual(_display(2.31, 2), "2.31")
@@ -206,7 +272,7 @@ class SplitResultsFormattingTest(unittest.TestCase):
         self.assertTrue(second_hit)
         self.assertEqual(builder.call_count, 2)
 
-    def test_results_render_does_not_generate_excel_without_button(self):
+    def test_results_render_hides_traceability_and_does_not_generate_excel_without_button(self):
         pair = {"id": "one", "selected": True, "F0_mean": 100.0, "F2_mean": 0.004}
         summary = {"selected_pairs": [pair], "num_pairs": 1}
         fake_st = Mock()
@@ -221,13 +287,14 @@ class SplitResultsFormattingTest(unittest.TestCase):
         ), patch("pages.page_split_results._render_summary"), patch(
             "pages.page_split_results._render_vehicle"
         ), patch("pages.page_split_results._render_coefficients"), patch(
-            "pages.page_split_results._pair_rows", return_value=[]
+            "pages.page_split_results._render_selected_pairs"
         ), patch("pages.page_split_results._render_deviation_summary"), patch(
-            "pages.page_split_results._render_traceability"
-        ), patch("pages.page_split_results.export_split_final_results_to_excel") as exporter:
+            "pages.page_split_results.export_split_final_results_to_excel"
+        ) as exporter:
             from pages.page_split_results import render
             render(lambda key: key)
         exporter.assert_not_called()
+        fake_st.expander.assert_not_called()
 
     def test_conformity_status_maps_time_validation_passed(self):
         self.assertEqual(
@@ -336,6 +403,10 @@ class SplitResultsFormattingTest(unittest.TestCase):
         fake_st.error.assert_not_called()
         fake_st.warning.assert_not_called()
         frame = fake_st.dataframe.call_args.args[0]
+        self.assertEqual(
+            list(frame.columns),
+            ["Coeficiente", "Valor médio", "CV [%]"],
+        )
         self.assertTrue(all(
             t("split_results_diagnostic_label") in value
             for value in frame["Coeficiente"].iloc[:2]

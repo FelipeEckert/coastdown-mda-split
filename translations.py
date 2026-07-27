@@ -1192,8 +1192,8 @@ TRANSLATIONS = {
         "en": "Low-speed volta (-)"
     },
     "split_pair_average": {
-        "pt": "Media do par",
-        "en": "Pair average"
+        "pt": "Média do par:",
+        "en": "Pair average:"
     },
     "split_direction_plus_result": {
         "pt": "Resultado direcao +",
