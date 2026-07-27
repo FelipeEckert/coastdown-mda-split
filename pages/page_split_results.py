@@ -37,7 +37,7 @@ CONFORMITY_ICONS = {
     "inconclusive": "⚠️",
 }
 CONFORMITY_COLORS = {
-    "conforming": "#4caf50",
+    "conforming": "#7bda7e",
     "nonconforming": "#f44336",
     "inconclusive": "#ff9800",
 }
@@ -48,10 +48,11 @@ CONFORMITY_LABEL_KEYS = {
 }
 
 METEO_SYNC_WARNING_PATTERNS = (
-    "weather date differs",
-    "synchronization used time of day",
-    "multiple weather records were equally close",
-    "weather record",
+    "weather",
+    "meteorologia",
+    "vento",
+    "wind",
+    "temperatura",
     "sync",
 )
 
@@ -81,10 +82,6 @@ def _cv_status(value, t):
     return t("split_results_status_conforming" if number <= 10.0 else "split_results_status_nonconforming")
 
 
-def _status_label(status, t):
-    return t(f"split_results_status_{status}")
-
-
 def _check_status_label(passed, t):
     if passed is True:
         return t("split_results_status_conforming")
@@ -100,12 +97,7 @@ def is_meteo_sync_warning(warning) -> bool:
 
 
 def _split_warnings_by_audience(warnings) -> tuple[list[str], list[str]]:
-    """Split warnings into (critical, meteo_sync) for end-user display.
-
-    Meteo-sync warnings stay useful for traceability/Excel but should not
-    pollute the results page; they are grouped into a collapsed expander
-    instead of one st.warning per item.
-    """
+    """Split warnings into (non-weather, weather) for end-user display."""
     critical = []
     meteo_sync = []
     for warning in warnings or []:
@@ -132,58 +124,89 @@ def _split_summary_card_css() -> str:
     return """
     <style>
         .split-summary-card {
-            background-color: #1e1e1e;
-            border: 1px solid #3d3d3d;
-            border-radius: 8px;
-            padding: 20px;
+            width: 100%;
+            box-sizing: border-box;
+            background-color: var(--secondary-background-color);
+            border: 1px solid rgba(127, 127, 127, 0.28);
+            border-radius: 10px;
+            padding: clamp(22px, 3vw, 30px);
         }
         .split-summary-card .split-summary-row {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
+            align-items: center;
+            gap: 20px;
         }
         .split-summary-card .split-summary-row + .split-summary-row {
-            border-top: 1px solid #3d3d3d;
-            margin-top: 14px;
-            padding-top: 14px;
+            border-top: 1px solid rgba(127, 127, 127, 0.22);
+            margin-top: 20px;
+            padding-top: 20px;
+        }
+        .split-summary-card .split-summary-row:first-of-type {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0;
+        }
+        .split-summary-card .split-summary-row:first-of-type > div {
+            padding: 6px 16px;
         }
         .split-summary-card .split-summary-label {
-            color: #a0a0a0;
-            font-size: 0.85rem;
+            color: color-mix(in srgb, var(--text-color) 72%, transparent);
+            font-size: 0.9rem;
+            font-weight: 500;
+            line-height: 1.35;
         }
         .split-summary-card .split-summary-value {
-            color: #ffffff;
-            font-size: 1.6rem;
+            color: var(--text-color);
+            font-size: clamp(1.5rem, 3vw, 2rem);
             font-weight: 700;
+            line-height: 1.2;
+            margin-top: 4px;
         }
         .split-summary-card .split-summary-conformity {
             text-align: right;
         }
         .split-summary-card .split-summary-conformity-value {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 700;
+            line-height: 1.3;
+            margin-top: 4px;
         }
         .split-summary-card .split-summary-conformity-criteria {
-            color: #a0a0a0;
-            font-size: 0.78rem;
+            color: color-mix(in srgb, var(--text-color) 72%, transparent);
+            font-size: 0.85rem;
+            line-height: 1.35;
+            margin-top: 2px;
         }
         .split-summary-card .split-summary-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             text-align: center;
-            gap: 8px;
+            gap: 0;
             width: 100%;
+        }
+        .split-summary-card .split-summary-grid > div,
+        .split-summary-card .split-summary-diagnostic-row > div {
+            padding: 6px 12px;
         }
         .split-summary-card .split-summary-diagnostic-row {
-            display: flex;
-            justify-content: space-around;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             text-align: center;
+            gap: 0;
             width: 100%;
         }
+        .split-summary-card .split-summary-row:first-of-type > div + div,
+        .split-summary-card .split-summary-grid > div + div,
+        .split-summary-card .split-summary-diagnostic-row > div + div {
+            border-left: 1px solid rgba(127, 127, 127, 0.22);
+        }
         .split-summary-card .split-summary-diagnostic-value {
-            color: #a0a0a0;
+            color: var(--text-color);
             font-size: 1.2rem;
-            font-weight: 700;
+            font-weight: 600;
+            line-height: 1.3;
+            margin-top: 4px;
         }
     </style>
     """
@@ -347,7 +370,7 @@ def _render_vehicle(summary, t):
     st.dataframe(pd.DataFrame(rows, columns=("Campo", "Valor")), use_container_width=True, hide_index=True)
 
 
-def _render_coefficients(summary, time_validation, t):
+def _render_coefficients(summary, t):
     st.markdown("---")
     st.subheader(t("split_results_validation"))
     diagnostic_label = t("split_results_diagnostic_label")
@@ -357,26 +380,9 @@ def _render_coefficients(summary, time_validation, t):
         ("Energia [MJ/km]", _display(summary.get("mean_energy"), 4), _display(summary.get("cv_energy"), 2), t("split_results_status_not_evaluable")),
     ]
     st.dataframe(pd.DataFrame(rows, columns=("Coeficiente", "Valor médio", "CV [%]", "Status")), use_container_width=True, hide_index=True)
-    status = _conformity_status_from_time_validation(time_validation)
-    message = _status_label(status, t)
-    if status == "conforming":
-        st.success(message)
-    elif status == "nonconforming":
-        st.error(message)
-    else:
-        st.warning(message)
-    critical_warnings, meteo_sync_warnings = _split_warnings_by_audience(
-        summary.get("warnings")
-    )
+    critical_warnings, _ = _split_warnings_by_audience(summary.get("warnings"))
     for warning in critical_warnings:
         st.warning(warning)
-    if meteo_sync_warnings:
-        with st.expander(
-            t("split_results_meteo_sync_expander", count=len(meteo_sync_warnings)),
-            expanded=False,
-        ):
-            for warning in meteo_sync_warnings:
-                st.caption(warning)
 
 
 def _time_normative_metric_rows(times: dict, selected_pairs, t) -> list[dict]:
@@ -421,30 +427,26 @@ def _time_normative_metric_rows(times: dict, selected_pairs, t) -> list[dict]:
 
 
 def _render_deviation_summary(analysis, selected_pairs, t):
-    st.markdown("---")
-    st.subheader(t("split_results_deviation_title"))
     coefficients = analysis["coefficient_summary"]
     times = analysis["time_summary"]
-    weather = analysis["weather_summary"]
-    status_map = {
-        "approved": "conforming",
-        "failed": "nonconforming",
-        "insufficient_data": "not_evaluable",
-    }
-    cards = st.columns(2)
-    cards[0].metric(
-        t("split_results_deviation_time_overall"),
-        _status_label(status_map.get(times["status"], "warning"), t),
-    )
-    cards[1].metric(
-        t("split_results_deviation_weather"),
-        _status_label(status_map.get(weather["status"], "warning"), t),
-    )
 
     st.markdown(f"**{t('split_results_deviation_time_criteria_title')}**")
     time_rows = _time_normative_metric_rows(times, selected_pairs, t)
     if time_rows:
-        st.dataframe(pd.DataFrame(time_rows), use_container_width=True, hide_index=True)
+        status_colors = {
+            t("split_results_status_conforming"): "#97f97b7f",
+            t("split_results_status_nonconforming"): "#ff6f6f82",
+        }
+        status_key = t("split_results_deviation_status")
+        styled_rows = pd.DataFrame(time_rows).style.map(
+            lambda value: (
+                f"background-color: {status_colors[value]}; color: #1f1f1f"
+                if value in status_colors
+                else ""
+            ),
+            subset=[status_key],
+        )
+        st.dataframe(styled_rows, use_container_width=True, hide_index=True)
 
     st.markdown(f"**{t('split_results_deviation_coefficients_title')}**")
     diagnostic_label = t("split_results_diagnostic_label")
@@ -508,12 +510,12 @@ def render(t):
     st.session_state.split_deviation_analysis_cache = analysis_cache
     _render_summary(summary, analysis.get("time_summary"), t)
     _render_vehicle(summary, t)
-    _render_coefficients(summary, analysis.get("time_summary"), t)
+    _render_coefficients(summary, t)
+    _render_deviation_summary(analysis, selected_pairs, t)
 
     st.markdown("---")
     st.subheader(f"📋 {t('split_selected_pairs')}")
     st.dataframe(pd.DataFrame(_pair_rows(selected_pairs, t)), use_container_width=True, hide_index=True)
-    _render_deviation_summary(analysis, selected_pairs, t)
     _render_traceability(selected_pairs, t)
 
     st.markdown("---")

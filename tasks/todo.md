@@ -685,4 +685,18 @@
 - [x] Rewrite `_render_deviation_summary()` to show the six real Split normative metrics (CV Delta t high+/high-/low+/low- <= 2.5%, opposite-direction mean diff high/low <= 10%) via `format_split_time_group_label()`/`format_split_opposite_time_label()`, with CV F0/F2 shown separately and explicitly labeled diagnostic/non-normative.
 - [x] Add all new PT/EN strings to `translations.py` (card labels, diagnostic label, meteo-sync expander title, deviation-table column headers/section titles).
 - [x] Add/update regression tests in `tests/test_split_results_formatting.py` for the conformity mapping, card HTML (status/color/escaping), warning classifier/splitter, expander grouping and the six-metric deviation table.
-- [ ] Manually validate the new card, collapsed meteo-sync expander and six-metric deviation table in the running Streamlit app with a real selected-pair set.
+- [x] Merge the validation and deviation UI into one `Validação dos resultados`
+  section while retaining the coefficient and normative-time tables.
+- [x] Remove the duplicate conformity banners, weather status card and weather
+  warning rendering from the main page without changing warning payloads,
+  traceability or Excel export.
+- [x] Pass compile checks and all 17 focused Results-page tests.
+- [x] Run the 450-test full suite after showing the diff: 449 passed and the
+  unrelated auto-selection page test below errored identically in isolation.
+- [ ] Repair
+  `test_render_submits_default_constraints_and_advanced_search_settings`,
+  whose `st.radio` mock currently returns an unmapped `Mock`; outside this
+  presentation-only Results-page change.
+- [ ] Manually validate the consolidated card, merged validation section and
+  absence of duplicate/weather alerts in the running Streamlit app with a real
+  selected-pair set.

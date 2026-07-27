@@ -3119,3 +3119,20 @@ usuario. Nao combine candidatos de um fallback guloso com metricas de outro
 conjunto avaliado, mesmo que ambos falhem os mesmos criterios.
 
 ---
+
+## 2026-07-27 - Avisos Podem Ser Preservados Sem Poluir Resultados
+
+### Decisao:
+
+A pagina de Resultados mantem os avisos meteorologicos nos pares consolidados,
+na rastreabilidade e na exportacao, mas nao os renderiza como caixas ou cards na
+superficie principal. Validacao de coeficientes e criterios de tempo compartilham
+um unico titulo; a conformidade continua no card consolidado.
+
+### Licao:
+
+Ocultar ruido de uma tela e uma decisao de apresentacao, nao uma autorizacao para
+apagar dados de diagnostico. Filtre na fronteira de renderizacao e preserve o
+payload para auditoria e exportacao.
+
+---
