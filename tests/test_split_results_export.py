@@ -211,6 +211,11 @@ class SplitResultsExportTests(unittest.TestCase):
         for row in (4, 9):
             for column in (*range(1, 6), *range(7, 10)):
                 self.assertEqual(ws.cell(row, column).border.bottom.style, "medium")
+        self.assertNotIn(
+            "Tempos por subintervalo indisponíveis para dados legados; "
+            "reprocesse o teste para recuperar os valores exatos.",
+            _flat(ws),
+        )
 
     def test_deceleration_times_preserves_each_pair_without_deduplicating_runs(self):
         first = _pair("one")
@@ -238,7 +243,7 @@ class SplitResultsExportTests(unittest.TestCase):
             for column in (*range(1, 6), *range(7, 10)):
                 self.assertEqual(ws.cell(row, column).border.bottom.style, "medium")
 
-    def test_deceleration_times_uses_canonical_threshold_timestamps(self):
+    def test_deceleration_times_marks_legacy_subintervals_unavailable(self):
         pair = _pair("one")
         pair["high_plus"].pop("subinterval_times_s")
         pair["high_plus"]["times"] = [0.0, 5.0, 11.0]
@@ -246,8 +251,17 @@ class SplitResultsExportTests(unittest.TestCase):
 
         ws = self._workbook([pair])["Tempos de desaceleração"]
 
-        self.assertEqual([ws["C3"].value, ws["D3"].value], [5.0, 6.0])
-        self.assertAlmostEqual(ws["C3"].value + ws["D3"].value, ws["E3"].value)
+        note = (
+            "Tempos por subintervalo indisponíveis para dados legados; "
+            "reprocesse o teste para recuperar os valores exatos."
+        )
+        self.assertEqual([ws["C3"].value, ws["D3"].value], ["-", "-"])
+        self.assertEqual(ws["E3"].value, 11.0)
+        self.assertEqual(_flat(ws).count(note), 1)
+        self.assertIn(
+            "A11:E11",
+            {str(cell_range) for cell_range in ws.merged_cells.ranges},
+        )
 
     def test_selected_pairs_are_two_grouped_directional_tables_in_order(self):
         first = _pair("one")

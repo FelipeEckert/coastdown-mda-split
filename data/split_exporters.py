@@ -24,10 +24,13 @@ from core.split_energy import calculate_split_energy
 from core.split_results import consolidate_split_final_results
 from core.split_weather_context import split_environmental_values
 from core.split_vehicle_mass import normalize_split_vehicle_mass_data
-from data.split_parser import normalize_run_intervals
 
 
 MISSING = "-"
+LEGACY_SUBINTERVAL_NOTE = (
+    "Tempos por subintervalo indisponíveis para dados legados; "
+    "reprocesse o teste para recuperar os valores exatos."
+)
 HEADER_FILL = PatternFill("solid", fgColor="4472C4")
 TITLE_FILL = PatternFill("solid", fgColor="D9EAF7")
 PAIR_FILL = PatternFill("solid", fgColor="D9D9D9")
@@ -522,10 +525,7 @@ def _write_deceleration_times(wb, pairs):
             return stored
         if isinstance(stored, (list, tuple)):
             return dict(zip(labels, stored))
-        return {
-            row["label"]: row["time_s"]
-            for row in normalize_run_intervals(record)
-        }
+        return {}
 
     for pair_index, pair in enumerate(pairs, 1):
         ambient = pair.get("ambient_by_component") or {}
@@ -548,6 +548,10 @@ def _write_deceleration_times(wb, pairs):
                     "record": record,
                     "direction": direction,
                     "interval_times": interval_times(record),
+                    "legacy_times_missing": (
+                        bool(record)
+                        and "subinterval_times_s" not in record
+                    ),
                     "weather": weather,
                 })
 
@@ -709,9 +713,21 @@ def _write_deceleration_times(wb, pairs):
     row = write_section(
         1, "ALTA VELOCIDADE", rows["high"], labels_by_interval["high"],
     )
-    write_section(
+    row = write_section(
         row, "BAIXA VELOCIDADE", rows["low"], labels_by_interval["low"],
     )
+    if any(
+        item["legacy_times_missing"]
+        for section_rows in rows.values()
+        for item in section_rows
+    ):
+        ws.cell(row, 1, LEGACY_SUBINTERVAL_NOTE)
+        ws.cell(row, 1).font = Font(italic=True, color="7F6000")
+        ws.cell(row, 1).alignment = Alignment(wrap_text=True)
+        ws.merge_cells(
+            start_row=row, start_column=1,
+            end_row=row, end_column=main_end,
+        )
     ws.freeze_panes = "A3"
     ws.auto_filter.ref = None
     for column, width in widths.items():

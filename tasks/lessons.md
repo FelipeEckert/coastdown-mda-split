@@ -3168,14 +3168,16 @@ kernel existente; valores formatados nunca devem voltar ao calculo.
 
 O parser Split preserva `subinterval_times_s` na mesma ordem de
 `subintervals`, diretamente dos `matched_rows` que ja definem `delta_t_s`.
-A worksheet Tempos de desaceleracao usa somente esses valores, o horario e o
-total do record canonico e a meteorologia do componente correspondente. Records
-legados sem tempos individuais recebem `-`; o exportador nao distribui nem
-reconstroi o total.
+A worksheet Tempos de desaceleracao usa somente esses valores, o total do
+record canonico e a meteorologia do componente correspondente. Calculo,
+correcao, comparacao, selecao e persistencia preservam os records aninhados; a
+assinatura recursiva do workbook inclui tambem os tempos por subintervalo.
+Records legados sem `subinterval_times_s` recebem `-` e uma unica nota para
+reprocessar o teste; o exportador nao distribui nem reconstroi o total.
 
 A ordem percorre os pares selecionados e, dentro de cada par, [+] antes de [-].
-A identidade existente de `build_split_run_usage()` elimina repeticoes sem
-confundir arquivo, papel, hash, intervalo ou sentido.
+Cada par permanece independente mesmo quando reutiliza uma passada de outro
+par.
 
 ### Licao:
 

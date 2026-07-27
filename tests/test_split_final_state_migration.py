@@ -34,6 +34,10 @@ def _pair(pair_id="pair-1"):
         "selected": True,
         "F0_mean": 100.0,
         "F2_mean": 0.004,
+        "high_plus": {
+            "subintervals": ["90-85"],
+            "subinterval_times_s": [4.23],
+        },
     }
 
 
@@ -83,7 +87,32 @@ class SplitFinalStateMigrationTests(unittest.TestCase):
 
         self.assertTrue(migrated)
         self.assertEqual(state["split_comparison_pairs"], legacy["selected_pairs"])
+        self.assertEqual(
+            state["split_comparison_pairs"][0]["high_plus"][
+                "subinterval_times_s"
+            ],
+            [4.23],
+        )
         self.assertEqual(state["split_final_results"], legacy)
+
+    def test_active_test_round_trip_preserves_subinterval_times(self):
+        state = _State()
+        with patch.object(app.st, "session_state", state):
+            app.init_session_state()
+            state.tests = {"saved": {}}
+            state.active_test_id = "saved"
+            state.split_comparison_pairs = [_pair()]
+
+            app.save_active_test_state()
+            state.split_comparison_pairs = []
+            app.load_test_state("saved")
+
+        self.assertEqual(
+            state.split_comparison_pairs[0]["high_plus"][
+                "subinterval_times_s"
+            ],
+            [4.23],
+        )
 
     def test_unsafe_legacy_pair_sets_are_not_migrated(self):
         duplicate = _pair("duplicate")

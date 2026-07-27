@@ -109,6 +109,12 @@ class SplitExportCacheSignatureTests(unittest.TestCase):
                 mutate(changed)
                 self.assertNotEqual(baseline, _signature([changed]))
 
+    def test_subinterval_time_presence_is_part_of_cache_identity(self):
+        legacy = _pair()
+        legacy["high_plus"].pop("subinterval_times_s")
+
+        self.assertNotEqual(_signature([_pair()]), _signature([legacy]))
+
     def test_unselected_internal_metadata_does_not_invalidate_signature(self):
         selected = _pair()
         unselected = _pair()

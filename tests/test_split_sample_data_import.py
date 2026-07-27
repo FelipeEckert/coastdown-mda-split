@@ -96,11 +96,30 @@ class SplitSampleDataImportTest(unittest.TestCase):
             pair_id="sample-positive-road-load",
         )
         summary = consolidate_split_final_results([comparison_pair])
+        selected_pair = summary["selected_pairs"][0]
+        component_records = {
+            "high_plus": high_record,
+            "low_plus": low_record,
+            "high_minus": high_minus,
+            "low_minus": low_minus,
+        }
+        for component, record in component_records.items():
+            expected = record["subinterval_times_s"]
+            self.assertEqual(complete[component]["subinterval_times_s"], expected)
+            self.assertEqual(corrected[component]["subinterval_times_s"], expected)
+            self.assertEqual(
+                comparison_pair[component]["subinterval_times_s"],
+                expected,
+            )
+            self.assertEqual(
+                selected_pair[component]["subinterval_times_s"],
+                expected,
+            )
         workbook = load_workbook(
             io.BytesIO(
                 export_split_final_results_to_excel(
                     final_results=summary,
-                    selected_pairs=[comparison_pair],
+                    selected_pairs=[selected_pair],
                     vehicle_data={"effective_mass_kg": 1545.0},
                 )
             ),
@@ -118,10 +137,23 @@ class SplitSampleDataImportTest(unittest.TestCase):
             for column in (9, 10)
         ]
         times_ws = workbook["Tempos de desaceleração"]
-        self.assertEqual(
-            [times_ws.cell(3, column).value for column in range(3, 7)],
-            high_record["subinterval_times_s"],
-        )
+        for row, record in (
+            (3, high_record),
+            (4, high_minus),
+            (8, low_record),
+            (9, low_minus),
+        ):
+            count = len(record["subinterval_times_s"])
+            exported_times = [
+                times_ws.cell(row, column).value
+                for column in range(3, 3 + count)
+            ]
+            self.assertEqual(exported_times, record["subinterval_times_s"])
+            self.assertTrue(math.isclose(
+                sum(exported_times),
+                times_ws.cell(row, 7).value,
+                rel_tol=1e-12,
+            ))
 
         self.assertTrue(all(value > 0 for value in (
             corrected["F0_plus"],

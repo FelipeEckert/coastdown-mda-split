@@ -210,9 +210,15 @@
   diff checks; full suite passed 452/453 with the already-tracked auto-selection
   radio-mock error.
 - [x] Add Tempos de desaceleração with dynamic high/low subinterval columns,
-  canonical run weather, deduplicated selected-run order and Excel formatting.
+  canonical run weather, pair-traceable selected order and Excel formatting.
 - [x] Preserve exact processed subinterval `time_s` values in parsed records so
   the workbook never reconstructs them from totals or display values.
+- [x] Verify exact subinterval-time preservation through calculated,
+  comparison, selected and persisted pairs and the Excel cache signature.
+- [x] Keep legacy pairs without `subinterval_times_s` unavailable and add one
+  worksheet note requiring reprocessing instead of estimating from total time.
+- [x] Pass 55 focused workbook/parser/cache/persistence tests and compile checks
+  for the finalized subinterval-time path.
 - [x] Pass 40 focused workbook/sample/cache tests, 22 interval-parser tests,
   compile, scoped Ruff and diff checks; full suite passed 456/457 with the
   already-tracked auto-selection radio-mock error.
