@@ -4,6 +4,7 @@
 from copy import deepcopy
 import io
 import unittest
+from unittest.mock import call, patch
 
 from openpyxl import load_workbook
 
@@ -23,6 +24,13 @@ def _pair(pair_id, *, selected=True, temperature=25.0, wind=1.0):
             "delta_t_s": 10.0 + index,
             "source_role": component.split("_")[0],
             "content_sha256": f"hash-{index}",
+            "start_time_str": f"08:0{index}:00",
+            "subintervals": (
+                ["101-94", "94-87"]
+                if component.startswith("high")
+                else ["63-56", "56-49"]
+            ),
+            "subinterval_times_s": [4.0 + index, 6.0],
         }
         for index, component in enumerate(COMPONENTS, 1)
     }
@@ -35,17 +43,26 @@ def _pair(pair_id, *, selected=True, temperature=25.0, wind=1.0):
         **{f"{component}_delta_t_s": 10.0 + index for index, component in enumerate(COMPONENTS, 1)},
         "F0_mean": 100.0 if pair_id == "one" else 110.0,
         "F2_mean": 0.004 if pair_id == "one" else 0.0042,
+        "f0_prime_plus": 90.123456789,
+        "f2_prime_plus": 0.05123456789,
+        "f0_prime_minus": 91.234567891,
+        "f2_prime_minus": 0.05234567891,
+        "F0_plus": 100.123456789,
+        "F2_plus": 0.004123456789,
+        "F0_minus": 101.234567891,
+        "F2_minus": 0.004234567891,
         "v2_reference_kmh": 82.5,
         "v1_reference_kmh": 41.0,
         "energy": 1.25,
         "ambient_by_component": {
             component: {
-                "temperature_c": temperature,
+                "temperature_c": temperature + index - 1,
                 "pressure_kpa": 101.3,
-                "wind_speed_ms": wind,
+                "wind_speed_ms": wind + (index - 1) / 10,
                 "sync_method": "nearest",
+                "warnings": [],
             }
-            for component in COMPONENTS
+            for index, component in enumerate(COMPONENTS, 1)
         },
         "weather_summary": {"mode": "synchronized"},
         "warnings": [],
@@ -85,10 +102,11 @@ class SplitResultsExportTests(unittest.TestCase):
             "[+]: Run - / Run - | [-]: Run - / Run -",
         )
 
-    def test_workbook_contains_exactly_three_consolidated_sheets(self):
+    def test_workbook_preserves_three_sheets_and_adds_deceleration_times(self):
         wb = self._workbook([_pair("one"), _pair("two")])
         self.assertEqual(wb.sheetnames, [
             "Resumo Final", "Pares Selecionados", "Análise de Desvios e Tempos",
+            "Tempos de desaceleração",
         ])
         workbook_values = [value for ws in wb.worksheets for value in _flat(ws)]
         for removed in ("Dados do Veículo", "Rastreabilidade", "Tempos deltaT", "LEAVE-ONE-OUT"):
@@ -96,10 +114,236 @@ class SplitResultsExportTests(unittest.TestCase):
 
     def test_workbook_has_no_freeze_panes_filters_or_excel_tables(self):
         wb = self._workbook([_pair("one"), _pair("two")])
-        for ws in wb.worksheets:
+        for ws in wb.worksheets[:3]:
             self.assertIsNone(ws.freeze_panes)
             self.assertIsNone(ws.auto_filter.ref)
             self.assertEqual(len(ws.tables), 0)
+        times_ws = wb["Tempos de desaceleração"]
+        self.assertEqual(times_ws.freeze_panes, "A3")
+        self.assertIsNone(times_ws.auto_filter.ref)
+        self.assertEqual(len(times_ws.tables), 0)
+
+    def test_deceleration_times_uses_dynamic_canonical_run_values(self):
+        ws = self._workbook([_pair("one")])["Tempos de desaceleração"]
+
+        self.assertEqual(
+            [ws.cell(2, column).value for column in range(1, 10)],
+            [
+                "Par", "Run", "101-94", "94-87", "Δt total [s]",
+                None,
+                "Temperatura [°C]", "Pressão [kPa]", "Vento [m/s]",
+            ],
+        )
+        self.assertEqual(
+            [ws.cell(7, column).value for column in range(1, 10)],
+            [
+                "Par", "Run", "63-56", "56-49", "Δt total [s]",
+                None,
+                "Temperatura [°C]", "Pressão [kPa]", "Vento [m/s]",
+            ],
+        )
+        self.assertEqual(
+            [ws.cell(3, column).value for column in range(1, 10)],
+            [
+                "PAR 1", "Run 1 [+]", 5.0, 6.0, 11.0, None,
+                25.0, 101.3, 1.0,
+            ],
+        )
+        self.assertEqual(
+            [ws.cell(4, column).value for column in range(1, 10)],
+            [
+                None, "Run 3 [-]", 7.0, 6.0, 13.0, None,
+                27.0, 101.3, 1.2,
+            ],
+        )
+        self.assertEqual(
+            [ws.cell(8, column).value for column in range(1, 10)],
+            [
+                "PAR 1", "Run 2 [+]", 6.0, 6.0, 12.0, None,
+                26.0, 101.3, 1.1,
+            ],
+        )
+        self.assertEqual(
+            [ws.cell(9, column).value for column in range(1, 10)],
+            [
+                None, "Run 4 [-]", 8.0, 6.0, 14.0, None,
+                28.0, 101.3, 1.3,
+            ],
+        )
+        self.assertTrue({
+            "A1:E1", "G1:I1", "A3:A4",
+            "A6:E6", "G6:I6", "A8:A9",
+        }.issubset({str(cell_range) for cell_range in ws.merged_cells.ranges}))
+        self.assertEqual(ws["G1"].value, "Estação meteorológica")
+        self.assertEqual(ws["G6"].value, "Estação meteorológica")
+        self.assertEqual(ws.column_dimensions["F"].width, 3)
+        self.assertTrue(all(
+            ws.cell(row, 6).value is None and not ws.cell(row, 6).has_style
+            for row in range(1, 10)
+        ))
+        self.assertEqual(ws["C3"].number_format, "0.000")
+        self.assertEqual(ws["E3"].number_format, "0.000")
+        self.assertEqual(ws["G3"].number_format, "0.0")
+        self.assertEqual(ws["H3"].number_format, "0.00")
+        self.assertEqual(ws["I3"].number_format, "0.00")
+        self.assertEqual(ws["A2"].alignment.horizontal, "center")
+        for first_row, second_row in ((3, 4), (8, 9)):
+            pair_cell = ws.cell(first_row, 1)
+            self.assertEqual(pair_cell.fill.fill_type, "solid")
+            self.assertEqual(pair_cell.fill.fgColor.rgb, "00D9D9D9")
+            self.assertEqual(pair_cell.alignment.horizontal, "center")
+            self.assertEqual(pair_cell.alignment.vertical, "center")
+            self.assertEqual(pair_cell.border.top.style, "thin")
+            self.assertEqual(pair_cell.border.left.style, "thin")
+            self.assertEqual(pair_cell.border.right.style, "thin")
+            self.assertEqual(
+                ws.cell(second_row, 1).border.bottom.style,
+                "medium",
+            )
+        self.assertGreaterEqual(ws.column_dimensions["A"].width, 12)
+        self.assertGreaterEqual(ws.column_dimensions["B"].width, 18)
+        for row in (3, 4, 8, 9):
+            self.assertAlmostEqual(
+                sum(ws.cell(row, column).value for column in (3, 4)),
+                ws.cell(row, 5).value,
+                places=3,
+            )
+        for row in (4, 9):
+            for column in (*range(1, 6), *range(7, 10)):
+                self.assertEqual(ws.cell(row, column).border.bottom.style, "medium")
+
+    def test_deceleration_times_preserves_each_pair_without_deduplicating_runs(self):
+        first = _pair("one")
+        second = _pair("two")
+
+        ws = self._workbook([first, second])["Tempos de desaceleração"]
+
+        self.assertEqual(
+            [ws.cell(row, 1).value for row in range(3, 7)],
+            ["PAR 1", None, "PAR 2", None],
+        )
+        self.assertEqual(
+            [ws.cell(row, 2).value for row in range(3, 7)],
+            ["Run 1 [+]", "Run 3 [-]", "Run 1 [+]", "Run 3 [-]"],
+        )
+        self.assertEqual(
+            [ws.cell(row, 2).value for row in range(10, 14)],
+            ["Run 2 [+]", "Run 4 [-]", "Run 2 [+]", "Run 4 [-]"],
+        )
+        merged = {str(cell_range) for cell_range in ws.merged_cells.ranges}
+        self.assertTrue({
+            "A3:A4", "A5:A6", "A10:A11", "A12:A13",
+        }.issubset(merged))
+        for row in (4, 6, 11, 13):
+            for column in (*range(1, 6), *range(7, 10)):
+                self.assertEqual(ws.cell(row, column).border.bottom.style, "medium")
+
+    def test_deceleration_times_uses_canonical_threshold_timestamps(self):
+        pair = _pair("one")
+        pair["high_plus"].pop("subinterval_times_s")
+        pair["high_plus"]["times"] = [0.0, 5.0, 11.0]
+        pair["high_plus"]["velocities"] = [101.0, 94.0, 87.0]
+
+        ws = self._workbook([pair])["Tempos de desaceleração"]
+
+        self.assertEqual([ws["C3"].value, ws["D3"].value], [5.0, 6.0])
+        self.assertAlmostEqual(ws["C3"].value + ws["D3"].value, ws["E3"].value)
+
+    def test_selected_pairs_are_two_grouped_directional_tables_in_order(self):
+        first = _pair("one")
+        second = _pair("two")
+        first["pair_label"] = "First selected pair"
+        second["pair_label"] = "Second selected pair"
+        ws = self._workbook([first, second])["Pares Selecionados"]
+
+        groups = (
+            "Identificação",
+            "Passadas e tempos",
+            "Resultados não corrigidos",
+            "Resultados corrigidos",
+            "Meteorologia — Alta",
+            "Meteorologia — Baixa",
+        )
+        headers = (
+            "Par", "Origem",
+            "Passada de alta", "Passada de baixa",
+            "Δt alta [s]", "Δt baixa [s]",
+            "F0 [N]", "F2 [N/(km/h)²]",
+            "F0 [N]", "F2 [N/(km/h)²]", "Energia [MJ/km]",
+            "Temperatura [°C]", "Pressão [kPa]", "Vento [m/s]",
+            "Temperatura [°C]", "Pressão [kPa]", "Vento [m/s]",
+        )
+        for title_row, group_row, header_row, data_rows, title in (
+            (1, 2, 3, (4, 5), "IDA [+]"),
+            (7, 8, 9, (10, 11), "VOLTA [-]"),
+        ):
+            self.assertEqual(ws.cell(title_row, 1).value, title)
+            self.assertEqual(
+                tuple(ws.cell(group_row, column).value for column in (
+                    1, 3, 7, 9, 12, 15,
+                )),
+                groups,
+            )
+            self.assertEqual(
+                tuple(ws.cell(header_row, column).value for column in range(1, 18)),
+                headers,
+            )
+            self.assertEqual(
+                [ws.cell(row, 1).value for row in data_rows],
+                ["First selected pair", "Second selected pair"],
+            )
+
+        self.assertEqual(
+            [ws.cell(4, column).value for column in range(3, 7)],
+            [1, 2, 11.0, 12.0],
+        )
+        self.assertEqual(
+            [ws.cell(10, column).value for column in range(3, 7)],
+            [3, 4, 13.0, 14.0],
+        )
+        self.assertTrue({
+            "A1:Q1", "A2:B2", "C2:F2", "G2:H2", "I2:K2",
+            "L2:N2", "O2:Q2",
+            "A7:Q7", "A8:B8", "C8:F8", "G8:H8", "I8:K8",
+            "L8:N8", "O8:Q8",
+        }.issubset({str(cell_range) for cell_range in ws.merged_cells.ranges}))
+
+    def test_corrected_energy_and_component_weather_use_exact_sources(self):
+        pair = _pair("one")
+
+        with patch(
+            "data.split_exporters.calculate_split_energy",
+            side_effect=[{"energy": 1.2}, {"energy": 2.2}],
+        ) as calculate_energy:
+            ws = self._workbook([pair])["Pares Selecionados"]
+
+        self.assertEqual(calculate_energy.call_args_list, [
+            call(pair["F0_plus"], pair["F2_plus"]),
+            call(pair["F0_minus"], pair["F2_minus"]),
+        ])
+        self.assertEqual(
+            [ws.cell(4, column).value for column in range(7, 12)],
+            [
+                pair["f0_prime_plus"], pair["f2_prime_plus"],
+                pair["F0_plus"], pair["F2_plus"], 1.2,
+            ],
+        )
+        self.assertEqual(
+            [ws.cell(9, column).value for column in range(7, 12)],
+            [
+                pair["f0_prime_minus"], pair["f2_prime_minus"],
+                pair["F0_minus"], pair["F2_minus"], 2.2,
+            ],
+        )
+        self.assertEqual(
+            [ws.cell(4, column).value for column in range(12, 18)],
+            [25.0, 101.3, 1.0, 26.0, 101.3, 1.1],
+        )
+        self.assertEqual(
+            [ws.cell(9, column).value for column in range(12, 18)],
+            [27.0, 101.3, 1.2, 28.0, 101.3, 1.3],
+        )
+        self.assertEqual(ws.max_column, 17)
 
     def test_summary_omits_warnings_and_merges_only_section_titles(self):
         wb = self._workbook([_pair("one"), _pair("two")])
@@ -178,14 +422,15 @@ class SplitResultsExportTests(unittest.TestCase):
                 rows = dict(ws.iter_rows(values_only=True))
                 self.assertEqual(rows["Status final"], "Aprovado")
 
-    def test_workbook_labels_coefficient_cv_as_diagnostic(self):
+    def test_pair_cv_stays_only_in_diagnostic_worksheets(self):
         wb = self._workbook([_pair("one"), _pair("two")])
         self.assertIn(
             "CV F0 diagnóstico [%]",
             _flat(wb["Resumo Final"]),
         )
-        pair_headers = [cell.value for cell in wb["Pares Selecionados"][2]]
-        self.assertIn("CV F0 diagnóstico [%]", pair_headers)
+        pair_values = _flat(wb["Pares Selecionados"])
+        self.assertNotIn("CV F0 diagnóstico [%]", pair_values)
+        self.assertNotIn("CV F2 diagnóstico [%]", pair_values)
         deviation_values = _flat(wb["Análise de Desvios e Tempos"])
         self.assertIn("RESUMO CV F0/F2 (DIAGNÓSTICO)", deviation_values)
         self.assertIn("Status diagnóstico", deviation_values)
@@ -220,19 +465,30 @@ class SplitResultsExportTests(unittest.TestCase):
         algorithm = _pair("split_pair_algorithm")
         algorithm.update({"selection_source": "algorithm", "algorithm_sources": ["energy", "target"]})
         wb = self._workbook([manual, algorithm])
-        rows = list(wb["Pares Selecionados"].iter_rows(min_row=3, values_only=True))
+        ws = wb["Pares Selecionados"]
+        rows = [
+            tuple(ws.iter_rows(min_row=row, max_row=row, values_only=True))[0]
+            for row in (4, 5, 10, 11)
+        ]
         self.assertTrue(all(str(row[0]).startswith("[+]: Run") for row in rows))
-        self.assertFalse(any("split_pair_" in str(value) for row in rows for value in row))
-        self.assertEqual([row[1] for row in rows], ["Manual", "Energia + Target"])
+        self.assertFalse(any(
+            "split_pair_" in str(value) for row in rows for value in row
+        ))
+        self.assertEqual(
+            [row[1] for row in rows],
+            ["Manual", "Energia + Target", "Manual", "Energia + Target"],
+        )
 
     def test_pair_quantities_are_numeric_and_missing_values_are_dash(self):
         wb = self._workbook([_pair("one")])
         ws = wb["Pares Selecionados"]
-        headers = [cell.value for cell in ws[2]]
-        row = 3
-        for header in ("DeltaT high+ [s]", "F0 [N]", "F2 [N/(km/h)²]", "Temperatura [°C]", "Pressão [kPa]"):
-            self.assertIsInstance(ws.cell(row, headers.index(header) + 1).value, (int, float))
-        self.assertIn("-", [cell.value for cell in ws[row]])
+        for row in (4, 9):
+            for column in range(3, 18):
+                self.assertIsInstance(
+                    ws.cell(row, column).value,
+                    (int, float),
+                    (row, column),
+                )
 
     def test_fixed_mode_exports_temperature_pressure_and_dash_wind(self):
         pair = _pair("fixed")
@@ -250,15 +506,17 @@ class SplitResultsExportTests(unittest.TestCase):
         self.assertIn("Parâmetros fixos", _flat(wb["Resumo Final"]))
         self.assertNotIn("missing", values)
 
-    def test_synchronized_mode_exports_weather_and_alerts(self):
+    def test_synchronized_mode_exports_weather_without_observations(self):
         wb = self._workbook([_pair("one", temperature=36.0, wind=3.1)])
         values = _flat(wb["Pares Selecionados"])
         self.assertIn(36.0, values)
         self.assertIn(101.3, values)
         self.assertIn(3.1, values)
-        alert = next(value for value in values if isinstance(value, str) and "Vento acima" in value)
-        self.assertIn("Temperatura acima", alert)
-        self.assertNotIn("Pressão", alert)
+        self.assertNotIn("Observações", values)
+        self.assertFalse(any(
+            isinstance(value, str) and "acima de" in value
+            for value in values
+        ))
 
     def test_deviation_sheet_contains_cv_and_time_blocks_without_cached_technical_label(self):
         pairs = [_pair("split_pair_one"), _pair("split_pair_two")]
@@ -299,7 +557,12 @@ class SplitResultsExportTests(unittest.TestCase):
         pairs = [_pair("one"), _pair("hidden", selected=False)]
         before = deepcopy(pairs)
         wb = self._workbook(pairs)
-        self.assertEqual(wb["Pares Selecionados"].max_row, 3)
+        ws = wb["Pares Selecionados"]
+        self.assertEqual(ws.max_row, 9)
+        self.assertEqual([ws.cell(row, 1).value for row in (4, 9)], [
+            get_split_pair_public_label(pairs[0]),
+            get_split_pair_public_label(pairs[0]),
+        ])
         self.assertEqual(pairs, before)
 
     def test_exporter_module_does_not_import_streamlit(self):

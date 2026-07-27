@@ -383,6 +383,7 @@ def extract_interval_record(
         "delta_v_kmh": delta_v_kmh(start, end),
         "delta_t_s": delta_t_s,
         "subintervals": [row["label"] for row in used_rows],
+        "subinterval_times_s": [row["time_s"] for row in used_rows],
         "source_columns": [row.get("source_column") for row in used_rows],
         "start_timestamp": run_data.get("start_timestamp"),
         "start_time_str": run_data.get("start_time_str"),

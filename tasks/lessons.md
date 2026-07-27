@@ -3136,3 +3136,52 @@ apagar dados de diagnostico. Filtre na fronteira de renderizacao e preserve o
 payload para auditoria e exportacao.
 
 ---
+
+## 2026-07-27 - Pares Selecionados Mantem Resultados Por Sentido
+
+### Decisao:
+
+Somente a worksheet Pares Selecionados foi reorganizada em duas tabelas
+verticais, IDA [+] e VOLTA [-], na ordem dos pares selecionados. Cada linha usa
+os coeficientes direcionais brutos e corrigidos e a meteorologia canonica dos
+componentes high/low do mesmo sentido. A energia direcional e calculada pelo
+helper `calculate_split_energy()` com valores nao arredondados; para o F2 bruto,
+a conversao existente `MS2_TO_KMH2` e aplicada antes do helper, pois f'2 esta em
+N/(m/s)^2 e o kernel de energia recebe F2 em N/(km/h)^2.
+
+Os C.V. por par foram removidos apenas dessa worksheet. Resumo Final, Analise de
+Desvios e Tempos, formulas de consolidacao, assinatura/cache e ordem de selecao
+permaneceram inalterados.
+
+### Licao:
+
+Um relatorio direcional deve buscar coeficientes, tempos e meteorologia pelo
+mesmo sufixo de sentido e pelo mesmo componente, sem reutilizar medias do par.
+Conversoes de unidade devem reutilizar a constante canonica antes de chamar o
+kernel existente; valores formatados nunca devem voltar ao calculo.
+
+---
+
+## 2026-07-27 - Tempos Por Subintervalo Devem Sobreviver Ao Parser
+
+### Decisao:
+
+O parser Split preserva `subinterval_times_s` na mesma ordem de
+`subintervals`, diretamente dos `matched_rows` que ja definem `delta_t_s`.
+A worksheet Tempos de desaceleracao usa somente esses valores, o horario e o
+total do record canonico e a meteorologia do componente correspondente. Records
+legados sem tempos individuais recebem `-`; o exportador nao distribui nem
+reconstroi o total.
+
+A ordem percorre os pares selecionados e, dentro de cada par, [+] antes de [-].
+A identidade existente de `build_split_run_usage()` elimina repeticoes sem
+confundir arquivo, papel, hash, intervalo ou sentido.
+
+### Licao:
+
+Se um relatorio precisa de componentes de um total, preserve os componentes na
+fronteira que valida o total. Recalcular depois a partir do agregado perde
+rastreabilidade; alinhar duas listas canonicas conserva valor, ordem e unidade
+sem duplicar a logica do parser.
+
+---

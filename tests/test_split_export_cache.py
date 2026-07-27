@@ -32,6 +32,7 @@ def _pair():
             "run_id": f"run-{index}",
             "delta_t_s": 10.0 + index,
             "subintervals": ["90-85", "85-80"],
+            "subinterval_times_s": [4.0, 5.0],
             "source_columns": ["t_90_85", "t_85_80"],
         }
         pair[f"{component}_run"] = f"run-{index}"
@@ -87,6 +88,9 @@ class SplitExportCacheSignatureTests(unittest.TestCase):
             "subinterval": lambda pair: pair["high_plus"][
                 "subintervals"
             ].append("80-75"),
+            "subinterval time": lambda pair: pair["high_plus"][
+                "subinterval_times_s"
+            ].append(6.0),
             "selection origin": lambda pair: pair.__setitem__(
                 "selection_source", "algorithm"
             ),

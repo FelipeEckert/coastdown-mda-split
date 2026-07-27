@@ -202,7 +202,25 @@
 - [x] Remove freeze panes and automatic filters from all three final workbook sheets.
 - [x] Merge the four Resumo Final title rows across columns A:B and color the final-status cell by result.
 - [x] Share the public pair-label helper between Excel and deviation analysis, including UI leave-one-out and weather rows.
-- [ ] Manually validate the three-sheet workbook with real manual, fixed-weather and synchronized-weather pairs in Excel.
+- [x] Replace only the Pares Selecionados wide table with stacked IDA [+] and
+  VOLTA [-] tables using grouped headers and one row per selected pair.
+- [x] Export exact directional raw/corrected coefficients, energies calculated
+  by the canonical helper, and high/low component weather without pair-level CVs.
+- [x] Pass 36 focused workbook/sample/cache tests, scoped Ruff, compile and
+  diff checks; full suite passed 452/453 with the already-tracked auto-selection
+  radio-mock error.
+- [x] Add Tempos de desaceleração with dynamic high/low subinterval columns,
+  canonical run weather, deduplicated selected-run order and Excel formatting.
+- [x] Preserve exact processed subinterval `time_s` values in parsed records so
+  the workbook never reconstructs them from totals or display values.
+- [x] Pass 40 focused workbook/sample/cache tests, 22 interval-parser tests,
+  compile, scoped Ruff and diff checks; full suite passed 456/457 with the
+  already-tracked auto-selection radio-mock error.
+- [ ] Manually validate the four-sheet workbook with real manual, fixed-weather and synchronized-weather pairs in Excel.
+- [ ] Manually inspect the stacked Pares Selecionados headers and column widths
+  in desktop Excel with multiple selected pairs.
+- [ ] Manually inspect Tempos de desaceleração in desktop Excel with different
+  high/low interval counts and repeated runs across selected pairs.
 
 ## Round 11A - Split Results and final Excel report
 - [x] Refactor Split Results as a read-only executive summary based on Final Comparison selections.

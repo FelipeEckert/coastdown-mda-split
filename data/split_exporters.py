@@ -20,16 +20,24 @@ from core.split_display import (
     get_split_pair_public_label,
     get_split_reference_speeds,
 )
+from core.split_energy import calculate_split_energy
 from core.split_results import consolidate_split_final_results
 from core.split_weather_context import split_environmental_values
 from core.split_vehicle_mass import normalize_split_vehicle_mass_data
+from data.split_parser import normalize_run_intervals
 
 
-COMPONENTS = ("high_plus", "low_plus", "high_minus", "low_minus")
 MISSING = "-"
 HEADER_FILL = PatternFill("solid", fgColor="4472C4")
 TITLE_FILL = PatternFill("solid", fgColor="D9EAF7")
+PAIR_FILL = PatternFill("solid", fgColor="D9D9D9")
 THIN_BORDER = Border(*(Side(style="thin", color="B7B7B7") for _ in range(4)))
+PAIR_BOTTOM_BORDER = Border(
+    left=Side(style="thin", color="B7B7B7"),
+    right=Side(style="thin", color="B7B7B7"),
+    top=Side(style="thin", color="B7B7B7"),
+    bottom=Side(style="medium", color="4472C4"),
+)
 STATUS_FILLS = {
     "approved": PatternFill("solid", fgColor="0EE427"),
     "warning": PatternFill("solid", fgColor="E6F200"),
@@ -137,15 +145,6 @@ def _component(pair, component):
     return record if isinstance(record, dict) else {}
 
 
-def _component_label(pair, component):
-    record = _component(pair, component)
-    run = record.get("run_id", pair.get(f"{component}_run"))
-    delta_t = _number(record.get("delta_t_s", pair.get(f"{component}_delta_t_s")))
-    if run in (None, ""):
-        return MISSING
-    return f"Run {run}" + (f" | dt = {delta_t:.3f} s" if delta_t is not None else "")
-
-
 def _origin_label(pair):
     sources = pair.get("algorithm_sources") or []
     if isinstance(sources, str):
@@ -197,6 +196,55 @@ def _append_table(ws, start_row, title, headers, rows):
             numeric = _number(item)
             cell_value = numeric if numeric is not None else _value(item)
             cell = ws.cell(row_index, column, cell_value)
+            cell.border = THIN_BORDER
+            cell.alignment = Alignment(vertical="top", wrap_text=True)
+    return header_row + len(rows) + 2
+
+
+def _append_grouped_table(ws, start_row, title, groups, headers, rows):
+    for column in range(1, len(headers) + 1):
+        ws.cell(start_row, column).fill = TITLE_FILL
+    ws.cell(start_row, 1, title).font = Font(bold=True, size=12)
+    ws.merge_cells(
+        start_row=start_row, start_column=1,
+        end_row=start_row, end_column=len(headers),
+    )
+
+    group_row = start_row + 1
+    column = 1
+    for group, span in groups:
+        end_column = column + span - 1
+        for group_column in range(column, end_column + 1):
+            cell = ws.cell(group_row, group_column)
+            cell.fill = TITLE_FILL
+            cell.border = THIN_BORDER
+            cell.alignment = Alignment(
+                horizontal="center", vertical="center", wrap_text=True,
+            )
+        ws.cell(group_row, column, group).font = Font(bold=True)
+        if span > 1:
+            ws.merge_cells(
+                start_row=group_row, start_column=column,
+                end_row=group_row, end_column=end_column,
+            )
+        column = end_column + 1
+
+    header_row = group_row + 1
+    for column, header in enumerate(headers, 1):
+        cell = ws.cell(header_row, column, header)
+        cell.font = Font(bold=True, color="FFFFFF")
+        cell.fill = HEADER_FILL
+        cell.alignment = Alignment(
+            horizontal="center", vertical="center", wrap_text=True,
+        )
+        cell.border = THIN_BORDER
+    for row_index, row in enumerate(rows, header_row + 1):
+        for column, item in enumerate(row, 1):
+            numeric = _number(item)
+            cell = ws.cell(
+                row_index, column,
+                numeric if numeric is not None else _value(item),
+            )
             cell.border = THIN_BORDER
             cell.alignment = Alignment(vertical="top", wrap_text=True)
     return header_row + len(rows) + 2
@@ -321,14 +369,122 @@ def _write_summary(
 
 def _write_pairs(wb, pairs):
     ws = wb.create_sheet("Pares Selecionados")
-    headers = ("Par", "Origem", "High [+]", "Low [+]", "High [-]", "Low [-]", "DeltaT high+ [s]", "DeltaT low+ [s]", "DeltaT high- [s]", "DeltaT low- [s]", "F0 [N]", "F2 [N/(km/h)²]", "CV F0 diagnóstico [%]", "CV F2 diagnóstico [%]", "Energia [MJ/km]", "Temperatura [°C]", "Pressão [kPa]", "Vento [m/s]", "Alertas meteorológicos")
-    rows = []
-    for pair in pairs:
-        temperature, pressure, wind, alerts = _weather_for_pair(pair)
-        rows.append((get_split_pair_public_label(pair), _origin_label(pair), *(_component_label(pair, component) for component in COMPONENTS), *(pair.get(f"{component}_delta_t_s") if pair.get(f"{component}_delta_t_s") is not None else _component(pair, component).get("delta_t_s") for component in COMPONENTS), pair.get("F0_mean", pair.get("F0")), pair.get("F2_mean", pair.get("F2")), pair.get("cv_F0_percent"), pair.get("cv_F2_percent"), pair.get("energy"), temperature, pressure, wind, alerts))
-    _append_table(ws, 1, "PARES USADOS NO RESULTADO FINAL", headers, rows)
-    for row in range(3, ws.max_row + 1):
-        for column, number_format in ((11, "0.0000"), (12, "0.000000"), (13, "0.00"), (14, "0.00"), (15, "0.0000")):
+    groups = (
+        ("Identificação", 2),
+        ("Passadas e tempos", 4),
+        ("Resultados não corrigidos", 2),
+        ("Resultados corrigidos", 3),
+        ("Meteorologia — Alta", 3),
+        ("Meteorologia — Baixa", 3),
+    )
+    headers = (
+        "Par", "Origem",
+        "Passada de alta", "Passada de baixa", "Δt alta [s]", "Δt baixa [s]",
+        "F0 [N]", "F2 [N/(km/h)²]",
+        "F0 [N]", "F2 [N/(km/h)²]", "Energia [MJ/km]",
+        "Temperatura [°C]", "Pressão [kPa]", "Vento [m/s]",
+        "Temperatura [°C]", "Pressão [kPa]", "Vento [m/s]",
+    )
+
+    def component_value(pair, component, key):
+        value = _component(pair, component).get(key)
+        alias = "run" if key == "run_id" else key
+        return value if value is not None else pair.get(f"{component}_{alias}")
+
+    def weather(pair, component):
+        sources = (
+            pair.get("ambient_by_component"),
+            pair.get("weather_components"),
+        )
+        item = next(
+            (
+                source.get(component)
+                for source in sources
+                if isinstance(source, dict)
+                and isinstance(source.get(component), dict)
+                and source.get(component)
+            ),
+            {},
+        )
+        if (
+            not item
+            and (pair.get("environmental_conditions") or {}).get("mode")
+            == "fixed"
+        ):
+            item = pair["environmental_conditions"]
+        return {
+            "temperature": item.get(
+                "temperature_c", item.get("temperature"),
+            ),
+            "pressure": item.get("pressure_kpa", item.get("pressure")),
+            "wind": item.get(
+                "wind_speed_mps",
+                item.get("wind_speed_ms", item.get("wind_speed")),
+            ),
+        }
+
+    def directional_rows(suffix):
+        rows = []
+        for pair in pairs:
+            raw = pair.get(f"result_{suffix}") or {}
+            corrected = pair.get(f"corrected_result_{suffix}") or {}
+            raw_f0 = _number(pair.get(f"f0_prime_{suffix}"))
+            raw_f2 = _number(pair.get(f"f2_prime_{suffix}"))
+            corrected_f0 = _number(pair.get(f"F0_{suffix}"))
+            corrected_f2 = _number(pair.get(f"F2_{suffix}"))
+            raw_f0 = raw_f0 if raw_f0 is not None else _number(raw.get("f0_prime"))
+            raw_f2 = raw_f2 if raw_f2 is not None else _number(raw.get("f2_prime"))
+            corrected_f0 = (
+                corrected_f0
+                if corrected_f0 is not None
+                else _number(corrected.get("F0"))
+            )
+            corrected_f2 = (
+                corrected_f2
+                if corrected_f2 is not None
+                else _number(corrected.get("F2"))
+            )
+            corrected_energy = (
+                calculate_split_energy(corrected_f0, corrected_f2)["energy"]
+                if corrected_f0 is not None and corrected_f2 is not None
+                else None
+            )
+            high_component = f"high_{suffix}"
+            low_component = f"low_{suffix}"
+            high_weather = weather(pair, high_component)
+            low_weather = weather(pair, low_component)
+            rows.append((
+                get_split_pair_public_label(pair),
+                _origin_label(pair),
+                component_value(pair, high_component, "run_id"),
+                component_value(pair, low_component, "run_id"),
+                component_value(pair, high_component, "delta_t_s"),
+                component_value(pair, low_component, "delta_t_s"),
+                raw_f0, raw_f2,
+                corrected_f0, corrected_f2, corrected_energy,
+                high_weather["temperature"],
+                high_weather["pressure"],
+                high_weather["wind"],
+                low_weather["temperature"],
+                low_weather["pressure"],
+                low_weather["wind"],
+            ))
+        return rows
+
+    row = _append_grouped_table(
+        ws, 1, "IDA [+]", groups, headers, directional_rows("plus"),
+    )
+    _append_grouped_table(
+        ws, row, "VOLTA [-]", groups, headers, directional_rows("minus"),
+    )
+    for row in range(1, ws.max_row + 1):
+        for column, number_format in (
+            (5, "0.000"), (6, "0.000"),
+            (7, "0.0000"), (8, "0.000000"),
+            (9, "0.0000"), (10, "0.000000"), (11, "0.0000"),
+            (12, "0.0"), (13, "0.00"), (14, "0.00"),
+            (15, "0.0"), (16, "0.00"), (17, "0.00"),
+        ):
             ws.cell(row, column).number_format = number_format
     _finish_sheet(ws)
 
@@ -355,6 +511,214 @@ def _write_deviations(wb, analysis, pairs):
     _finish_sheet(ws)
 
 
+def _write_deceleration_times(wb, pairs):
+    ws = wb.create_sheet("Tempos de desaceleração")
+    rows = {"high": [], "low": []}
+
+    def interval_times(record):
+        labels = list(record.get("subintervals") or [])
+        stored = record.get("subinterval_times_s")
+        if isinstance(stored, dict):
+            return stored
+        if isinstance(stored, (list, tuple)):
+            return dict(zip(labels, stored))
+        return {
+            row["label"]: row["time_s"]
+            for row in normalize_run_intervals(record)
+        }
+
+    for pair_index, pair in enumerate(pairs, 1):
+        ambient = pair.get("ambient_by_component") or {}
+        weather_components = pair.get("weather_components") or {}
+        for interval in ("high", "low"):
+            for suffix, direction in (("plus", "[+]"), ("minus", "[-]")):
+                component = f"{interval}_{suffix}"
+                record = _component(pair, component)
+                weather = (
+                    ambient.get(component)
+                    if isinstance(ambient, dict)
+                    else None
+                ) or (
+                    weather_components.get(component)
+                    if isinstance(weather_components, dict)
+                    else None
+                ) or {}
+                rows[interval].append({
+                    "pair_index": pair_index,
+                    "record": record,
+                    "direction": direction,
+                    "interval_times": interval_times(record),
+                    "weather": weather,
+                })
+
+    labels_by_interval = {
+        interval: list(dict.fromkeys(
+            label
+            for item in rows[interval]
+            for label in item["record"].get("subintervals") or []
+        ))
+        for interval in ("high", "low")
+    }
+    max_subintervals = max(
+        (len(labels) for labels in labels_by_interval.values()),
+        default=0,
+    )
+    main_end = 3 + max_subintervals
+    spacer_column = main_end + 1
+    weather_start = spacer_column + 1
+    weather_headers = (
+        "Temperatura [°C]", "Pressão [kPa]", "Vento [m/s]",
+    )
+    weather_end = weather_start + len(weather_headers) - 1
+    widths = {1: 12, 2: 18}
+
+    def write_section(start_row, title, section_rows, labels):
+        headers = (
+            "Par", "Run",
+            *labels,
+            *("" for _ in range(max_subintervals - len(labels))),
+            "Δt total [s]",
+        )
+
+        for column in range(1, main_end + 1):
+            cell = ws.cell(start_row, column)
+            cell.fill = TITLE_FILL
+            cell.border = THIN_BORDER
+        ws.cell(start_row, 1, title).font = Font(bold=True, size=12)
+        ws.cell(start_row, 1).alignment = Alignment(horizontal="center")
+        ws.merge_cells(
+            start_row=start_row, start_column=1,
+            end_row=start_row, end_column=main_end,
+        )
+        for column in range(weather_start, weather_end + 1):
+            cell = ws.cell(start_row, column)
+            cell.fill = TITLE_FILL
+            cell.border = THIN_BORDER
+        ws.cell(
+            start_row, weather_start, "Estação meteorológica",
+        ).font = Font(bold=True, size=12)
+        ws.cell(start_row, weather_start).alignment = Alignment(
+            horizontal="center",
+        )
+        ws.merge_cells(
+            start_row=start_row, start_column=weather_start,
+            end_row=start_row, end_column=weather_end,
+        )
+
+        header_row = start_row + 1
+        for column, header in enumerate(headers, 1):
+            cell = ws.cell(header_row, column, header)
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = HEADER_FILL
+            cell.border = THIN_BORDER
+            cell.alignment = Alignment(
+                horizontal="center", vertical="center", wrap_text=True,
+            )
+            widths[column] = max(widths.get(column, 0), len(header) + 2, 12)
+        for offset, header in enumerate(weather_headers):
+            column = weather_start + offset
+            cell = ws.cell(header_row, column, header)
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = HEADER_FILL
+            cell.border = THIN_BORDER
+            cell.alignment = Alignment(
+                horizontal="center", vertical="center", wrap_text=True,
+            )
+            widths[column] = max(widths.get(column, 0), len(header) + 2, 14)
+
+        for row_index, item in enumerate(section_rows, header_row + 1):
+            record = item["record"]
+            weather = item["weather"]
+            values = (
+                f"PAR {item['pair_index']}",
+                f"Run {_value(record.get('run_id'))} {item['direction']}",
+                *(item["interval_times"].get(label) for label in labels),
+                *(None for _ in range(max_subintervals - len(labels))),
+                record.get("delta_t_s"),
+            )
+            weather_values = (
+                weather.get("temperature_c", weather.get("temperature")),
+                weather.get("pressure_kpa", weather.get("pressure")),
+                weather.get(
+                    "wind_speed_mps",
+                    weather.get("wind_speed_ms", weather.get("wind_speed")),
+                ),
+            )
+            for column, value in enumerate(values, 1):
+                numeric = _number(value)
+                cell = ws.cell(
+                    row_index, column,
+                    numeric if numeric is not None else _value(value),
+                )
+                cell.border = THIN_BORDER
+                cell.alignment = Alignment(
+                    horizontal="center", vertical="center",
+                )
+            for column in range(
+                3 + len(labels), 3 + max_subintervals,
+            ):
+                ws.cell(row_index, column).value = None
+            for offset, value in enumerate(weather_values):
+                column = weather_start + offset
+                numeric = _number(value)
+                cell = ws.cell(
+                    row_index, column,
+                    numeric if numeric is not None else _value(value),
+                )
+                cell.border = THIN_BORDER
+                cell.alignment = Alignment(
+                    horizontal="center", vertical="center",
+                )
+            for column in range(3, main_end + 1):
+                ws.cell(row_index, column).number_format = "0.000"
+            for offset, number_format in enumerate(
+                ("0.0", "0.00", "0.00"),
+            ):
+                ws.cell(
+                    row_index, weather_start + offset,
+                ).number_format = number_format
+
+        first_data_row = header_row + 1
+        for offset in range(0, len(section_rows), 2):
+            first_row = first_data_row + offset
+            second_row = first_row + 1
+            for row_index in (first_row, second_row):
+                cell = ws.cell(row_index, 1)
+                cell.fill = PAIR_FILL
+                cell.border = PAIR_BOTTOM_BORDER
+                cell.alignment = Alignment(
+                    horizontal="center", vertical="center",
+                )
+            ws.merge_cells(
+                start_row=first_row, start_column=1,
+                end_row=second_row, end_column=1,
+            )
+            pair_cell = ws.cell(first_row, 1)
+            pair_cell.fill = PAIR_FILL
+            pair_cell.border = PAIR_BOTTOM_BORDER
+            pair_cell.alignment = Alignment(
+                horizontal="center", vertical="center",
+            )
+            for column in (
+                *range(2, main_end + 1),
+                *range(weather_start, weather_end + 1),
+            ):
+                ws.cell(second_row, column).border = PAIR_BOTTOM_BORDER
+        return header_row + len(section_rows) + 2
+
+    row = write_section(
+        1, "ALTA VELOCIDADE", rows["high"], labels_by_interval["high"],
+    )
+    write_section(
+        row, "BAIXA VELOCIDADE", rows["low"], labels_by_interval["low"],
+    )
+    ws.freeze_panes = "A3"
+    ws.auto_filter.ref = None
+    for column, width in widths.items():
+        ws.column_dimensions[get_column_letter(column)].width = min(width, 24)
+    ws.column_dimensions[get_column_letter(spacer_column)].width = 3
+
+
 def export_split_final_results_to_excel(*, final_results: dict | None, selected_pairs: list[dict], vehicle_data: dict, deviation_analysis: dict | None = None, generated_at: datetime | None = None) -> bytes:
     """Return an .xlsx report built only from explicitly selected Split pairs."""
     pairs = _selected_pairs(selected_pairs)
@@ -374,6 +738,7 @@ def export_split_final_results_to_excel(*, final_results: dict | None, selected_
     )
     _write_pairs(wb, pairs)
     _write_deviations(wb, analysis, pairs)
+    _write_deceleration_times(wb, pairs)
     output = io.BytesIO()
     wb.save(output)
     return output.getvalue()

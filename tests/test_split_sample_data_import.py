@@ -62,6 +62,11 @@ class SplitSampleDataImportTest(unittest.TestCase):
         low_record = next(record for record in parsed["low"] if record["run_id"] == 1)
         self.assertTrue(math.isclose(high_record["delta_t_s"], 18.72, rel_tol=1e-12))
         self.assertTrue(math.isclose(low_record["delta_t_s"], 19.58, rel_tol=1e-12))
+        self.assertEqual(
+            high_record["subinterval_times_s"],
+            [4.23, 4.56, 4.81, 5.12],
+        )
+        self.assertEqual(low_record["subinterval_times_s"], [9.16, 10.42])
 
         result = calculate_split_result(
             high_record,
@@ -106,12 +111,17 @@ class SplitSampleDataImportTest(unittest.TestCase):
             for label, value, *_ in workbook["Resumo Final"].iter_rows(values_only=True)
             if str(label).startswith(("F0 final", "F2 final"))
         ]
-        pair_headers = [cell.value for cell in workbook["Pares Selecionados"][2]]
-        pair_values = [cell.value for cell in workbook["Pares Selecionados"][3]]
+        pairs_ws = workbook["Pares Selecionados"]
         exported_pair = [
-            pair_values[pair_headers.index(label)]
-            for label in ("F0 [N]", "F2 [N/(km/h)²]")
+            pairs_ws.cell(row, column).value
+            for row in (4, 9)
+            for column in (9, 10)
         ]
+        times_ws = workbook["Tempos de desaceleração"]
+        self.assertEqual(
+            [times_ws.cell(3, column).value for column in range(3, 7)],
+            high_record["subinterval_times_s"],
+        )
 
         self.assertTrue(all(value > 0 for value in (
             corrected["F0_plus"],
