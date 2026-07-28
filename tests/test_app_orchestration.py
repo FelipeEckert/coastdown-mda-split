@@ -461,6 +461,19 @@ class AppStateOrchestrationTests(unittest.TestCase):
 
 
 class AppWorkflowAppTestTests(unittest.TestCase):
+    def test_shell_css_keeps_accessible_targets_and_reduced_motion(self):
+        with patch.object(app.st, "markdown") as markdown:
+            app.apply_font_size_css("medium")
+
+        css = markdown.call_args.args[0]
+        self.assertIn('div[data-testid="stButton"] button', css)
+        self.assertIn("[data-testid=\"stRadioOption\"]", css)
+        self.assertIn("min-height: 2.75rem !important", css)
+        self.assertIn("min-width: 2.75rem !important", css)
+        self.assertIn("@media (prefers-reduced-motion: reduce)", css)
+        self.assertIn("animation-duration: 0.01ms !important", css)
+        self.assertIn("transition-duration: 0.01ms !important", css)
+
     def test_legacy_flags_cannot_override_active_split_routing(self):
         app_test = AppTest.from_file(ROOT_DIR / "app.py", default_timeout=20)
         app_test.session_state["tests"] = {

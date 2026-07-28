@@ -740,4 +740,10 @@ Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
 - [x] Phase 2 - Vehicle and interval workflow
 - [x] Phase 3 - Pair analysis and automatic selection
 - [x] Phase 4 - Comparison, results and charts
-- [ ] Phase 5 - Responsive and accessibility validation
+- [x] Phase 5 - Responsive and accessibility validation
+- [x] Complete the approved responsive and accessibility validation matrix.
+- [x] Raise practical shell controls to 44×44px-equivalent targets and apply
+  the reduced-motion override to all nonessential animation and transitions.
+- [x] Protect the shell correction with one focused presentation-contract test.
+- [x] Pass compile checks, 21 shell/routing tests, the 460-test full suite, and
+  final diff checks.

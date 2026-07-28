@@ -3293,3 +3293,22 @@ quando a segunda perderia informacao. Temas de graficos devem mudar em um unico
 ponto sem tocar dados, traces, unidades ou tooltips.
 
 ---
+
+## 2026-07-28 - Acessibilidade Global Deve Ser Corrigida No Shell
+
+### Decisao:
+
+A validacao final encontrou dois defeitos comuns a aplicacao inteira: alvos
+interativos menores que 44x44px e uma preferencia de movimento reduzido aplicada
+somente aos cards inativos. A correcao permaneceu no CSS centralizado do shell,
+com minimo de `2.75rem` nos controles praticos e uma unica media query global,
+sem alterar foco, estado, callbacks ou logica das paginas.
+
+### Licao:
+
+Quando uma lacuna de acessibilidade e transversal e nao possui configuracao
+nativa equivalente no Streamlit, uma regra curta no shell evita correcoes
+duplicadas por pagina. O teste deve proteger o contrato de alvo minimo e de
+movimento reduzido sem copiar todo o CSS.
+
+---

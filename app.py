@@ -207,6 +207,51 @@ def apply_font_size_css(font_size_option):
         font-size: var(--mda-font-control) !important;
     }}
 
+    .stTextInput input,
+    .stNumberInput input,
+    .stDateInput input,
+    .stSelectbox [role="group"],
+    .stMultiSelect [role="group"],
+    .stSelectbox [role="combobox"],
+    .stMultiSelect [role="combobox"],
+    .stSelectbox button[aria-label="Open"],
+    .stMultiSelect button[aria-label="Open"],
+    .stNumberInput button,
+    div[data-testid="stButton"] button,
+    div[data-testid="stDownloadButton"] button,
+    div[data-testid="stFileUploaderDropzone"] button {{
+        min-height: 2.75rem !important;
+    }}
+
+    .stSelectbox button[aria-label="Open"],
+    .stMultiSelect button[aria-label="Open"],
+    .stMultiSelect [role="combobox"],
+    .stNumberInput button,
+    div[data-testid="stButton"] button,
+    div[data-testid="stDownloadButton"] button,
+    [role="dialog"] button[aria-label="Close"],
+    [data-testid="stSidebarCollapseButton"] button,
+    [data-testid="stExpandSidebarButton"],
+    [data-testid="stBaseButton-elementToolbar"] {{
+        min-width: 2.75rem !important;
+    }}
+
+    [role="dialog"] button[aria-label="Close"],
+    [data-testid="stSidebarCollapseButton"] button,
+    [data-testid="stExpandSidebarButton"],
+    [data-testid="stBaseButton-elementToolbar"],
+    .stTabs [role="tab"],
+    .stExpander summary,
+    [data-testid="stRadioOption"],
+    .stCheckbox label {{
+        min-height: 2.75rem !important;
+    }}
+
+    [data-testid="stRadioOption"],
+    .stCheckbox label {{
+        min-width: 2.75rem !important;
+    }}
+
     .stTabs [data-baseweb="tab"] {{
         font-size: var(--mda-font-tab) !important;
         font-weight: 500 !important;
@@ -359,8 +404,13 @@ def apply_font_size_css(font_size_option):
     }}
 
     @media (prefers-reduced-motion: reduce) {{
-        section[data-testid="stSidebar"] [class*="st-key-test_card_inactive_"] {{
-            transition: none;
+        *,
+        *::before,
+        *::after {{
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+            scroll-behavior: auto !important;
+            transition-duration: 0.01ms !important;
         }}
     }}
 

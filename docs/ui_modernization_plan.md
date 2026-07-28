@@ -1,6 +1,6 @@
 # Coastdown MDA Split UI modernization plan
 
-Status: Phases 1–4 completed on 2026-07-28; phase 5 pending.
+Status: All five phases completed on 2026-07-28.
 
 ## Objective and scope
 
@@ -441,7 +441,7 @@ Implementation result:
 
 ### Phase 5 — Responsive and accessibility validation
 
-Status: Pending.
+Status: Completed on 2026-07-28.
 
 Scope:
 
@@ -461,6 +461,20 @@ Expected files:
 
 Any application change discovered here must remain presentation-only and receive
 focused validation for its owning page.
+
+Implementation result:
+
+- the approved responsive, language, font-size, workflow-state, keyboard,
+  contrast, overflow, disabled-state, and reduced-motion matrix was validated;
+- the only confirmed shell defect was undersized interactive targets and a
+  reduced-motion rule limited to inactive test cards;
+- the centralized shell CSS now gives practical controls a 44×44px-equivalent
+  minimum target and disables nonessential animation, smooth scrolling, and
+  transitions when reduced motion is requested;
+- one focused presentation-contract test protects both corrections; no
+  calculations, widget keys, callbacks, session state, lazy rendering,
+  translations, or workflows changed;
+- the 21 shell/routing tests and the 460-test full suite pass.
 
 ## Validation requirements
 
@@ -509,4 +523,4 @@ Manual Streamlit validation must cover:
 - [x] Phase 2 — Vehicle and interval workflow (completed 2026-07-28)
 - [x] Phase 3 — Pair analysis and automatic selection (completed 2026-07-28)
 - [x] Phase 4 — Comparison, results and charts (completed 2026-07-28)
-- [ ] Phase 5 — Responsive and accessibility validation (pending)
+- [x] Phase 5 — Responsive and accessibility validation (completed 2026-07-28)
