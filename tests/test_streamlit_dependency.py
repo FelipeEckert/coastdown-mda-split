@@ -8,7 +8,7 @@ from packaging.version import Version
 
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
-REQUIRED_STREAMLIT_VERSION = Version("1.55.0")
+REQUIRED_STREAMLIT_VERSION = Version("1.60.0")
 
 
 class StreamlitDependencyTests(unittest.TestCase):

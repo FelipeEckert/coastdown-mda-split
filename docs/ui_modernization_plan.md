@@ -1,6 +1,6 @@
 # Coastdown MDA Split UI modernization plan
 
-Status: Approved for implementation; all phases pending.
+Status: Phase 1 completed on 2026-07-28; phases 2–5 pending.
 
 ## Objective and scope
 
@@ -264,7 +264,7 @@ preserve:
 
 ### Phase 1 — Theme and application shell
 
-Status: Pending.
+Status: Completed on 2026-07-28.
 
 Scope:
 
@@ -279,6 +279,7 @@ Expected files:
 
 - `.streamlit/config.toml`;
 - `app.py`;
+- `docs/ui_modernization_plan.md`;
 - `tasks/todo.md`;
 - `tasks/lessons.md`.
 
@@ -286,6 +287,22 @@ No page, calculation, parser, translation, export, or workflow file is expected
 in this phase. Existing orchestration and lazy-tab tests should run unchanged;
 tests should be edited only if a real presentation contract requires new
 behavioral coverage.
+
+Implementation result:
+
+- the native Streamlit theme now owns the layered dark-navy palette, electric
+  blue primary state, semantic colors, borders, radii, and dataframe surfaces;
+- the shell and the existing `render_test_card()` renderer use native badges,
+  Material icons, horizontal containers, and stretch-width controls where
+  practical;
+- remaining CSS is scoped to runtime font-size support, shell spacing,
+  sidebar test-card geometry, 44px card actions, and the existing pair-energy
+  presentation;
+- the conflicting green primary-button override, global table-header override,
+  global dataframe first-column hiding, custom status HTML, and fixed sidebar
+  footer were removed;
+- all 20 active `st.dataframe` calls were verified to set `hide_index=True`
+  before the global index CSS was removed.
 
 ### Phase 2 — Vehicle and interval workflow
 
@@ -429,7 +446,7 @@ Manual Streamlit validation must cover:
 
 ## Progress checklist
 
-- [ ] Phase 1 — Theme and application shell (pending)
+- [x] Phase 1 — Theme and application shell (completed 2026-07-28)
 - [ ] Phase 2 — Vehicle and interval workflow (pending)
 - [ ] Phase 3 — Pair analysis and automatic selection (pending)
 - [ ] Phase 4 — Comparison, results and charts (pending)

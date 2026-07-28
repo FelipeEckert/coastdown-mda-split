@@ -49,7 +49,7 @@ from core.split_state import (
 # ===== CONFIGURAÇÃO DA PÁGINA =====
 st.set_page_config(
     page_title=f"{APP_NAME} V{APP_VERSION}",
-    page_icon="🚗",
+    page_icon=":material/speed:",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -68,8 +68,6 @@ FONT_SIZE_PRESETS = {
         "metric_value": "22px",
         "metric_label": "13px",
         "table": "13px",
-        "sidebar_title": "14px",
-        "sidebar_meta": "12px",
     },
     "medium": {
         "base": "16px",
@@ -84,8 +82,6 @@ FONT_SIZE_PRESETS = {
         "metric_value": "26px",
         "metric_label": "15px",
         "table": "15px",
-        "sidebar_title": "16px",
-        "sidebar_meta": "14px",
     },
     "large": {
         "base": "18px",
@@ -100,8 +96,6 @@ FONT_SIZE_PRESETS = {
         "metric_value": "30px",
         "metric_label": "17px",
         "table": "17px",
-        "sidebar_title": "18px",
-        "sidebar_meta": "16px",
     },
 }
 
@@ -126,16 +120,14 @@ def apply_font_size_css(font_size_option):
         --mda-font-metric-value: {tokens["metric_value"]};
         --mda-font-metric-label: {tokens["metric_label"]};
         --mda-font-table: {tokens["table"]};
-        --mda-font-sidebar-title: {tokens["sidebar_title"]};
-        --mda-font-sidebar-meta: {tokens["sidebar_meta"]};
+        --mda-surface-raised: #112438;
+        --mda-border: #2A4058;
+        --mda-accent: #3A9CFF;
     }}
 
-    html, body, [class*="css"] {{
+    [data-testid="stAppViewContainer"],
+    section[data-testid="stSidebar"] {{
         font-size: var(--mda-font-base);
-    }}
-
-    body, p, li, div, span, label {{
-        font-size: inherit;
     }}
 
     h1 {{
@@ -236,43 +228,6 @@ def apply_font_size_css(font_size_option):
         font-size: var(--mda-font-table) !important;
     }}
 
-    /* ---- Botões primários verdes ---- */
-    div[data-testid="stButton"] button[kind="primary"] {{
-        background-color: #28a745 !important;
-        border-color: #28a745 !important;
-    }}
-
-    div[data-testid="stButton"] button[kind="primary"]:hover {{
-        background-color: #218838 !important;
-        border-color: #1e7e34 !important;
-    }}
-
-    /* ---- Cabeçalhos de tabelas em cinza escuro ---- */
-    thead tr th {{
-        background-color: #2d2d2d !important;
-        color: #ffffff !important;
-    }}
-
-    /* ---- Esconde coluna de índice das tabelas ---- */
-    .stDataFrame thead tr th:first-child,
-    .stDataFrame tbody tr td:first-child {{
-        display: none;
-    }}
-
-    .mda-sidebar-status-label {{
-        font-size: var(--mda-font-small);
-        font-weight: 600;
-        color: #a0a0a0;
-        letter-spacing: 0.08em;
-        margin-bottom: 6px;
-        margin-top: 4px;
-    }}
-
-    .mda-sidebar-status-item {{
-        font-size: var(--mda-font-sidebar-meta);
-        margin-bottom: 3px;
-    }}
-
     .mda-pair-energy-value {{
         margin: 0;
         padding: 0;
@@ -282,40 +237,46 @@ def apply_font_size_css(font_size_option):
 
     .mda-pair-energy-unit {{
         margin: 0;
-        color: #888;
+        color: #A9B6C7;
         font-size: var(--mda-font-small);
     }}
 
-    /* ---- Espaçamento geral ---- */
     section[data-testid="stSidebar"] > div:first-child {{
-        padding-top: 0.5rem;
-        padding-bottom: 0.5rem;
+        padding-top: 1rem;
+        padding-bottom: 1.5rem;
     }}
 
     section[data-testid="stSidebar"] [class*="st-key-sidebar_brand_app_logo"],
     section[data-testid="stSidebar"] [class*="st-key-sidebar_brand_hyundai_logo"] {{
-        margin-bottom: -0.35rem;
+        margin-bottom: -0.2rem;
     }}
 
-    .main .block-container {{
-        padding-top: 1rem !important;
+    [data-testid="stMainBlockContainer"] {{
+        padding-top: 1.25rem !important;
+        padding-bottom: 2rem !important;
     }}
 
-    /* ---- Cards de teste da sidebar: refinamento visual nativo ---- */
     section[data-testid="stSidebar"] [class*="st-key-test_card_active_"] {{
-        background-color: #162b4d;
-        border: 1px solid #4a9eff;
-        border-radius: 10px;
-        padding: 0.45rem 0.6rem;
-        margin-bottom: 0.35rem;
+        background-color: var(--mda-surface-raised);
+        border: 1px solid var(--mda-accent);
+        border-radius: 12px;
+        box-shadow: inset 3px 0 0 var(--mda-accent);
+        padding: 0.7rem 0.75rem;
+        margin-bottom: 0.5rem;
     }}
 
     section[data-testid="stSidebar"] [class*="st-key-test_card_inactive_"] {{
-        background-color: #1e1e1e;
-        border: 1px solid #3d3d3d;
-        border-radius: 10px;
-        padding: 0.45rem 0.6rem;
-        margin-bottom: 0.35rem;
+        background-color: var(--secondary-background-color);
+        border: 1px solid var(--mda-border);
+        border-radius: 12px;
+        padding: 0.7rem 0.75rem;
+        margin-bottom: 0.5rem;
+        transition: border-color 180ms ease, background-color 180ms ease;
+    }}
+
+    section[data-testid="stSidebar"] [class*="st-key-test_card_inactive_"]:hover {{
+        background-color: var(--mda-surface-raised);
+        border-color: var(--mda-accent);
     }}
 
     section[data-testid="stSidebar"] [class*="st-key-delete_btn_"] [data-testid="stButton"] {{
@@ -329,33 +290,35 @@ def apply_font_size_css(font_size_option):
     }}
 
     section[data-testid="stSidebar"] [class*="st-key-delete_btn_"] [data-testid="stButton"] button {{
-        width: auto !important;
-        min-width: 1.9rem !important;
-        height: 1.9rem !important;
-        padding: 0.08rem 0.42rem !important;
+        width: 2.75rem !important;
+        min-width: 2.75rem !important;
+        height: 2.75rem !important;
+        min-height: 2.75rem !important;
+        padding: 0 !important;
         line-height: 1 !important;
         margin-top: 0 !important;
-        background-color: #8a2121 !important;
-        border-color: #8a2121 !important;
-        color: #ffffff !important;
+        background-color: transparent !important;
+        border-color: #FF6B6B !important;
+        color: #FF6B6B !important;
     }}
 
     section[data-testid="stSidebar"] [class*="st-key-delete_btn_"] [data-testid="stButton"] button:hover {{
-        background-color: #751b1b !important;
-        border-color: #751b1b !important;
-        color: #ffffff !important;
+        background-color: rgba(255, 107, 107, 0.12) !important;
+        border-color: #FF6B6B !important;
+        color: #FF8B8B !important;
     }}
 
     section[data-testid="stSidebar"] [class*="st-key-sel_"] [data-testid="stButton"] button {{
-        background-color: #46874e !important;
-        border-color: #46874e !important;
-        color: #ffffff !important;
+        min-height: 2.75rem !important;
+        background-color: transparent !important;
+        border-color: var(--mda-border) !important;
+        color: var(--text-color) !important;
     }}
 
     section[data-testid="stSidebar"] [class*="st-key-sel_"] [data-testid="stButton"] button:hover {{
-        background-color: #3d7544 !important;
-        border-color: #3d7544 !important;
-        color: #ffffff !important;
+        background-color: rgba(58, 156, 255, 0.1) !important;
+        border-color: var(--mda-accent) !important;
+        color: var(--mda-accent) !important;
     }}
 
     section[data-testid="stSidebar"] [class*="st-key-edit_btn_"] {{
@@ -377,15 +340,28 @@ def apply_font_size_css(font_size_option):
     }}
 
     section[data-testid="stSidebar"] [class*="st-key-edit_btn_"] [data-testid="stButton"] button {{
-        width: auto !important;
-        min-width: 0 !important;
-        height: 1.8rem !important;
-        min-height: 1.8rem !important;
-        padding: 0.04rem 0.38rem !important;
+        width: 2.75rem !important;
+        min-width: 2.75rem !important;
+        height: 2.75rem !important;
+        min-height: 2.75rem !important;
+        padding: 0 !important;
         line-height: 1 !important;
         font-size: var(--mda-font-small) !important;
-        margin-top: 0.3rem !important;
-        white-space: nowrap !important;
+        margin-top: 0.4rem !important;
+        background-color: transparent !important;
+        border-color: var(--mda-border) !important;
+        color: var(--mda-accent) !important;
+    }}
+
+    section[data-testid="stSidebar"] [class*="st-key-edit_btn_"] [data-testid="stButton"] button:hover {{
+        background-color: rgba(58, 156, 255, 0.1) !important;
+        border-color: var(--mda-accent) !important;
+    }}
+
+    @media (prefers-reduced-motion: reduce) {{
+        section[data-testid="stSidebar"] [class*="st-key-test_card_inactive_"] {{
+            transition: none;
+        }}
     }}
 
 </style>
@@ -1132,7 +1108,7 @@ def confirm_delete_dialog(t):
                 t("confirm"),
                 key="confirm_delete_modal_confirm",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
             ):
                 delete_test(test_id)
                 st.rerun()
@@ -1140,7 +1116,7 @@ def confirm_delete_dialog(t):
             if st.button(
                 t("cancel"),
                 key="confirm_delete_modal_cancel",
-                use_container_width=True,
+                width="stretch",
             ):
                 st.session_state.delete_confirm_id = None
                 st.rerun()
@@ -1310,7 +1286,7 @@ def edit_test_dialog(t):
             if st.button(
                 t("cancel"),
                 key=f"edit_test_cancel_{dialog_token}",
-                use_container_width=True
+                width="stretch",
             ):
                 _close_edit_test_dialog()
                 st.rerun()
@@ -1319,7 +1295,7 @@ def edit_test_dialog(t):
                 t("save_changes"),
                 key=f"edit_test_save_{dialog_token}",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
                 disabled=save_disabled
             ):
                 _apply_test_edits(
@@ -1340,12 +1316,8 @@ def edit_test_dialog(t):
 # ===== RENDERIZAÇÃO DA SIDEBAR =====
 
 def render_sidebar_version():
-    """Render the app version in the fixed sidebar footer."""
-    st.markdown(
-        f"<small style='position:fixed;bottom:.5rem;left:1rem;color:#888'>"
-        f"V{APP_VERSION}</small>",
-        unsafe_allow_html=True,
-    )
+    """Render the app version without overlapping scrollable sidebar content."""
+    st.caption(f"V{APP_VERSION}")
 
 
 def render_sidebar(t):
@@ -1397,13 +1369,13 @@ def render_sidebar(t):
         st.session_state.font_size = new_font
         st.rerun()
 
-    st.markdown("---")
+    st.space("small")
 
     # ---- Botão "+ Novo Teste" ----
-    if st.button(f"+ {t('new_test')}", use_container_width=True, type="primary"):
+    if st.button(f"+ {t('new_test')}", width="stretch", type="primary"):
         new_test_dialog(t)
 
-    st.markdown("---")
+    st.space("small")
 
     # ---- Lista de testes ----
     if not st.session_state.tests:
@@ -1414,7 +1386,7 @@ def render_sidebar(t):
 
     # ---- Status do teste ativo ----
     if st.session_state.active_test_id:
-        st.markdown("---")
+        st.space("small")
         render_sidebar_status(t)
 
     render_sidebar_version()
@@ -1433,9 +1405,6 @@ def render_test_card(test_id, test, t):
         csv_ok = test.get("data_loaded", False)
         meteo_ok = bool(test.get("weather_data") or test.get("meteo_csv_path"))
 
-    csv_sym = "✓" if csv_ok else "✗"
-    meteo_sym = "✓" if meteo_ok else "⚠"
-    status_text = f"CSV: {csv_sym}   Meteo: {meteo_sym}"
     card_key = (
         f"test_card_active_{test_id}"
         if is_active
@@ -1449,68 +1418,87 @@ def render_test_card(test_id, test, t):
             st.markdown(f"**{name}**")
 
             if is_active:
-                st.caption(f"● {t('active_test').upper()}")
+                st.badge(
+                    t("active_test").upper(),
+                    icon=":material/radio_button_checked:",
+                    color="blue",
+                )
             else:
                 if st.button(t("switch_test"), key=f"sel_{test_id}"):
                     activate_test(test_id)
                     st.rerun()
-            st.caption(status_text)
+            with st.container(horizontal=True, gap="small"):
+                st.badge(
+                    "CSV",
+                    icon=(
+                        ":material/check_circle:"
+                        if csv_ok
+                        else ":material/cancel:"
+                    ),
+                    color="green" if csv_ok else "red",
+                )
+                st.badge(
+                    "Meteo",
+                    icon=(
+                        ":material/check_circle:"
+                        if meteo_ok
+                        else ":material/warning:"
+                    ),
+                    color="green" if meteo_ok else "orange",
+                )
 
         with col_delete:
             with st.container(key=f"delete_btn_{test_id}"):
-                if st.button("✕", key=f"del_{test_id}", help=t("remove_test")):
+                if st.button(
+                    ":material/delete:",
+                    key=f"del_{test_id}",
+                    help=t("remove_test"),
+                ):
                     st.session_state.delete_confirm_id = test_id
                     st.rerun()
             with st.container(key=f"edit_btn_{test_id}"):
-                if st.button("🛠", key=f"edit_{test_id}", help=t("edit_test_title")):
+                if st.button(
+                    ":material/edit:",
+                    key=f"edit_{test_id}",
+                    help=t("edit_test_title"),
+                ):
                     st.session_state.edit_test_id = test_id
                     st.rerun()
 
-    st.markdown("")
-
 def render_sidebar_status(t):
     """Renderiza status resumido do teste ativo na sidebar."""
-    st.markdown(
-        f"<p class='mda-sidebar-status-label'>{t('status').upper()}</p>",
-        unsafe_allow_html=True
-    )
+    st.caption(t("status").upper())
 
     if st.session_state.data_loaded:
         runs = len(st.session_state.all_run_data)
+        label = t("file_loaded_success")
+        if runs:
+            label += f" ({runs} {t('runs_detected')})"
         st.markdown(
-            f"<div class='mda-sidebar-status-item' style='color:#4caf50'>"
-            f"✅ {t('file_loaded_success')}"
-            + (f" <span style='color:#a0a0a0'>({runs} {t('runs_detected')})</span>" if runs else "")
-            + "</div>",
-            unsafe_allow_html=True
+            f":green-badge[:material/check_circle: {label}]"
         )
 
     if st.session_state.vehicle_data_complete:
-        mass_str = (
-            f" <span style='color:#a0a0a0'>{st.session_state.total_mass:.0f} kg</span>"
-            if st.session_state.total_mass else ""
-        )
+        label = t("vehicle_information")
+        if st.session_state.total_mass:
+            label += f" ({st.session_state.total_mass:.0f} kg)"
         st.markdown(
-            f"<div class='mda-sidebar-status-item' style='color:#4caf50'>"
-            f"✅ {t('vehicle_information')}{mass_str}</div>",
-            unsafe_allow_html=True
+            f":green-badge[:material/check_circle: {label}]"
         )
 
     if st.session_state.split_results:
         n = len(st.session_state.split_results)
         st.markdown(
-            f"<div class='mda-sidebar-status-item' style='color:#4caf50'>"
-            f"✅ {n} {t('split_saved_results')}</div>",
-            unsafe_allow_html=True
+            f":green-badge[:material/check_circle: {n} "
+            f"{t('split_saved_results')}]"
         )
 
     final_status = split_final_results_status(st.session_state)
     if final_status["available"]:
         n = final_status["selected_pair_count"]
         st.markdown(
-            f"<div class='mda-sidebar-status-item' style='color:#4a9eff'>"
-            f"{n} {t('split_final_summary')}</div>",
-            unsafe_allow_html=True
+            f":blue-badge[:material/analytics: {n} "
+            f"{t('split_final_summary')}]"
         )
 
 
@@ -1535,7 +1523,7 @@ def render_welcome(t):
 5. Clique em **{t('create_test')}**
         """)
         st.markdown("")
-        if st.button(f"➕ {t('new_test')}", type="primary", use_container_width=True):
+        if st.button(f"➕ {t('new_test')}", type="primary", width="stretch"):
             new_test_dialog(t)
 
 
@@ -1615,14 +1603,14 @@ def new_test_dialog(t):
     # Botões de ação
     c1, c2 = st.columns(2)
     with c1:
-        if st.button(f"✖️ {t('cancel')}", use_container_width=True):
+        if st.button(f"✖️ {t('cancel')}", width="stretch"):
             st.rerun()
     with c2:
         create_disabled = (not uploaded_csv) or (not test_name.strip())
         if st.button(
             f"✅ {t('create_test')}",
             type="primary",
-            use_container_width=True,
+            width="stretch",
             disabled=create_disabled
         ):
             _process_new_test(

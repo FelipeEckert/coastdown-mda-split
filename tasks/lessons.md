@@ -3217,3 +3217,26 @@ do mock de nivel superior. Simular o contrato de `options` e `index` evita que
 mudancas de layout ou traducao produzam objetos `Mock` como valores selecionados.
 
 ---
+
+## 2026-07-28 - Tema Nativo Deve Possuir O Sistema Visual Global
+
+### Decisao:
+
+O tema nativo do Streamlit passa a definir a paleta navy, azul de acao,
+cores semanticas, bordas, raios e superficies de dataframe. O CSS restante
+fica limitado ao tamanho de fonte selecionado em runtime, espacamento do shell,
+geometria dos cards e botoes da sidebar e ao bloco de energia ja existente.
+Status e icones estruturais usam badges, containers horizontais e Material
+Symbols nativos sem alterar chaves ou estado.
+
+Antes de remover a regra CSS que ocultava a primeira coluna de todo dataframe,
+foram auditadas as 20 chamadas ativas de `st.dataframe`; todas ja declaram
+`hide_index=True`.
+
+### Licao:
+
+Configuracao de tema e parametros nativos devem preceder CSS global. Uma regra
+CSS de compatibilidade so pode sair depois de provar que cada componente
+visivel preserva o comportamento equivalente por sua API publica.
+
+---
