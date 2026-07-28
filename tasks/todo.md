@@ -724,3 +724,9 @@
 - [ ] Manually validate the consolidated card, merged validation section and
   absence of duplicate/weather alerts in the running Streamlit app with a real
   selected-pair set.
+
+## Sidebar application version footer - 2026-07-28
+
+- [x] Set the canonical `APP_VERSION` to `1.0.1`.
+- [x] Reuse `APP_VERSION` in the existing page title and the shared sidebar footer.
+- [x] Run targeted compile and diff checks.

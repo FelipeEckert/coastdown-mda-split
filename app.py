@@ -48,7 +48,7 @@ from core.split_state import (
 
 # ===== CONFIGURAÇÃO DA PÁGINA =====
 st.set_page_config(
-    page_title=f"{APP_NAME} v{APP_VERSION}",
+    page_title=f"{APP_NAME} V{APP_VERSION}",
     page_icon="🚗",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -1339,6 +1339,15 @@ def edit_test_dialog(t):
 
 # ===== RENDERIZAÇÃO DA SIDEBAR =====
 
+def render_sidebar_version():
+    """Render the app version in the fixed sidebar footer."""
+    st.markdown(
+        f"<small style='position:fixed;bottom:.5rem;left:1rem;color:#888'>"
+        f"V{APP_VERSION}</small>",
+        unsafe_allow_html=True,
+    )
+
+
 def render_sidebar(t):
     """Renderiza a sidebar completa: idioma, testes e navegação."""
 
@@ -1407,6 +1416,8 @@ def render_sidebar(t):
     if st.session_state.active_test_id:
         st.markdown("---")
         render_sidebar_status(t)
+
+    render_sidebar_version()
 
 
 def render_test_card(test_id, test, t):
@@ -1507,7 +1518,7 @@ def render_sidebar_status(t):
 
 def render_welcome(t):
     """Renderiza a tela de boas-vindas quando não há testes ativos."""
-    st.title(f"{APP_NAME} v{APP_VERSION}")
+    st.title(f"{APP_NAME} V{APP_VERSION}")
     st.markdown("---")
 
     _, col, _ = st.columns([1, 2, 1])

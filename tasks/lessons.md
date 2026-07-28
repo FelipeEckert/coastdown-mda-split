@@ -3187,3 +3187,17 @@ rastreabilidade; alinhar duas listas canonicas conserva valor, ordem e unidade
 sem duplicar a logica do parser.
 
 ---
+
+## 2026-07-28 - Versao Do Aplicativo Tem Uma Unica Fonte
+
+### Decisao:
+
+`version.py` permanece como fonte canonica da versao. O titulo da pagina e o
+rodape fixo da sidebar formatam `APP_VERSION` apenas no ponto de exibicao.
+
+### Licao:
+
+Metadados exibidos em mais de um local devem compartilhar a mesma constante;
+prefixos visuais como `v` nao fazem parte do valor canonico.
+
+---
