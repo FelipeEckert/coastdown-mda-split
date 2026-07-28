@@ -731,3 +731,13 @@
 - [x] Set the canonical `APP_VERSION` to `1.0.1`.
 - [x] Reuse `APP_VERSION` in the existing page title and the shared sidebar footer.
 - [x] Run targeted compile and diff checks.
+
+## UI modernization
+
+Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
+
+- [ ] Phase 1 - Theme and application shell
+- [ ] Phase 2 - Vehicle and interval workflow
+- [ ] Phase 3 - Pair analysis and automatic selection
+- [ ] Phase 4 - Comparison, results and charts
+- [ ] Phase 5 - Responsive and accessibility validation
