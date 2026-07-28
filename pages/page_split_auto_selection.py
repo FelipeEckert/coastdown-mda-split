@@ -127,9 +127,13 @@ def _render_weather_candidate_summary(candidate: dict, t) -> None:
             ("split_auto_weather_status", str(summary.get("status") or "-")),
         )
     for column, (label_key, value) in zip(columns, metrics):
-        column.metric(t(label_key), value)
+        column.metric(t(label_key), value, border=True)
     if summary.get("warnings"):
-        with st.expander(t("split_auto_weather_details"), expanded=False):
+        with st.expander(
+            t("split_auto_weather_details"),
+            expanded=False,
+            icon=":material/cloud_sync:",
+        ):
             st.warning("\n".join(str(item) for item in summary["warnings"]))
 
 
@@ -428,7 +432,7 @@ def _render_search_diagnostics(metadata: dict | None, t) -> None:
     for start in range(0, len(metrics), 4):
         columns = st.columns(4)
         for column, (label_key, value) in zip(columns, metrics[start:start + 4]):
-            column.metric(t(label_key), str(value))
+            column.metric(t(label_key), str(value), border=True)
     if (
         diagnostic["max_set_evaluations_reached"]
         or diagnostic["timeout_reached"]
@@ -444,10 +448,12 @@ def _render_generation_diagnostics(generation_metadata: dict | None, t) -> None:
     columns[0].metric(
         t("split_auto_generated_count"),
         str(generation_metadata.get("generated_count", 0)),
+        border=True,
     )
     columns[1].metric(
         t("split_auto_diagnostics_failed_count"),
         str(generation_metadata.get("failed_count", 0)),
+        border=True,
     )
     prefilter_applied = bool(generation_metadata.get("prefilter_applied"))
     st.write(
@@ -482,7 +488,11 @@ def _render_generation_diagnostics(generation_metadata: dict | None, t) -> None:
 
 def _render_selection_diagnostics(metadata: dict | None, t) -> None:
     source = metadata if isinstance(metadata, dict) else {}
-    with st.expander(t("split_auto_diagnostics_title"), expanded=False):
+    with st.expander(
+        t("split_auto_diagnostics_title"),
+        expanded=False,
+        icon=":material/troubleshoot:",
+    ):
         _render_generation_diagnostics(source.get("generation"), t)
         st.markdown(f"**{t('split_auto_diagnostics_search')}**")
         if _search_diagnostic_values(source) is None:
@@ -971,30 +981,40 @@ def _render_execution_result(pending: dict, t) -> None:
     first_row[0].metric(
         t("split_auto_generated_count"),
         str(metadata.get("generated_count", 0)),
+        border=True,
     )
     first_row[1].metric(
         t("split_auto_ranked_count"),
         str(metadata.get("ranked_count", 0)),
+        border=True,
     )
     first_row[2].metric(
         t("split_auto_suggested_count"),
         str(metadata.get("selected_count", 0)),
+        border=True,
     )
-    first_row[3].metric(t("split_auto_mode"), str(metadata.get("mode", "exact")))
+    first_row[3].metric(
+        t("split_auto_mode"),
+        str(metadata.get("mode", "exact")),
+        border=True,
+    )
 
     selection_metadata = metadata.get("selection") or {}
     second_row = st.columns(3)
     second_row[0].metric(
         t("split_auto_repeated_skipped"),
         str(selection_metadata.get("skipped_repeated_count", 0)),
+        border=True,
     )
     second_row[1].metric(
         t("split_auto_algorithm"),
         t(ALGORITHM_VALUES.get(algorithm, "split_auto_algorithm_energy")),
+        border=True,
     )
     second_row[2].metric(
         t("split_auto_replacement_pool_count"),
         str(len(pending.get("ranked_pool") or [])),
+        border=True,
     )
 
     warnings = []
@@ -1006,7 +1026,9 @@ def _render_execution_result(pending: dict, t) -> None:
         st.warning("\n".join(warnings))
 
     if candidates:
-        st.subheader(t("split_auto_suggested_candidates"))
+        st.subheader(
+            f":material/recommend: {t('split_auto_suggested_candidates')}"
+        )
         st.caption(t("split_auto_pending_review_help"))
         replacement_feedback = pending.get("replacement_feedback") or {}
         if replacement_feedback.get("replaced"):
@@ -1097,7 +1119,9 @@ def _render_fallback_offer(offer: dict, t) -> None:
         or "energy"
     )
     if candidates:
-        st.subheader(t("split_auto_best_available_set"))
+        st.subheader(
+            f":material/warning: {t('split_auto_best_available_set')}"
+        )
         for candidate in candidates:
             with st.container(border=True):
                 st.markdown(f"### {format_split_pair_label(candidate)}")
@@ -1129,7 +1153,7 @@ def _render_fallback_offer(offer: dict, t) -> None:
 
 def render(t) -> None:
     """Render exact automatic selection without changing final user selection."""
-    st.subheader(t("split_auto_title"))
+    st.subheader(f":material/auto_awesome: {t('split_auto_title')}")
     st.write(t("split_auto_description"))
     ensure_split_comparison_pairs(st.session_state)
     _sanitize_replace_dialog_state(
@@ -1146,16 +1170,30 @@ def render(t) -> None:
     parsed_runs = st.session_state.get("split_parsed_runs") or {}
     grouped = split_runs_by_role_and_heading(parsed_runs)
     estimated_total = estimate_full_candidate_count(grouped)
-    metric_columns = st.columns(5)
-    for column, group_key in zip(metric_columns[:4], GROUP_LABELS):
-        column.metric(t(GROUP_LABELS[group_key]), str(len(grouped[group_key])))
-    metric_columns[4].metric(
+    overview = st.container(
+        horizontal=True,
+        horizontal_alignment="distribute",
+        gap="small",
+        border=True,
+    )
+    for group_key in GROUP_LABELS:
+        overview.metric(
+            t(GROUP_LABELS[group_key]),
+            str(len(grouped[group_key])),
+            border=True,
+        )
+    overview.metric(
         t("split_auto_estimated_combinations"),
         f"{estimated_total:,}",
+        border=True,
     )
 
     if grouped.get("warnings"):
-        with st.expander(t("split_auto_grouping_warnings"), expanded=False):
+        with st.expander(
+            t("split_auto_grouping_warnings"),
+            expanded=False,
+            icon=":material/warning:",
+        ):
             st.warning("\n".join(str(warning) for warning in grouped["warnings"]))
     if estimated_total == 0:
         st.warning(t("split_auto_no_complete_combinations"))
@@ -1164,9 +1202,12 @@ def render(t) -> None:
     if vehicle_data is None:
         st.warning(t("split_effective_mass_required_for_calculation"))
 
-    st.markdown("---")
-    st.subheader(t("split_auto_settings"))
-    configuration_columns = st.columns(2)
+    st.space("small")
+    settings = st.container(border=True)
+    settings.subheader(
+        f":material/tune: {t('split_auto_settings')}"
+    )
+    configuration_columns = settings.columns(2)
     algorithm_labels = {
         t("split_auto_algorithm_energy"): "energy",
         t("split_auto_algorithm_target"): "target",
@@ -1192,7 +1233,7 @@ def render(t) -> None:
     ambient_mode = ambient_options[ambient_label]
 
     k = int(
-        st.number_input(
+        settings.number_input(
             t("split_auto_k"),
             min_value=1,
             max_value=50,
@@ -1204,6 +1245,7 @@ def render(t) -> None:
     with st.expander(
         t("split_auto_search_advanced_settings"),
         expanded=False,
+        icon=":material/settings:",
     ):
         settings_columns = st.columns(2)
         max_combinations = int(
@@ -1223,7 +1265,9 @@ def render(t) -> None:
         )
         settings_columns[1].caption(t("split_auto_avoid_repeated_help"))
 
-        st.markdown(f"#### {t('split_auto_constraint_section')}")
+        st.markdown(
+            f"#### :material/rule: {t('split_auto_constraint_section')}"
+        )
         st.caption(t("split_auto_constraint_description"))
         constraint_columns = st.columns(2)
         require_time_cv = constraint_columns[0].checkbox(
@@ -1279,78 +1323,89 @@ def render(t) -> None:
         if not constraints_enabled:
             st.caption(t("split_auto_search_disabled_help"))
 
-        exclude_invalid_weather = False
-        parsed_runs_for_selection = parsed_runs
-        weather_metadata = None
-        fixed_temperature_c = None
-        fixed_pressure_kpa = None
-        if ambient_mode == "fixed":
-            test_id = str(st.session_state.get("active_test_id") or "test")
-            fixed_columns = st.columns(2)
-            # Initial values only; both fixed parameters remain user-editable.
-            fixed_temperature_c = float(fixed_columns[0].number_input(
-                t("split_auto_fixed_temperature_c"),
-                value=20.0,
-                step=0.5,
-                key=f"split_auto_fixed_temperature_c_{test_id}",
-            ))
-            fixed_pressure_kpa = float(fixed_columns[1].number_input(
-                t("split_auto_fixed_pressure_kpa"),
-                min_value=0.001,
-                value=101.325,
-                step=0.1,
-                format="%.3f",
-                key=f"split_auto_fixed_pressure_kpa_{test_id}",
-            ))
-            if fixed_temperature_c > 35.0:
-                st.warning(t("split_auto_fixed_temperature_warning"))
-        if ambient_mode == "weather_sync":
-            weather_columns = st.columns(2)
-            max_time_diff_s = float(weather_columns[0].number_input(
-                t("split_auto_weather_sync_limit"), min_value=0.0, value=300.0, step=30.0,
-                key="split_auto_weather_sync_limit_s",
-            ))
-            exclude_invalid_weather = weather_columns[1].checkbox(
-                t("split_auto_exclude_invalid_weather"), value=True,
-                key="split_auto_exclude_invalid_weather",
+    exclude_invalid_weather = False
+    parsed_runs_for_selection = parsed_runs
+    weather_metadata = None
+    fixed_temperature_c = None
+    fixed_pressure_kpa = None
+    environment = st.container(border=True)
+    environment.subheader(
+        f":material/device_thermostat: {t('split_ambient_mode_label')}"
+    )
+    if ambient_mode == "fixed":
+        test_id = str(st.session_state.get("active_test_id") or "test")
+        fixed_columns = environment.columns(2)
+        # Initial values only; both fixed parameters remain user-editable.
+        fixed_temperature_c = float(fixed_columns[0].number_input(
+            t("split_auto_fixed_temperature_c"),
+            value=20.0,
+            step=0.5,
+            key=f"split_auto_fixed_temperature_c_{test_id}",
+        ))
+        fixed_pressure_kpa = float(fixed_columns[1].number_input(
+            t("split_auto_fixed_pressure_kpa"),
+            min_value=0.001,
+            value=101.325,
+            step=0.1,
+            format="%.3f",
+            key=f"split_auto_fixed_pressure_kpa_{test_id}",
+        ))
+        if fixed_temperature_c > 35.0:
+            environment.warning(t("split_auto_fixed_temperature_warning"))
+    if ambient_mode == "weather_sync":
+        weather_columns = environment.columns(2)
+        max_time_diff_s = float(weather_columns[0].number_input(
+            t("split_auto_weather_sync_limit"), min_value=0.0, value=300.0, step=30.0,
+            key="split_auto_weather_sync_limit_s",
+        ))
+        exclude_invalid_weather = weather_columns[1].checkbox(
+            t("split_auto_exclude_invalid_weather"), value=True,
+            key="split_auto_exclude_invalid_weather",
+        )
+        weather_data = st.session_state.get("weather_data")
+        if weather_data:
+            parsed_runs_for_selection, weather_metadata = synchronize_weather_for_split_runs(
+                parsed_runs, weather_data, max_time_diff_s=max_time_diff_s,
             )
-            weather_data = st.session_state.get("weather_data")
-            if weather_data:
-                parsed_runs_for_selection, weather_metadata = synchronize_weather_for_split_runs(
-                    parsed_runs, weather_data, max_time_diff_s=max_time_diff_s,
-                )
-                metrics = st.columns(6)
-                values = (
-                    ("split_auto_weather_high_synced", weather_metadata["high_synchronized"]),
-                    ("split_auto_weather_low_synced", weather_metadata["low_synchronized"]),
-                    ("split_auto_weather_missing", weather_metadata["missing_count"]),
-                    ("split_auto_weather_wind_invalid", weather_metadata["wind_above_limit_count"]),
-                    ("split_auto_weather_temp_invalid", weather_metadata["temperature_above_limit_count"]),
-                    ("split_auto_weather_max_delta", _format_number(weather_metadata["max_time_diff_s_found"], 1)),
-                )
-                for column, (label_key, value) in zip(metrics, values):
-                    column.metric(t(label_key), str(value))
-            else:
-                st.warning(t("split_auto_weather_required"))
+            weather_metrics = environment.container(
+                horizontal=True,
+                gap="small",
+            )
+            values = (
+                ("split_auto_weather_high_synced", weather_metadata["high_synchronized"]),
+                ("split_auto_weather_low_synced", weather_metadata["low_synchronized"]),
+                ("split_auto_weather_missing", weather_metadata["missing_count"]),
+                ("split_auto_weather_wind_invalid", weather_metadata["wind_above_limit_count"]),
+                ("split_auto_weather_temp_invalid", weather_metadata["temperature_above_limit_count"]),
+                ("split_auto_weather_max_delta", _format_number(weather_metadata["max_time_diff_s_found"], 1)),
+            )
+            for label_key, value in values:
+                weather_metrics.metric(t(label_key), str(value), border=True)
+        else:
+            environment.warning(t("split_auto_weather_required"))
 
-        target_f0 = None
-        target_f2 = None
-        if algorithm == "target":
-            target_columns = st.columns(2)
-            target_f0 = target_columns[0].number_input(
-                t("split_auto_target_f0"),
-                min_value=0.000001,
-                value=100.0,
-                format="%.6f",
-                key="split_auto_target_f0",
-            )
-            target_f2 = target_columns[1].number_input(
-                t("split_auto_target_f2"),
-                min_value=0.000001,
-                value=0.004,
-                format="%.8f",
-                key="split_auto_target_f2",
-            )
+    target_f0 = None
+    target_f2 = None
+    if algorithm == "target":
+        target = st.container(border=True)
+        target.subheader(
+            f":material/target: {t('split_auto_algorithm_target')}"
+        )
+        target_columns = target.columns(2)
+        target_f0 = target_columns[0].number_input(
+            t("split_auto_target_f0"),
+            min_value=0.000001,
+            value=100.0,
+            format="%.6f",
+            key="split_auto_target_f0",
+        )
+        target_f2 = target_columns[1].number_input(
+            t("split_auto_target_f2"),
+            min_value=0.000001,
+            value=0.004,
+            format="%.8f",
+            key="split_auto_target_f2",
+        )
 
     exceeds_limit = estimated_total > max_combinations
     if exceeds_limit:
@@ -1470,7 +1525,7 @@ def render(t) -> None:
 
     pending = st.session_state.get("split_auto_selection_pending")
     if isinstance(pending, dict):
-        st.markdown("---")
+        st.space("small")
         _render_execution_result(pending, t)
     else:
         fallback_offer = st.session_state.get("split_auto_selection_last_result")
@@ -1478,5 +1533,5 @@ def render(t) -> None:
             isinstance(fallback_offer, dict)
             and fallback_offer.get("awaiting_fallback_confirmation") is True
         ):
-            st.markdown("---")
+            st.space("small")
             _render_fallback_offer(fallback_offer, t)

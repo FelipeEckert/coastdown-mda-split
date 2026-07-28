@@ -1,6 +1,6 @@
 # Coastdown MDA Split UI modernization plan
 
-Status: Phases 1–2 completed on 2026-07-28; phases 3–5 pending.
+Status: Phases 1–3 completed on 2026-07-28; phases 4–5 pending.
 
 ## Objective and scope
 
@@ -348,7 +348,7 @@ Implementation result:
 
 ### Phase 3 — Pair analysis and automatic selection
 
-Status: Pending.
+Status: Completed on 2026-07-28.
 
 Scope:
 
@@ -368,6 +368,24 @@ Expected files:
 Focused page and automatic-selection tests may change only to cover deliberate UI
 behavior. Core selection, calculation, correction, and validation modules are
 not expected to change.
+
+Implementation result:
+
+- manual pair selection, ambient conditions, coefficient details, saved-pair
+  cards, and comparison actions use bordered native sections, responsive
+  layouts, metrics, badges, spacing, and Material icons;
+- Graphical Analysis groups the high- and low-speed controls and plots in
+  separate bordered sections without changing Plotly traces, data, filters, or
+  run-selection keys;
+- Automatic Selection separates its overview, basic setup, environmental
+  conditions, optional targets, diagnostics, candidate cards, and fallback
+  presentation while keeping advanced search settings collapsed by default;
+- native progress, alerts, bordered metrics, and stretch-width actions retain
+  the existing candidate generation, constraint-first search, replacement,
+  comparison merge, and fallback behavior;
+- keyed nested `st.tabs(..., on_change="rerun")` routing and every `.open`
+  guard remain unchanged; no CSS, dependency, translation, formula, algorithm,
+  parser, or state-contract change was required.
 
 ### Phase 4 — Comparison, results and charts
 
@@ -467,6 +485,6 @@ Manual Streamlit validation must cover:
 
 - [x] Phase 1 — Theme and application shell (completed 2026-07-28)
 - [x] Phase 2 — Vehicle and interval workflow (completed 2026-07-28)
-- [ ] Phase 3 — Pair analysis and automatic selection (pending)
+- [x] Phase 3 — Pair analysis and automatic selection (completed 2026-07-28)
 - [ ] Phase 4 — Comparison, results and charts (pending)
 - [ ] Phase 5 — Responsive and accessibility validation (pending)

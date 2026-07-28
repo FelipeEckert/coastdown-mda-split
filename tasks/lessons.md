@@ -3258,3 +3258,20 @@ widgets existentes para containers nativos e resumir o estado canonico melhora
 hierarquia e responsividade sem CSS ou novas fontes de verdade.
 
 ---
+
+## 2026-07-28 - Configuracao Essencial Nao Deve Ficar Oculta Como Avancada
+
+### Decisao:
+
+Na selecao automatica, modo ambiental, condicoes fixas ou sincronizadas e alvos
+opcionais ficam em secoes nativas visiveis. Apenas limites, restricoes e
+orcamentos da busca permanecem no expander avancado fechado. Os mesmos widgets,
+chaves e valores continuam alimentando o mesmo orquestrador.
+
+### Licao:
+
+Divulgacao progressiva deve esconder complexidade opcional, nao entradas
+necessarias para interpretar ou executar a analise. Reagrupar widgets existentes
+por finalidade melhora a leitura sem criar estado ou logica paralela.
+
+---

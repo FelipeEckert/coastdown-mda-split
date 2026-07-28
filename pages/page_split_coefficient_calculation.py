@@ -199,7 +199,11 @@ def _render_weather_sync_details(
 ):
     if not weather_sync and not extra_warnings:
         return
-    with st.expander(t("split_weather_sync_details"), expanded=False):
+    with st.expander(
+        t("split_weather_sync_details"),
+        expanded=False,
+        icon=":material/cloud_sync:",
+    ):
         if weather_sync:
             st.write(_weather_sync_summary(weather_sync, t))
         if sync_limit_seconds is not None:
@@ -212,7 +216,7 @@ def _render_weather_sync_details(
         if weather_sync:
             st.dataframe(
                 pd.DataFrame(_weather_sync_rows(weather_sync, t)),
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
             )
         warnings = _weather_sync_warnings(weather_sync, t)
@@ -236,7 +240,10 @@ def _render_weather_sync(selection: dict, t) -> dict:
     weather_sync = _weather_sync_for_selection(selection)
     weather_data = st.session_state.get("weather_data")
     if not weather_data:
-        st.warning(t("split_meteo_not_available_warning"))
+        st.warning(
+            t("split_meteo_not_available_warning"),
+            icon=":material/cloud_off:",
+        )
         return weather_sync
 
     _render_weather_sync_details(
@@ -248,7 +255,9 @@ def _render_weather_sync(selection: dict, t) -> dict:
 
 
 def _render_ambient_conditions(selection: dict, t) -> dict:
-    st.subheader(t("split_ambient_conditions_title"))
+    st.subheader(
+        f":material/device_thermostat: {t('split_ambient_conditions_title')}"
+    )
     test_key = st.session_state.get("active_test_id", "test")
     mode_labels = {
         t("split_ambient_mode_fixed"): "fixed",
@@ -309,7 +318,10 @@ def _render_ambient_conditions(selection: dict, t) -> dict:
     )
     conditions = weather_sync_ambient_conditions(weather_sync)
     if not conditions.get("available"):
-        st.warning(t("split_weather_correction_unavailable"))
+        st.warning(
+            t("split_weather_correction_unavailable"),
+            icon=":material/warning:",
+        )
     return conditions
 
 
@@ -632,30 +644,44 @@ def _result_rows(result: dict, t) -> list[dict]:
 
 
 def _render_result_summary(result: dict, t):
-    st.markdown("---")
-    st.subheader(t("split_pair_results_title"))
-    with st.expander(t("split_coefficient_details"), expanded=False):
-        st.markdown(f"#### {t('split_uncorrected_results')}")
-        st.markdown(
-            _build_uncorrected_results_html(result, t),
-            unsafe_allow_html=True,
+    st.space("small")
+    with st.container(border=True):
+        st.subheader(
+            f":material/calculate: {t('split_pair_results_title')}"
         )
-
-        if result.get("correction_available"):
-            st.markdown(f"#### {t('split_corrected_results')}")
+        with st.expander(
+            t("split_coefficient_details"),
+            expanded=False,
+            icon=":material/table_view:",
+        ):
+            st.markdown(f"#### {t('split_uncorrected_results')}")
             st.markdown(
-                _build_corrected_results_html(result, t),
+                _build_uncorrected_results_html(result, t),
                 unsafe_allow_html=True,
             )
-        else:
-            st.warning(t("split_corrected_results_unavailable"))
-            st.caption(t("split_energy_unavailable_contract"))
+
+            if result.get("correction_available"):
+                st.markdown(f"#### {t('split_corrected_results')}")
+                st.markdown(
+                    _build_corrected_results_html(result, t),
+                    unsafe_allow_html=True,
+                )
+            else:
+                st.warning(t("split_corrected_results_unavailable"))
+                st.caption(t("split_energy_unavailable_contract"))
 
 
 def _render_pair_card(pair: dict, t, pair_number: int):
     label = format_split_pair_label(pair)
-    with st.expander(label, expanded=False):
-        ambient_col, coefficients_col, variation_col, energy_col = st.columns(4)
+    with st.expander(
+        label,
+        expanded=False,
+        icon=":material/compare_arrows:",
+    ):
+        ambient_col, coefficients_col, variation_col, energy_col = st.columns(
+            4,
+            border=True,
+        )
 
         with ambient_col:
             st.markdown(f"##### {t('split_card_ambient_conditions')}")
@@ -695,7 +721,10 @@ def _render_pair_card(pair: dict, t, pair_number: int):
                 if value is None:
                     st.write(f"CV {coefficient}: N/A")
                 elif value > 10:
-                    st.write(f"CV {coefficient}: :red[{value:.2f}%] ⚠️")
+                    st.write(
+                        f"CV {coefficient}: :red[{value:.2f}%] "
+                        ":material/warning:"
+                    )
                 else:
                     st.write(f"CV {coefficient}: {value:.2f}%")
 
@@ -721,8 +750,10 @@ def _render_pair_card(pair: dict, t, pair_number: int):
 
 def _render_add_to_comparison(t):
     """Keep coefficient calculation focused on adding the latest manual pair."""
-    st.markdown("---")
-    st.subheader(t("split_add_pair_section"))
+    st.space("small")
+    st.subheader(
+        f":material/playlist_add: {t('split_add_pair_section')}"
+    )
     last_result = st.session_state.get("split_last_calculated_result")
     if not last_result:
         st.info(t("split_no_calculated_pair_to_add"))
@@ -731,7 +762,7 @@ def _render_add_to_comparison(t):
     if st.button(
         t("split_add_to_final_comparison"),
         type="primary",
-        use_container_width=True,
+        width="stretch",
     ):
         pair = build_split_comparison_pair(
             last_result,
@@ -742,10 +773,15 @@ def _render_add_to_comparison(t):
             pair,
         )
         reset_split_final_outputs(st.session_state)
-        st.success(t("split_pair_added_to_comparison"))
+        st.success(
+            t("split_pair_added_to_comparison"),
+            icon=":material/check_circle:",
+        )
 
     pairs = st.session_state.get("split_comparison_pairs") or []
-    st.subheader(t("split_comparison_pair_cards"))
+    st.subheader(
+        f":material/view_agenda: {t('split_comparison_pair_cards')}"
+    )
     if not pairs:
         st.info(t("split_comparison_empty"))
         return
@@ -793,21 +829,39 @@ def _render_coefficient_calculation(t):
     effective_mass = _effective_mass()
     config = st.session_state.get("split_interval_config") or default_split_interval_config()
 
-    metric_cols = st.columns(5)
-    metric_cols[0].metric(t("split_high_plus_records_available"), str(len(grouped["high_plus"])))
-    metric_cols[1].metric(t("split_low_plus_records_available"), str(len(grouped["low_plus"])))
-    metric_cols[2].metric(t("split_high_minus_records_available"), str(len(grouped["high_minus"])))
-    metric_cols[3].metric(t("split_low_minus_records_available"), str(len(grouped["low_minus"])))
-    metric_cols[4].metric(
-        t("split_effective_mass_available"),
-        t("yes") if effective_mass else t("no"),
-    )
     source_files = ", ".join(
         source.get("filename", "N/A")
         for source in input_sources
         if source.get("filename")
     ) or "N/A"
-    st.caption(t("split_input_sources_summary", files=source_files))
+    with st.container(border=True):
+        with st.container(horizontal=True, gap="small"):
+            st.metric(
+                t("split_high_plus_records_available"),
+                str(len(grouped["high_plus"])),
+                border=True,
+            )
+            st.metric(
+                t("split_low_plus_records_available"),
+                str(len(grouped["low_plus"])),
+                border=True,
+            )
+            st.metric(
+                t("split_high_minus_records_available"),
+                str(len(grouped["high_minus"])),
+                border=True,
+            )
+            st.metric(
+                t("split_low_minus_records_available"),
+                str(len(grouped["low_minus"])),
+                border=True,
+            )
+            st.metric(
+                t("split_effective_mass_available"),
+                t("yes") if effective_mass else t("no"),
+                border=True,
+            )
+        st.caption(t("split_input_sources_summary", files=source_files))
 
     if not high_records and not low_records:
         st.warning(t("split_no_parsed_records_for_calculation"))
@@ -823,7 +877,7 @@ def _render_coefficient_calculation(t):
                     ],
                 }
             ),
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
         st.warning(t("split_complete_ida_volta_pair_required"))
@@ -849,36 +903,40 @@ def _render_coefficient_calculation(t):
         f"{st.session_state.get('split_input_version', 0)}"
     )
 
-    st.subheader(t("split_manual_pair_selection"))
-    col_plus, col_minus = st.columns(2)
-    with col_plus:
-        st.markdown(f"**{t('split_ida_plus')}**")
-        high_plus = _selected_from_group(
-            grouped,
-            "high_plus",
-            t("split_select_high_plus_run"),
-            selection_key_suffix,
+    st.space("small")
+    with st.container(border=True):
+        st.subheader(
+            f":material/compare_arrows: {t('split_manual_pair_selection')}"
         )
-        low_plus = _selected_from_group(
-            grouped,
-            "low_plus",
-            t("split_select_low_plus_run"),
-            selection_key_suffix,
-        )
-    with col_minus:
-        st.markdown(f"**{t('split_volta_minus')}**")
-        high_minus = _selected_from_group(
-            grouped,
-            "high_minus",
-            t("split_select_high_minus_run"),
-            selection_key_suffix,
-        )
-        low_minus = _selected_from_group(
-            grouped,
-            "low_minus",
-            t("split_select_low_minus_run"),
-            selection_key_suffix,
-        )
+        with st.container(horizontal=True, gap="small"):
+            with st.container(border=True):
+                st.markdown(f"**{t('split_ida_plus')}**")
+                high_plus = _selected_from_group(
+                    grouped,
+                    "high_plus",
+                    t("split_select_high_plus_run"),
+                    selection_key_suffix,
+                )
+                low_plus = _selected_from_group(
+                    grouped,
+                    "low_plus",
+                    t("split_select_low_plus_run"),
+                    selection_key_suffix,
+                )
+            with st.container(border=True):
+                st.markdown(f"**{t('split_volta_minus')}**")
+                high_minus = _selected_from_group(
+                    grouped,
+                    "high_minus",
+                    t("split_select_high_minus_run"),
+                    selection_key_suffix,
+                )
+                low_minus = _selected_from_group(
+                    grouped,
+                    "low_minus",
+                    t("split_select_low_minus_run"),
+                    selection_key_suffix,
+                )
 
     selection = {
         "high_plus": high_plus,
@@ -887,9 +945,15 @@ def _render_coefficient_calculation(t):
         "low_minus": low_minus,
     }
 
-    ambient_conditions = _render_ambient_conditions(selection, t)
+    st.space("small")
+    with st.container(border=True):
+        ambient_conditions = _render_ambient_conditions(selection, t)
 
-    if st.button(t("split_calculate_coefficients"), type="primary", use_container_width=True):
+    if st.button(
+        t("split_calculate_coefficients"),
+        type="primary",
+        width="stretch",
+    ):
         try:
             result = calculate_complete_split_pair(
                 high_plus=high_plus,
@@ -906,16 +970,26 @@ def _render_coefficient_calculation(t):
             clear_split_final_results_compatibility(st.session_state)
             st.session_state.excel_buffer = None
 
-            st.success(t("split_selected_pair_calculated"))
+            st.success(
+                t("split_selected_pair_calculated"),
+                icon=":material/check_circle:",
+            )
         except ValueError as exc:
-            st.error(str(exc))
+            st.error(str(exc), icon=":material/error:")
 
     last_result = st.session_state.get("split_last_calculated_result")
     if last_result:
         _render_result_summary(last_result, t)
 
     if st.session_state.get("split_results"):
-        st.info(t("split_saved_results_count", count=len(st.session_state.split_results)))
+        st.badge(
+            t(
+                "split_saved_results_count",
+                count=len(st.session_state.split_results),
+            ),
+            icon=":material/save:",
+            color="blue",
+        )
 
     _render_add_to_comparison(t)
 
@@ -1025,7 +1099,7 @@ def _render_split_series_chart(series_items: list[dict], title: str, t):
         xaxis_title=t("split_graph_elapsed_time_axis"),
         yaxis_title=t("split_graph_speed_axis"),
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def _render_delta_t_chart(selected_options: list[dict], title: str, t):
@@ -1080,7 +1154,7 @@ def _render_delta_t_chart(selected_options: list[dict], title: str, t):
     )
     fig.update_layout(margin={"l": 60, "r": 20, "t": 55, "b": 120})
     fig.update_xaxes(tickangle=-25)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def _render_split_run_section(
@@ -1094,7 +1168,7 @@ def _render_split_run_section(
         if interval_name == "high"
         else "split_graph_low_section_title"
     )
-    st.markdown(f"### {section_title}")
+    st.subheader(f":material/speed: {section_title}")
 
     section_options = [
         option
@@ -1160,7 +1234,7 @@ def _render_split_run_section(
                 f"split_graph_{interval_name}_add_all_"
                 f"{test_id}_{input_version}"
             ),
-            use_container_width=True,
+            width="stretch",
             disabled=not option_ids,
         ):
             st.session_state[selection_key] = apply_split_run_selection_action(
@@ -1175,7 +1249,7 @@ def _render_split_run_section(
                 f"split_graph_{interval_name}_clear_selection_"
                 f"{test_id}_{input_version}"
             ),
-            use_container_width=True,
+            width="stretch",
             disabled=not st.session_state.get(selection_key),
         ):
             st.session_state[selection_key] = apply_split_run_selection_action(
@@ -1249,11 +1323,15 @@ def _render_available_split_runs(t):
         st.info(t("split_graph_process_intervals_first"))
         return
 
-    st.subheader(t("split_graph_available_runs"))
+    st.subheader(
+        f":material/monitoring: {t('split_graph_available_runs')}"
+    )
     active_pair = _active_graph_pair()
-    _render_split_run_section("high", all_options, active_pair, t)
-    st.markdown("---")
-    _render_split_run_section("low", all_options, active_pair, t)
+    with st.container(border=True):
+        _render_split_run_section("high", all_options, active_pair, t)
+    st.space("small")
+    with st.container(border=True):
+        _render_split_run_section("low", all_options, active_pair, t)
 
 
 def _render_graphical_analysis(t):
@@ -1270,7 +1348,9 @@ def _render_graphical_analysis(t):
 
 def render(t):
     """Render Split pair analysis with calculation and graph sub-tabs."""
-    st.header(t("page_split_pair_analysis"))
+    st.header(
+        f":material/analytics: {t('page_split_pair_analysis')}"
+    )
     tab_labels = [
         t("page_split_coefficient_calculation"),
         t("split_graphical_analysis"),

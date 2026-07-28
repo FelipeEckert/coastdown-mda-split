@@ -110,6 +110,7 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
         def make_layout():
             layout = Mock()
             layout.radio = radio
+            layout.columns.side_effect = make_columns
             layout.checkbox.side_effect = lambda label, **kwargs: record_widget(
                 "checkbox", checkbox_values, label, **kwargs
             )
