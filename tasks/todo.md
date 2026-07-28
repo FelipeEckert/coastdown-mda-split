@@ -739,5 +739,5 @@ Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
 - [x] Phase 1 - Theme and application shell
 - [x] Phase 2 - Vehicle and interval workflow
 - [x] Phase 3 - Pair analysis and automatic selection
-- [ ] Phase 4 - Comparison, results and charts
+- [x] Phase 4 - Comparison, results and charts
 - [ ] Phase 5 - Responsive and accessibility validation

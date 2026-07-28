@@ -341,7 +341,8 @@ class SplitFinalStateMigrationTests(unittest.TestCase):
             )
 
         streamlit.warning.assert_called_once_with(
-            "split_results_legacy_summary_only:2"
+            "split_results_legacy_summary_only:2",
+            icon=":material/warning:",
         )
 
     def test_final_action_navigates_without_writing_redundant_summary(self):

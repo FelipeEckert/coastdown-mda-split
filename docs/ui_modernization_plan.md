@@ -1,6 +1,6 @@
 # Coastdown MDA Split UI modernization plan
 
-Status: Phases 1–3 completed on 2026-07-28; phases 4–5 pending.
+Status: Phases 1–4 completed on 2026-07-28; phase 5 pending.
 
 ## Objective and scope
 
@@ -389,7 +389,7 @@ Implementation result:
 
 ### Phase 4 — Comparison, results and charts
 
-Status: Pending.
+Status: Completed on 2026-07-28.
 
 Scope:
 
@@ -416,6 +416,28 @@ Expected files:
 Results, comparison, graph, and export tests may be updated only for presentation
 contracts. Calculation, consolidation, deviation, and export payload logic must
 remain unchanged.
+
+Implementation result:
+
+- Final Comparison now separates actions, selection status, origin legend,
+  corrected pairs, and uncorrected references into native bordered sections;
+  the exact pair-selection widgets and the technical row grid remain intact;
+- the comparison legend uses native badges, while custom HTML is retained only
+  for stacked ida/volta cells, pair-origin visual states, and per-cell CV
+  warnings that native dataframes cannot represent equivalently;
+- deviation analysis uses responsive bordered metrics and grouped coefficient,
+  time, pair, weather, and leave-one-out tables without changing any diagnostic
+  or normative status source;
+- Results uses native summary, conformity badge, metrics, selected-pair cards,
+  validation grouping, export spinner, and Material icons while preserving
+  workbook generation, cache reuse, signature inputs, and download payload;
+- all touched dataframes use `width="stretch"`, and the Split Plotly theme now
+  follows the approved navy surfaces, border tokens, accessible trace colors,
+  hover labels, and modebar styling without changing traces, labels, units, or
+  chart semantics;
+- focused visual tests were updated only for the deliberate native layout and
+  palette contracts; no translation, formula, selection, validation, export,
+  parser, algorithm, or state contract changed.
 
 ### Phase 5 — Responsive and accessibility validation
 
@@ -486,5 +508,5 @@ Manual Streamlit validation must cover:
 - [x] Phase 1 — Theme and application shell (completed 2026-07-28)
 - [x] Phase 2 — Vehicle and interval workflow (completed 2026-07-28)
 - [x] Phase 3 — Pair analysis and automatic selection (completed 2026-07-28)
-- [ ] Phase 4 — Comparison, results and charts (pending)
+- [x] Phase 4 — Comparison, results and charts (completed 2026-07-28)
 - [ ] Phase 5 — Responsive and accessibility validation (pending)

@@ -220,7 +220,9 @@ class SplitGraphsTest(unittest.TestCase):
 
         self.assertIs(themed, fig)
         self.assertEqual(fig.layout.title.text, "Curvas de Desaceleração — Alta velocidade")
-        self.assertEqual(fig.layout.plot_bgcolor, "#1a1a2e")
+        self.assertEqual(fig.layout.plot_bgcolor, "#0D1B2B")
+        self.assertEqual(fig.layout.paper_bgcolor, "#07111F")
+        self.assertEqual(fig.layout.legend.bgcolor, "#112438")
         self.assertEqual(fig.layout.hovermode, "x unified")
         self.assertEqual(fig.layout.height, 500)
 

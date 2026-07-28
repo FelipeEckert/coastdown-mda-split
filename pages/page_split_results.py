@@ -31,6 +31,11 @@ from data.split_exporters import (
 TIME_GROUP_COMPONENTS = ("high_plus", "high_minus", "low_plus", "low_minus")
 OPPOSITE_SPEED_GROUPS = ("high", "low")
 
+CONFORMITY_BADGES = {
+    "conforming": (":material/check_circle:", "green"),
+    "nonconforming": (":material/cancel:", "red"),
+    "inconclusive": (":material/warning:", "orange"),
+}
 CONFORMITY_ICONS = {
     "conforming": "✅",
     "nonconforming": "❌",
@@ -453,34 +458,42 @@ def _pair_average_values(pair):
     }
 
 
+def _render_pair_metrics(container, title, values):
+    container.markdown(f"**{title}**")
+    items = list(values.items())
+    for selected in (items[:3], items[3:]):
+        metrics = container.container(horizontal=True, gap="small")
+        for label, value in selected:
+            metrics.metric(label, value, border=True)
+
+
 def _render_selected_pairs(pairs, t):
     for pair in pairs:
-        with st.expander(format_split_pair_label(pair), expanded=False):
-            plus_column, minus_column = st.columns(2, gap="small")
-            for column, suffix, direction in (
-                (plus_column, "plus", "+"),
-                (minus_column, "minus", "-"),
+        with st.expander(
+            format_split_pair_label(pair),
+            expanded=False,
+            icon=":material/compare_arrows:",
+        ):
+            directions = st.container(horizontal=True, gap="small")
+            for suffix, direction in (
+                ("plus", "+"),
+                ("minus", "-"),
             ):
                 title = (
                     f"[{direction}] Run "
                     f"{_component_run_label(pair, f'high_{suffix}')} / Run "
                     f"{_component_run_label(pair, f'low_{suffix}')}"
                 )
-                column.markdown(
-                    _build_pair_result_card_html(
-                        title,
-                        _directional_pair_values(pair, suffix),
-                    ),
-                    unsafe_allow_html=True,
+                _render_pair_metrics(
+                    directions.container(border=True),
+                    title,
+                    _directional_pair_values(pair, suffix),
                 )
 
-            st.markdown(
-                _build_pair_result_card_html(
-                    t("split_pair_average"),
-                    _pair_average_values(pair),
-                    footer=True,
-                ),
-                unsafe_allow_html=True,
+            _render_pair_metrics(
+                st.container(border=True),
+                t("split_pair_average"),
+                _pair_average_values(pair),
             )
 
 
@@ -505,16 +518,63 @@ def _result_rows(results, t=None):
 
 
 def _render_summary(summary, time_validation, t):
-    st.subheader(t("split_results_consolidated"))
-    st.markdown(
-        _build_consolidated_results_card_html(summary, time_validation, t),
-        unsafe_allow_html=True,
+    st.subheader(
+        f":material/summarize: {t('split_results_consolidated')}"
+    )
+    section = st.container(border=True)
+    status = _conformity_status_from_time_validation(time_validation)
+    status_icon, status_color = CONFORMITY_BADGES[status]
+
+    headline = section.container(horizontal=True, gap="small")
+    headline.metric(
+        t("split_selected_pairs"),
+        str(summary.get("num_pairs", 0)),
+        border=True,
+    )
+    conformity = headline.container(border=True)
+    conformity.markdown(f"**{t('split_results_card_conformity')}**")
+    conformity.badge(
+        t(CONFORMITY_LABEL_KEYS[status]),
+        icon=status_icon,
+        color=status_color,
+    )
+    conformity.caption(t("split_results_card_conformity_criteria"))
+
+    metrics = section.container(horizontal=True, gap="small")
+    metrics.metric(
+        t("split_results_final_f0"),
+        _display(summary.get("mean_f0"), 4),
+        border=True,
+    )
+    metrics.metric(
+        t("split_results_final_f2"),
+        _display(summary.get("mean_f2"), 6),
+        border=True,
+    )
+    metrics.metric(
+        t("split_results_mean_energy"),
+        _display(summary.get("mean_energy"), 4),
+        border=True,
+    )
+
+    diagnostic_label = t("split_results_diagnostic_label")
+    diagnostics = section.container(horizontal=True, gap="small")
+    diagnostics.metric(
+        f"{t('split_results_cv_f0')} {diagnostic_label}",
+        _display(summary.get("cv_f0"), 2),
+        border=True,
+    )
+    diagnostics.metric(
+        f"{t('split_results_cv_f2')} {diagnostic_label}",
+        _display(summary.get("cv_f2"), 2),
+        border=True,
     )
 
 
 def _render_vehicle(summary, t):
-    st.markdown("---")
-    st.subheader(f"🚗 {t('vehicle_information')}")
+    st.subheader(
+        f":material/directions_car: {t('vehicle_information')}"
+    )
     vehicle = dict(st.session_state.get("vehicle_info") or {})
     mass_data = normalize_split_vehicle_mass_data({
         "vehicle_info": vehicle,
@@ -531,21 +591,30 @@ def _render_vehicle(summary, t):
         ("Velocidade alta de referência", _display(references.get("v2_reference_kmh"), 1, " km/h")),
         ("Velocidade baixa de referência", _display(references.get("v1_reference_kmh"), 1, " km/h")),
     ]
-    st.dataframe(pd.DataFrame(rows, columns=("Campo", "Valor")), use_container_width=True, hide_index=True)
+    st.dataframe(
+        pd.DataFrame(rows, columns=("Campo", "Valor")),
+        width="stretch",
+        hide_index=True,
+    )
 
 
 def _render_coefficients(summary, t):
-    st.markdown("---")
-    st.subheader(t("split_results_validation"))
+    st.subheader(
+        f":material/fact_check: {t('split_results_validation')}"
+    )
     rows = [
         (f"F0 [N] {t('split_results_diagnostic_label')}", _display(summary.get("mean_f0"), 4), _display(summary.get("cv_f0"), 2)),
         (f"F2 [N/(km/h)²] {t('split_results_diagnostic_label')}", _display(summary.get("mean_f2"), 6), _display(summary.get("cv_f2"), 2)),
         ("Energia [MJ/km]", _display(summary.get("mean_energy"), 4), _display(summary.get("cv_energy"), 2)),
     ]
-    st.dataframe(pd.DataFrame(rows, columns=("Coeficiente", "Valor médio", "CV [%]")), use_container_width=True, hide_index=True)
+    st.dataframe(
+        pd.DataFrame(rows, columns=("Coeficiente", "Valor médio", "CV [%]")),
+        width="stretch",
+        hide_index=True,
+    )
     critical_warnings, _ = _split_warnings_by_audience(summary.get("warnings"))
     for warning in critical_warnings:
-        st.warning(warning)
+        st.warning(warning, icon=":material/warning:")
 
 
 def _time_normative_metric_rows(times: dict, selected_pairs, t) -> list[dict]:
@@ -597,8 +666,8 @@ def _render_deviation_summary(analysis, selected_pairs, t):
     time_rows = _time_normative_metric_rows(times, selected_pairs, t)
     if time_rows:
         status_colors = {
-            t("split_results_status_conforming"): "#97f97b7f",
-            t("split_results_status_nonconforming"): "#ff6f6f82",
+            t("split_results_status_conforming"): "#2DD36F52",
+            t("split_results_status_nonconforming"): "#FF6B6B52",
         }
         status_key = t("split_results_deviation_status")
         styled_rows = pd.DataFrame(time_rows).style.map(
@@ -609,25 +678,27 @@ def _render_deviation_summary(analysis, selected_pairs, t):
             ),
             subset=[status_key],
         )
-        st.dataframe(styled_rows, use_container_width=True, hide_index=True)
+        st.dataframe(styled_rows, width="stretch", hide_index=True)
 
     st.markdown(f"**{t('split_results_deviation_coefficients_title')}**")
     diagnostic_label = t("split_results_diagnostic_label")
-    diagnostic_columns = st.columns(2)
-    diagnostic_columns[0].metric(
+    diagnostics = st.container(horizontal=True, gap="small")
+    diagnostics.metric(
         f"{t('split_results_cv_f0')} {diagnostic_label}",
         _display(coefficients.get("cv_f0_pct"), 2, " %"),
+        border=True,
     )
-    diagnostic_columns[1].metric(
+    diagnostics.metric(
         f"{t('split_results_cv_f2')} {diagnostic_label}",
         _display(coefficients.get("cv_f2_pct"), 2, " %"),
+        border=True,
     )
     st.caption(t("split_results_deviation_details_note"))
 
 
 def render(t):
     """Render a read-only projection of explicitly selected Split pairs."""
-    st.header("📊 " + t("page_split_results"))
+    st.header(f":material/assessment: {t('page_split_results')}")
     st.caption("Resumo final calculado a partir dos pares selecionados no Comparativo Final.")
     comparison_pairs = st.session_state.get("split_comparison_pairs") or []
     summary = consolidate_split_final_results(comparison_pairs)
@@ -639,11 +710,18 @@ def render(t):
                 t(
                     "split_results_legacy_summary_only",
                     count=final_status["selected_pair_count"],
-                )
+                ),
+                icon=":material/warning:",
             )
         else:
-            st.warning(t("split_results_no_pairs_selected"))
-        st.info("Volte ao Comparativo Final e selecione os pares desejados.")
+            st.warning(
+                t("split_results_no_pairs_selected"),
+                icon=":material/warning:",
+            )
+        st.info(
+            "Volte ao Comparativo Final e selecione os pares desejados.",
+            icon=":material/info:",
+        )
         return
 
     analysis, analysis_cache, _ = get_cached_split_deviation_analysis(
@@ -652,58 +730,83 @@ def render(t):
     )
     st.session_state.split_deviation_analysis_cache = analysis_cache
     _render_summary(summary, analysis.get("time_summary"), t)
-    _render_vehicle(summary, t)
-    _render_coefficients(summary, t)
-    _render_deviation_summary(analysis, selected_pairs, t)
+    st.space("small")
+    with st.container(border=True):
+        _render_vehicle(summary, t)
 
-    st.markdown("---")
-    st.subheader(f"📋 {t('split_selected_pairs')}")
-    _render_selected_pairs(selected_pairs, t)
+    st.space("small")
+    with st.container(border=True):
+        _render_coefficients(summary, t)
+        _render_deviation_summary(analysis, selected_pairs, t)
 
-    st.markdown("---")
-    st.subheader(f"📥 {t('split_results_export')}")
-    vehicle_info = dict(st.session_state.get("vehicle_info") or {})
-    vehicle_data = {
-        **normalize_split_vehicle_mass_data({
-            "vehicle_info": vehicle_info,
-            "total_mass": st.session_state.get("total_mass"),
-        }),
-        "model": vehicle_info.get("model"),
-        "test_date": vehicle_info.get("test_date"),
-    }
-    export_signature = build_split_export_signature(
-        final_results=summary,
-        selected_pairs=selected_pairs,
-        vehicle_data=vehicle_data,
-        deviation_analysis=analysis,
-    )
-    export_cache = st.session_state.get("split_results_excel_cache")
-    if st.button(
-        t("split_results_generate_excel"),
-        type="primary",
-        use_container_width=True,
-    ):
-        excel_bytes, export_cache, _ = get_cached_split_export(
-            export_signature,
-            export_cache,
-            builder=lambda: export_split_final_results_to_excel(
-                final_results=summary,
-                selected_pairs=selected_pairs,
-                vehicle_data=vehicle_data,
-                deviation_analysis=analysis,
-            ),
+    st.space("small")
+    with st.container(border=True):
+        st.subheader(
+            f":material/view_agenda: {t('split_selected_pairs')}"
         )
-        st.session_state.split_results_excel_cache = export_cache
-    else:
-        excel_bytes = (
-            export_cache.get("payload")
-            if isinstance(export_cache, dict)
-            and export_cache.get("signature") == export_signature
-            else None
+        _render_selected_pairs(selected_pairs, t)
+
+    st.space("small")
+    with st.container(border=True):
+        st.subheader(
+            f":material/download: {t('split_results_export')}"
         )
-    if excel_bytes is not None:
-        st.download_button(
-            label="📥 " + t("split_results_export_button"), data=excel_bytes,
-            file_name=f"relatorio_resultados_split_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True,
+        vehicle_info = dict(st.session_state.get("vehicle_info") or {})
+        vehicle_data = {
+            **normalize_split_vehicle_mass_data({
+                "vehicle_info": vehicle_info,
+                "total_mass": st.session_state.get("total_mass"),
+            }),
+            "model": vehicle_info.get("model"),
+            "test_date": vehicle_info.get("test_date"),
+        }
+        export_signature = build_split_export_signature(
+            final_results=summary,
+            selected_pairs=selected_pairs,
+            vehicle_data=vehicle_data,
+            deviation_analysis=analysis,
         )
+        export_cache = st.session_state.get("split_results_excel_cache")
+        if st.button(
+            t("split_results_generate_excel"),
+            type="primary",
+            icon=":material/description:",
+            width="stretch",
+        ):
+            with st.spinner(
+                t("split_results_generate_excel"),
+                show_time=True,
+            ):
+                excel_bytes, export_cache, _ = get_cached_split_export(
+                    export_signature,
+                    export_cache,
+                    builder=lambda: export_split_final_results_to_excel(
+                        final_results=summary,
+                        selected_pairs=selected_pairs,
+                        vehicle_data=vehicle_data,
+                        deviation_analysis=analysis,
+                    ),
+                )
+            st.session_state.split_results_excel_cache = export_cache
+        else:
+            excel_bytes = (
+                export_cache.get("payload")
+                if isinstance(export_cache, dict)
+                and export_cache.get("signature") == export_signature
+                else None
+            )
+        if excel_bytes is not None:
+            st.download_button(
+                label=t("split_results_export_button"),
+                data=excel_bytes,
+                file_name=(
+                    "relatorio_resultados_split_"
+                    f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+                ),
+                mime=(
+                    "application/vnd.openxmlformats-officedocument."
+                    "spreadsheetml.sheet"
+                ),
+                icon=":material/download:",
+                width="stretch",
+            )

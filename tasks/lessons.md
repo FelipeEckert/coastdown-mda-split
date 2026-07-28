@@ -3275,3 +3275,21 @@ necessarias para interpretar ou executar a analise. Reagrupar widgets existentes
 por finalidade melhora a leitura sem criar estado ou logica paralela.
 
 ---
+
+## 2026-07-28 - HTML Tecnico Precisa De Uma Fronteira Explicita
+
+### Decisao:
+
+Resumo consolidado, metricas direcionais, legenda e exportacao passaram a usar
+componentes nativos. O HTML permaneceu apenas na grade do Comparativo Final,
+onde celulas empilhadas e estados simultaneos de origem e alerta de CV exigem
+formatacao por celula. A paleta Plotly foi centralizada no helper existente.
+
+### Licao:
+
+Antes de manter CSS local, separe apresentacao estrutural de semantica tabular.
+Containers, metricas e badges nativos resolvem a primeira; HTML so se justifica
+quando a segunda perderia informacao. Temas de graficos devem mudar em um unico
+ponto sem tocar dados, traces, unidades ou tooltips.
+
+---

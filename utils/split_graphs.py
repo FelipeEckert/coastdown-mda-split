@@ -12,17 +12,17 @@ from data.split_parser import (
     required_subintervals,
 )
 
-SPLIT_GRAPH_PLUS_COLOR = "#4a9eff"
-SPLIT_GRAPH_MINUS_COLOR = "#ff9800"
+SPLIT_GRAPH_PLUS_COLOR = "#3A9CFF"
+SPLIT_GRAPH_MINUS_COLOR = "#F5B82E"
 SPLIT_GRAPH_OTHER_COLORS = [
-    "#a0c4ff",
-    "#b9fbc0",
-    "#ffd6a5",
-    "#ffadad",
-    "#caffbf",
-    "#9bf6ff",
-    "#bdb2ff",
-    "#ffc6ff",
+    "#8CC8FF",
+    "#2DD36F",
+    "#FF8A8A",
+    "#B39DFF",
+    "#4DD0E1",
+    "#FFD166",
+    "#F48FB1",
+    "#A9B6C7",
 ]
 
 
@@ -198,32 +198,44 @@ def apply_split_plotly_theme(
     yaxis_title: str = "Velocidade (km/h)",
     height: int = 500,
 ):
-    """Apply the Standard-inspired dark Plotly theme used by Split charts."""
+    """Apply the shared dark-navy Plotly theme used by Split charts."""
     fig.update_layout(
         title={
             "text": title,
-            "font": {"size": 15, "color": "white"},
+            "font": {"size": 15, "color": "#F4F8FC"},
         },
         xaxis={
             "title": xaxis_title,
-            "color": "white",
-            "gridcolor": "#2a2a2a",
+            "color": "#D8E2EC",
+            "gridcolor": "#22384F",
+            "zerolinecolor": "#2A4058",
             "showgrid": True,
         },
         yaxis={
             "title": yaxis_title,
-            "color": "white",
-            "gridcolor": "#2a2a2a",
+            "color": "#D8E2EC",
+            "gridcolor": "#22384F",
+            "zerolinecolor": "#2A4058",
             "showgrid": True,
         },
-        plot_bgcolor="#1a1a2e",
-        paper_bgcolor="#0e1117",
-        font={"color": "white"},
+        plot_bgcolor="#0D1B2B",
+        paper_bgcolor="#07111F",
+        font={"color": "#F4F8FC"},
         legend={
-            "bgcolor": "#1e1e2e",
-            "bordercolor": "#3d3d3d",
+            "bgcolor": "#112438",
+            "bordercolor": "#2A4058",
             "borderwidth": 1,
             "font": {"size": 11},
+        },
+        hoverlabel={
+            "bgcolor": "#112438",
+            "bordercolor": "#3A9CFF",
+            "font": {"color": "#F4F8FC"},
+        },
+        modebar={
+            "bgcolor": "rgba(7,17,31,0.72)",
+            "color": "#A9B6C7",
+            "activecolor": "#3A9CFF",
         },
         hovermode="x unified",
         height=height,

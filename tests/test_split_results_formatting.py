@@ -101,8 +101,8 @@ class SplitResultsFormattingTest(unittest.TestCase):
         status_column = frame.columns.get_loc(status_key)
         styles = styled_frame._compute().ctx
         self.assertTrue(all(column == status_column for _, column in styles))
-        self.assertIn(("background-color", "#97f97b7f"), styles[(0, status_column)])
-        self.assertIn(("background-color", "#ff6f6f82"), styles[(1, status_column)])
+        self.assertIn(("background-color", "#2DD36F52"), styles[(0, status_column)])
+        self.assertIn(("background-color", "#FF6B6B52"), styles[(1, status_column)])
         self.assertNotIn((2, status_column), styles)
         self.assertEqual(
             frame.iloc[0][status_key], t("split_results_status_conforming"),
@@ -134,7 +134,9 @@ class SplitResultsFormattingTest(unittest.TestCase):
             _render_coefficients(summary, t)
             _render_deviation_summary(analysis, [], t)
 
-        fake_st.subheader.assert_called_once_with(t("split_results_validation"))
+        fake_st.subheader.assert_called_once_with(
+            f":material/fact_check: {t('split_results_validation')}"
+        )
         self.assertEqual(fake_st.dataframe.call_count, 2)
         fake_st.metric.assert_not_called()
         self.assertEqual(
@@ -151,9 +153,9 @@ class SplitResultsFormattingTest(unittest.TestCase):
             "time_summary": {"status": "approved", "groups": {}, "opposite_direction": {}},
             "weather_summary": {"status": "approved"},
         }
-        columns_mock = Mock()
+        metrics = Mock()
         fake_st = Mock()
-        fake_st.columns.return_value = [columns_mock, columns_mock, columns_mock]
+        fake_st.container.return_value = metrics
         t = get_translator("pt")
 
         with patch("pages.page_split_results.st", fake_st):
@@ -162,7 +164,7 @@ class SplitResultsFormattingTest(unittest.TestCase):
         rendered_texts = (
             [str(call.args[0]) for call in fake_st.markdown.call_args_list]
             + [str(call.args[0]) for call in fake_st.subheader.call_args_list]
-            + [str(call.args[0]) for call in columns_mock.metric.call_args_list]
+            + [str(call.args[0]) for call in metrics.metric.call_args_list]
         )
         self.assertFalse(
             any("CV F0/F2" in text for text in rendered_texts),
@@ -203,8 +205,9 @@ class SplitResultsFormattingTest(unittest.TestCase):
         original = dict(pair)
         fake_st = Mock()
         fake_st.expander.return_value = MagicMock()
-        plus_column, minus_column = Mock(), Mock()
-        fake_st.columns.return_value = [plus_column, minus_column]
+        layout = Mock()
+        layout.container.return_value = layout
+        fake_st.container.return_value = layout
         t = get_translator("pt")
 
         with patch("pages.page_split_results.st", fake_st), patch(
@@ -216,8 +219,9 @@ class SplitResultsFormattingTest(unittest.TestCase):
         fake_st.expander.assert_called_once_with(
             "[+]: Run HP / Run LP | [-]: Run HM / Run LM",
             expanded=False,
+            icon=":material/compare_arrows:",
         )
-        fake_st.columns.assert_called_once_with(2, gap="small")
+        fake_st.columns.assert_not_called()
         self.assertEqual(
             calculate_energy.call_args_list,
             [
@@ -225,27 +229,21 @@ class SplitResultsFormattingTest(unittest.TestCase):
                 call(200.0, 0.005),
             ],
         )
-        plus_html = plus_column.markdown.call_args.args[0]
-        minus_html = minus_column.markdown.call_args.args[0]
-        self.assertIn("[+] Run HP / Run LP", plus_html)
-        self.assertIn("[-] Run HM / Run LM", minus_html)
-        self.assertIn("0.1112", plus_html)
-        self.assertIn("0.2223", minus_html)
-        self.assertIn("0.00", plus_html)
-        self.assertIn("split-pair-primary", plus_html)
-        self.assertIn("split-pair-secondary", plus_html)
-        self.assertIn(
-            "border:",
-            fake_st.markdown.call_args_list[0].args[0],
+        rendered_titles = [call.args[0] for call in layout.markdown.call_args_list]
+        self.assertIn("**[+] Run HP / Run LP**", rendered_titles)
+        self.assertIn("**[-] Run HM / Run LM**", rendered_titles)
+        self.assertIn(f"**{t('split_pair_average')}**", rendered_titles)
+        metric_values = [call.args[1] for call in layout.metric.call_args_list]
+        self.assertIn("0.1112", metric_values)
+        self.assertIn("0.2223", metric_values)
+        self.assertIn("0.00", metric_values)
+        self.assertIn("123.4567", metric_values)
+        self.assertIn("0.3333", metric_values)
+        self.assertIn("25.5", metric_values)
+        self.assertIn("0.75", metric_values)
+        self.assertTrue(
+            all(call.kwargs.get("border") is True for call in layout.metric.call_args_list)
         )
-
-        footer_html = fake_st.markdown.call_args_list[-1].args[0]
-        self.assertIn(t("split_pair_average"), footer_html)
-        self.assertIn("footer", footer_html)
-        self.assertIn("123.4567", footer_html)
-        self.assertIn("0.3333", footer_html)
-        self.assertIn("25.5", footer_html)
-        self.assertIn("0.75", footer_html)
         self.assertEqual(calculate_energy.call_count, 2)
         self.assertEqual(pair, original)
 
@@ -278,6 +276,7 @@ class SplitResultsFormattingTest(unittest.TestCase):
         fake_st = Mock()
         fake_st.session_state = _State(split_comparison_pairs=[pair])
         fake_st.button.return_value = False
+        fake_st.container.return_value = MagicMock()
         analysis = {"coefficient_summary": {}, "time_summary": {}, "weather_summary": {}}
         with patch("pages.page_split_results.st", fake_st), patch(
             "pages.page_split_results.consolidate_split_final_results", return_value=summary
@@ -350,15 +349,33 @@ class SplitResultsFormattingTest(unittest.TestCase):
         rendered = _build_consolidated_results_card_html(summary, {"passed": True}, t)
         self.assertNotIn("<script>", rendered)
 
-    def test_render_summary_renders_card_via_markdown(self):
+    def test_render_summary_uses_native_metrics_and_conformity_badge(self):
         fake_st = Mock()
+        layout = Mock()
+        layout.container.return_value = layout
+        fake_st.container.return_value = layout
         t = get_translator("pt")
         summary = {"num_pairs": 1, "mean_f0": 100.0, "mean_f2": 0.004, "mean_energy": 0.2, "cv_f0": None, "cv_f2": None}
         with patch("pages.page_split_results.st", fake_st):
             _render_summary(summary, {"passed": True}, t)
-        html_arg = fake_st.markdown.call_args.args[0]
-        self.assertIn("split-summary-card", html_arg)
-        self.assertEqual(fake_st.markdown.call_args.kwargs.get("unsafe_allow_html"), True)
+        fake_st.markdown.assert_not_called()
+        layout.badge.assert_called_once_with(
+            t("split_results_status_conforming"),
+            icon=":material/check_circle:",
+            color="green",
+        )
+        metric_labels = [call.args[0] for call in layout.metric.call_args_list]
+        self.assertEqual(
+            metric_labels,
+            [
+                t("split_selected_pairs"),
+                t("split_results_final_f0"),
+                t("split_results_final_f2"),
+                t("split_results_mean_energy"),
+                f"{t('split_results_cv_f0')} {t('split_results_diagnostic_label')}",
+                f"{t('split_results_cv_f2')} {t('split_results_diagnostic_label')}",
+            ],
+        )
 
     def test_is_meteo_sync_warning_classifies_technical_notes(self):
         self.assertTrue(is_meteo_sync_warning(

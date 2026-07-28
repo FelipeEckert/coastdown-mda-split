@@ -482,13 +482,16 @@ class SplitComparisonTest(unittest.TestCase):
         normal_style = _cell_style()
         warning_style = _cell_style(warning=True)
 
-        self.assertEqual(selected_bg, "#D1FFBD")
-        self.assertEqual(selected_text, "black")
-        self.assertEqual(reference_bg, "rgba(255,152,0,0.10)")
-        self.assertEqual(reference_text, "#ffb74d")
-        self.assertIn("background-color:#D1FFBD", _cell_style(selected=True))
+        self.assertEqual(selected_bg, "rgba(18,100,200,0.32)")
+        self.assertEqual(selected_text, "#F4F8FC")
+        self.assertEqual(reference_bg, "rgba(245,184,46,0.12)")
+        self.assertEqual(reference_text, "#FFD978")
         self.assertIn(
-            "background-color:rgba(255,152,0,0.10)",
+            "background-color:rgba(18,100,200,0.32)",
+            _cell_style(selected=True),
+        )
+        self.assertIn(
+            "background-color:rgba(245,184,46,0.12)",
             _cell_style(reference=True),
         )
         self.assertIn("height:50px", normal_style)
@@ -498,7 +501,7 @@ class SplitComparisonTest(unittest.TestCase):
         self.assertIn("align-items:center", normal_style)
         self.assertIn("justify-content:center", normal_style)
         self.assertIn("line-height:1.45", normal_style)
-        self.assertIn("color:#ff6b6b", warning_style)
+        self.assertIn("color:#FF8A8A", warning_style)
         self.assertIn("height:50px", warning_style)
         self.assertIn("border:1px solid rgba(255,107,107,0.35)", warning_style)
         self.assertIn(
