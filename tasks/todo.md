@@ -717,10 +717,11 @@
 - [x] Pass compile checks and all 17 focused Results-page tests.
 - [x] Run the 450-test full suite after showing the diff: 449 passed and the
   unrelated auto-selection page test below errored identically in isolation.
-- [ ] Repair
+- [x] Repair
   `test_render_submits_default_constraints_and_advanced_search_settings`,
-  whose `st.radio` mock currently returns an unmapped `Mock`; outside this
-  presentation-only Results-page change.
+  using one options/index-aware radio mock for direct and column-container calls.
+- [ ] Reconcile the Streamlit lower-bound contract: `requirements.txt`
+  declares 1.60.0 while `test_streamlit_dependency.py` still requires 1.55.0.
 - [ ] Manually validate the consolidated card, merged validation section and
   absence of duplicate/weather alerts in the running Streamlit app with a real
   selected-pair set.

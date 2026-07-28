@@ -3201,3 +3201,19 @@ Metadados exibidos em mais de um local devem compartilhar a mesma constante;
 prefixos visuais como `v` nao fazem parte do valor canonico.
 
 ---
+
+## 2026-07-28 - Mocks De Widgets Devem Seguir O Contrato Do Widget
+
+### Decisao:
+
+O teste da selecao automatica usa o mesmo mock de `radio` nas chamadas diretas
+e nos containers de coluna. O retorno vem de `options[index]`, ou `None` quando
+`index=None`, sem depender do texto traduzido do label.
+
+### Licao:
+
+Widgets chamados por um `DeltaGenerator` precisam receber o mesmo comportamento
+do mock de nivel superior. Simular o contrato de `options` e `index` evita que
+mudancas de layout ou traducao produzam objetos `Mock` como valores selecionados.
+
+---

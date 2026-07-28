@@ -109,6 +109,7 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
 
         def make_layout():
             layout = Mock()
+            layout.radio = radio
             layout.checkbox.side_effect = lambda label, **kwargs: record_widget(
                 "checkbox", checkbox_values, label, **kwargs
             )
@@ -124,16 +125,11 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
         progress = Mock()
         phase_placeholder = Mock()
 
-        def select_radio(label, **_kwargs):
+        def select_radio(label, options, index=0, **_kwargs):
             ui_events.append(("radio", label))
-            return {
-                self.t("split_auto_algorithm"): self.t(
-                    "split_auto_algorithm_energy"
-                ),
-                self.t("split_ambient_mode_label"): self.t(
-                    "split_ambient_mode_fixed"
-                ),
-            }[label]
+            return None if index is None else options[index]
+
+        radio = Mock(side_effect=select_radio)
 
         def open_expander(label, **_kwargs):
             ui_events.append(("expander", label))
@@ -193,7 +189,7 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
                 "number_input", number_values, label, **kwargs
             )
             streamlit.container.side_effect = lambda **_kwargs: make_layout()
-            streamlit.radio.side_effect = select_radio
+            streamlit.radio = radio
             streamlit.expander.side_effect = open_expander
             streamlit.spinner.return_value = nullcontext()
             streamlit.button.return_value = True
@@ -213,11 +209,11 @@ class SplitAutoSelectionPageTest(unittest.TestCase):
                 ),
             ],
         )
-        streamlit.radio.assert_any_call(
+        radio.assert_any_call(
             self.t("split_ambient_mode_label"),
             options=[
-                self.t("split_ambient_mode_fixed"),
-                self.t("split_ambient_mode_weather_sync"),
+                "Condições fixas",
+                "Arquivo meteorológico",
             ],
             horizontal=True,
             key="split_auto_ambient_mode_selector",
