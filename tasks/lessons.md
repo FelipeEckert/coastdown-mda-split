@@ -3240,3 +3240,21 @@ CSS de compatibilidade so pode sair depois de provar que cada componente
 visivel preserva o comportamento equivalente por sua API publica.
 
 ---
+
+## 2026-07-28 - Formularios Tecnicos Podem Usar Layout Nativo Sem Novo CSS
+
+### Decisao:
+
+As paginas de dados do veiculo e intervalos usam `st.container` com borda e
+layout horizontal, `st.metric`, `st.badge`, alertas, spinner e Material Symbols
+nativos. A pagina de intervalos apenas resume as fontes canonicas ja carregadas
+pelo shell; nao duplica upload nem cria um segundo estado. Chaves de widgets,
+callbacks, calculos, estado draft/processado e abas lazy permanecem os mesmos.
+
+### Licao:
+
+Agrupamento visual pode ser separado do contrato funcional. Em Streamlit, mover
+widgets existentes para containers nativos e resumir o estado canonico melhora
+hierarquia e responsividade sem CSS ou novas fontes de verdade.
+
+---

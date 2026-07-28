@@ -144,53 +144,133 @@ def _config_issue_text(issue: dict, t) -> str:
 def _render_interval_config(t) -> dict:
     config = _get_draft_config()
     _initialize_draft_widgets(config)
-    st.subheader(t("split_interval_configuration"))
-    st.caption(t("split_interval_defaults_note"))
+    with st.container(border=True):
+        st.subheader(
+            f":material/tune: {t('split_interval_configuration')}"
+        )
+        st.caption(t("split_interval_defaults_note"))
 
-    st.number_input(
-        t("split_interval_step_kmh"),
-        step=1.0,
-        key=_draft_widget_key("split_draft_step_kmh"),
-    )
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown(f"**{t('split_interval_high')}**")
         st.number_input(
-            t("split_high_start_kmh"),
+            t("split_interval_step_kmh"),
             step=1.0,
-            key=_draft_widget_key("split_draft_high_start_kmh"),
+            key=_draft_widget_key("split_draft_step_kmh"),
         )
-        st.number_input(
-            t("split_high_reference_kmh"),
-            step=1.0,
-            key=_draft_widget_key("split_draft_high_ref_kmh"),
-        )
-        st.number_input(
-            t("split_high_end_kmh"),
-            step=1.0,
-            key=_draft_widget_key("split_draft_high_end_kmh"),
-        )
-    with col2:
-        st.markdown(f"**{t('split_interval_low')}**")
-        st.number_input(
-            t("split_low_start_kmh"),
-            step=1.0,
-            key=_draft_widget_key("split_draft_low_start_kmh"),
-        )
-        st.number_input(
-            t("split_low_reference_kmh"),
-            step=1.0,
-            key=_draft_widget_key("split_draft_low_ref_kmh"),
-        )
-        st.number_input(
-            t("split_low_end_kmh"),
-            step=1.0,
-            key=_draft_widget_key("split_draft_low_end_kmh"),
-        )
+        with st.container(horizontal=True, gap="small"):
+            with st.container(border=True):
+                st.markdown(
+                    f"#### :material/speed: {t('split_interval_high')}"
+                )
+                st.number_input(
+                    t("split_high_start_kmh"),
+                    step=1.0,
+                    key=_draft_widget_key("split_draft_high_start_kmh"),
+                )
+                st.number_input(
+                    t("split_high_reference_kmh"),
+                    step=1.0,
+                    key=_draft_widget_key("split_draft_high_ref_kmh"),
+                )
+                st.number_input(
+                    t("split_high_end_kmh"),
+                    step=1.0,
+                    key=_draft_widget_key("split_draft_high_end_kmh"),
+                )
+            with st.container(border=True):
+                st.markdown(
+                    f"#### :material/speed: {t('split_interval_low')}"
+                )
+                st.number_input(
+                    t("split_low_start_kmh"),
+                    step=1.0,
+                    key=_draft_widget_key("split_draft_low_start_kmh"),
+                )
+                st.number_input(
+                    t("split_low_reference_kmh"),
+                    step=1.0,
+                    key=_draft_widget_key("split_draft_low_ref_kmh"),
+                )
+                st.number_input(
+                    t("split_low_end_kmh"),
+                    step=1.0,
+                    key=_draft_widget_key("split_draft_low_end_kmh"),
+                )
 
     new_config = _draft_config_from_widgets()
     update_split_interval_draft(st.session_state, new_config)
     return new_config
+
+
+def _render_input_sources(t) -> None:
+    sources = st.session_state.get("split_input_sources") or []
+    filenames = {
+        source.get("role"): source.get("filename")
+        for source in sources
+        if source.get("filename")
+    }
+    input_mode = st.session_state.get("split_input_mode")
+    if input_mode in {"single_combined", "full_or_combined"}:
+        input_mode = "combined"
+    if input_mode not in {"separate", "combined"}:
+        input_mode = "separate"
+
+    if input_mode == "combined":
+        source_items = [
+            (
+                t("split_current_combined_file"),
+                filenames.get("full_or_combined")
+                or st.session_state.get("coastdown_csv_path"),
+                "N/A",
+                "description",
+            ),
+        ]
+    else:
+        source_items = [
+            (
+                t("split_current_high_file"),
+                filenames.get("high")
+                or st.session_state.get("split_alta_csv_path")
+                or st.session_state.get("coastdown_csv_path"),
+                "N/A",
+                "speed",
+            ),
+            (
+                t("split_current_low_file"),
+                filenames.get("low")
+                or st.session_state.get("split_baixa_csv_path"),
+                t("split_no_low_file"),
+                "speed",
+            ),
+        ]
+    source_items.append(
+        (
+            t("split_current_weather_file"),
+            st.session_state.get("split_meteo_csv_path")
+            or st.session_state.get("meteo_csv_path"),
+            t("no_meteo_file"),
+            "cloud",
+        )
+    )
+
+    with st.container(border=True):
+        st.subheader(f":material/folder_open: {t('split_upload_sources')}")
+        st.badge(
+            t(f"split_input_mode_{input_mode}"),
+            icon=":material/file_copy:" if input_mode == "combined" else ":material/folder:",
+            color="blue",
+        )
+        with st.container(horizontal=True, gap="small"):
+            for label, filename, empty_label, icon in source_items:
+                with st.container(border=True):
+                    st.markdown(f"**:material/{icon}: {label}**")
+                    st.badge(
+                        filename or empty_label,
+                        icon=(
+                            ":material/check_circle:"
+                            if filename
+                            else ":material/block:"
+                        ),
+                        color="green" if filename else "gray",
+                    )
 
 
 def _split_input_mode_key(parsed: dict) -> str:
@@ -216,9 +296,9 @@ def _split_input_mode_key(parsed: dict) -> str:
 def _render_split_input_mode(parsed: dict, t):
     message_key = _split_input_mode_key(parsed)
     if parsed.get("high") and parsed.get("low"):
-        st.info(t(message_key))
+        st.success(t(message_key), icon=":material/check_circle:")
     else:
-        st.warning(t(message_key))
+        st.warning(t(message_key), icon=":material/warning:")
 
 
 def render(t):
@@ -226,40 +306,48 @@ def render(t):
     st.header(t("page_split_workflow"))
 
     if not st.session_state.get("data_loaded"):
-        st.warning(t("error_no_file"))
+        st.warning(t("error_no_file"), icon=":material/upload_file:")
         return
     if not st.session_state.get("vehicle_data_complete"):
-        st.warning(t("split_vehicle_data_required"))
+        st.warning(
+            t("split_vehicle_data_required"),
+            icon=":material/directions_car:",
+        )
         return
 
+    _render_input_sources(t)
+    st.space("small")
     draft_config = _render_interval_config(t)
 
-    col_parse, col_reset = st.columns([0.7, 0.3])
-    with col_parse:
+    with st.container(horizontal=True, gap="small"):
         process_requested = st.button(
             t("split_parse_intervals"),
             type="primary",
-            use_container_width=True,
+            width="stretch",
         )
-    with col_reset:
         st.button(
             t("split_reset_intervals"),
-            use_container_width=True,
+            width="stretch",
             on_click=_reset_interval_draft,
         )
 
     if process_requested:
-        issues = validate_split_interval_config(draft_config)
-        if issues:
-            record_split_parse_failure(st.session_state, issues)
-        else:
-            sources = st.session_state.get("split_input_sources") or []
-            parsed_runs = parse_split_sources(sources, draft_config)
-            store_processed_split_intervals(
-                st.session_state,
-                draft_config,
-                parsed_runs,
-            )
+        with st.spinner(
+            t("split_parse_intervals"),
+            show_time=True,
+            width="stretch",
+        ):
+            issues = validate_split_interval_config(draft_config)
+            if issues:
+                record_split_parse_failure(st.session_state, issues)
+            else:
+                sources = st.session_state.get("split_input_sources") or []
+                parsed_runs = parse_split_sources(sources, draft_config)
+                store_processed_split_intervals(
+                    st.session_state,
+                    draft_config,
+                    parsed_runs,
+                )
 
     review_state = get_processed_split_review_state(st.session_state)
     processed_config = normalize_split_interval_config(review_state["config"])
@@ -270,18 +358,30 @@ def render(t):
 
     if parse_dirty:
         if parsed:
-            st.warning(t("split_interval_config_dirty"))
+            st.warning(
+                t("split_interval_config_dirty"),
+                icon=":material/edit_note:",
+            )
         else:
-            st.info(t("split_interval_edit_instruction"))
+            st.info(
+                t("split_interval_edit_instruction"),
+                icon=":material/info:",
+            )
     elif not show_details:
-        st.info(t("split_interval_edit_instruction"))
+        st.info(
+            t("split_interval_edit_instruction"),
+            icon=":material/info:",
+        )
 
     if show_details:
         for issue in validation_issues:
-            st.warning(_config_issue_text(issue, t))
+            st.warning(
+                _config_issue_text(issue, t),
+                icon=":material/warning:",
+            )
         if not validation_issues:
             for warning in parsed.get("warnings", []):
-                st.warning(warning)
+                st.warning(warning, icon=":material/warning:")
 
     high_records = parsed.get("high", [])
     low_records = parsed.get("low", [])
@@ -289,52 +389,64 @@ def render(t):
         _render_split_input_mode(parsed, t)
 
     if parsed and (show_details or parse_dirty):
-        st.markdown("---")
-        st.subheader("Parser review")
-        st.caption(
-            t(
-                "split_processed_interval_summary",
-                high_start=processed_config["high"]["start"],
-                high_end=processed_config["high"]["end"],
-                high_reference=processed_config["high"]["reference"],
-                low_start=processed_config["low"]["start"],
-                low_end=processed_config["low"]["end"],
-                low_reference=processed_config["low"]["reference"],
-                step=processed_config["step_kmh"],
+        st.space("small")
+        with st.container(border=True):
+            st.subheader(":material/table_view: Parser review")
+            st.caption(
+                t(
+                    "split_processed_interval_summary",
+                    high_start=processed_config["high"]["start"],
+                    high_end=processed_config["high"]["end"],
+                    high_reference=processed_config["high"]["reference"],
+                    low_start=processed_config["low"]["start"],
+                    low_end=processed_config["low"]["end"],
+                    low_reference=processed_config["low"]["reference"],
+                    step=processed_config["step_kmh"],
+                )
             )
-        )
-        if parse_dirty:
-            st.caption(t("split_interval_preview_stale"))
-        tab_labels = ["High interval", "Low interval"]
-        tab_key = (
-            f"split_workflow_review_tabs_{st.session_state.active_test_id}_"
-            f"{st.session_state.language}"
-        )
-        if st.session_state.get(tab_key) not in tab_labels:
-            st.session_state[tab_key] = tab_labels[0]
-        high_tab, low_tab = st.tabs(
-            tab_labels,
-            default=st.session_state[tab_key],
-            key=tab_key,
-            on_change="rerun",
-        )
-        if high_tab.open:
-            with high_tab:
-                if high_records:
-                    st.dataframe(
-                        _records_dataframe(high_records),
-                        use_container_width=True,
-                        hide_index=True,
-                    )
-                else:
-                    st.info("No high interval records found.")
-        elif low_tab.open:
-            with low_tab:
-                if low_records:
-                    st.dataframe(
-                        _records_dataframe(low_records),
-                        use_container_width=True,
-                        hide_index=True,
-                    )
-                else:
-                    st.info("No low interval records found.")
+            with st.container(horizontal=True, gap="small"):
+                st.badge(
+                    f"{t('split_interval_high')}: {len(high_records)}",
+                    icon=":material/speed:",
+                    color="blue",
+                )
+                st.badge(
+                    f"{t('split_interval_low')}: {len(low_records)}",
+                    icon=":material/speed:",
+                    color="blue",
+                )
+            if parse_dirty:
+                st.caption(t("split_interval_preview_stale"))
+            tab_labels = ["High interval", "Low interval"]
+            tab_key = (
+                f"split_workflow_review_tabs_{st.session_state.active_test_id}_"
+                f"{st.session_state.language}"
+            )
+            if st.session_state.get(tab_key) not in tab_labels:
+                st.session_state[tab_key] = tab_labels[0]
+            high_tab, low_tab = st.tabs(
+                tab_labels,
+                default=st.session_state[tab_key],
+                key=tab_key,
+                on_change="rerun",
+            )
+            if high_tab.open:
+                with high_tab:
+                    if high_records:
+                        st.dataframe(
+                            _records_dataframe(high_records),
+                            width="stretch",
+                            hide_index=True,
+                        )
+                    else:
+                        st.info("No high interval records found.")
+            elif low_tab.open:
+                with low_tab:
+                    if low_records:
+                        st.dataframe(
+                            _records_dataframe(low_records),
+                            width="stretch",
+                            hide_index=True,
+                        )
+                    else:
+                        st.info("No low interval records found.")

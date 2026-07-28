@@ -1,6 +1,6 @@
 # Coastdown MDA Split UI modernization plan
 
-Status: Phase 1 completed on 2026-07-28; phases 2–5 pending.
+Status: Phases 1–2 completed on 2026-07-28; phases 3–5 pending.
 
 ## Objective and scope
 
@@ -306,7 +306,7 @@ Implementation result:
 
 ### Phase 2 — Vehicle and interval workflow
 
-Status: Pending.
+Status: Completed on 2026-07-28.
 
 Scope:
 
@@ -321,11 +321,30 @@ Expected files:
 
 - `pages/page_2_dados_veiculo.py`;
 - `pages/page_split_workflow.py`;
+- `docs/ui_modernization_plan.md`;
 - `tasks/todo.md`;
 - `tasks/lessons.md`.
 
 Relevant existing tests may be updated only when necessary to characterize
 rendered behavior; calculation and parser modules are not expected to change.
+
+Implementation result:
+
+- vehicle identification, mass entry, and the effective-mass result now use
+  bordered native sections, responsive horizontal containers, and bordered
+  metrics without changing either mass-entry mode or calculation;
+- the workflow now identifies the separate or combined source mode, groups the
+  loaded coastdown and weather files, and distinguishes available and missing
+  sources with text, icons, and badges;
+- high-speed and low-speed interval inputs are grouped in bordered technical
+  sections, while processing and reset actions use responsive stretch widths;
+- draft, validation, processing, parsed-input, and parser-review feedback use
+  native alerts, a timed spinner, badges, and Material icons;
+- both parser review tables retain `hide_index=True`, and the keyed lazy
+  `st.tabs(..., on_change="rerun")` routing remains unchanged;
+- one focused routing test characterizes the combined-source summary; no CSS,
+  dependency, translation, parser, calculation, or state-contract change was
+  required.
 
 ### Phase 3 — Pair analysis and automatic selection
 
@@ -447,7 +466,7 @@ Manual Streamlit validation must cover:
 ## Progress checklist
 
 - [x] Phase 1 — Theme and application shell (completed 2026-07-28)
-- [ ] Phase 2 — Vehicle and interval workflow (pending)
+- [x] Phase 2 — Vehicle and interval workflow (completed 2026-07-28)
 - [ ] Phase 3 — Pair analysis and automatic selection (pending)
 - [ ] Phase 4 — Comparison, results and charts (pending)
 - [ ] Phase 5 — Responsive and accessibility validation (pending)

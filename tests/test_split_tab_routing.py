@@ -45,6 +45,31 @@ def _translate(key, **_kwargs):
 
 
 class SplitTabRoutingTests(unittest.TestCase):
+    def test_combined_input_source_summary_uses_canonical_files(self):
+        state = _SessionState(
+            split_input_mode="combined",
+            split_input_sources=[
+                {"role": "full_or_combined", "filename": "combined.csv"},
+            ],
+        )
+        streamlit = page_split_workflow.st
+
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(streamlit, "session_state", state))
+            stack.enter_context(
+                patch.object(streamlit, "container", return_value=_Container())
+            )
+            stack.enter_context(patch.object(streamlit, "subheader"))
+            stack.enter_context(patch.object(streamlit, "markdown"))
+            badge = stack.enter_context(patch.object(streamlit, "badge"))
+
+            page_split_workflow._render_input_sources(_translate)
+
+        self.assertEqual(
+            [call.args[0] for call in badge.call_args_list],
+            ["split_input_mode_combined", "combined.csv", "no_meteo_file"],
+        )
+
     def test_each_main_tab_executes_only_its_renderer(self):
         pages = (
             ("2_dados_veiculo", page_2_dados_veiculo),
