@@ -21,6 +21,7 @@ from data.split_parser import (
     parse_split_sources,
     required_subintervals,
     validate_split_interval_config,
+    validate_split_source_consistency,
 )
 
 
@@ -97,6 +98,154 @@ class SplitIntervalStepTest(unittest.TestCase):
             required_subintervals(100.0, 80.0, 10.0),
             [(100.0, 90.0), (90.0, 80.0)],
         )
+
+    def test_source_consistency_accepts_matching_separate_and_combined_inputs(self):
+        config = {
+            "step_kmh": 10.0,
+            "high": {"start": 100.0, "end": 80.0, "reference": 90.0},
+            "low": {"start": 60.0, "end": 40.0, "reference": 50.0},
+        }
+        separate = [
+            {
+                "filename": "high.csv",
+                "role": "high",
+                "all_run_data": {
+                    1: {
+                        "interval_measurements": [
+                            {"column": "100-90", "time_s": 4.0},
+                            {"column": "90-80", "time_s": 5.0},
+                        ]
+                    }
+                },
+            },
+            {
+                "filename": "low.csv",
+                "role": "low",
+                "all_run_data": {
+                    2: {
+                        "interval_measurements": [
+                            {"column": "60-50", "time_s": 7.0},
+                            {"column": "50-40", "time_s": 8.0},
+                        ]
+                    }
+                },
+            },
+        ]
+        combined = [
+            {
+                "filename": "combined.csv",
+                "role": "full_or_combined",
+                "all_run_data": {
+                    1: {
+                        "interval_measurements": [
+                            {"column": "unnamed_col_0", "time_s": 4.0},
+                            {"column": "unnamed_col_1", "time_s": 5.0},
+                        ]
+                    },
+                    2: {
+                        "interval_measurements": [
+                            {"column": "unnamed_col_2", "time_s": 7.0},
+                            {"column": "unnamed_col_3", "time_s": 8.0},
+                        ]
+                    },
+                },
+            }
+        ]
+
+        self.assertEqual(validate_split_source_consistency(separate, config), [])
+        self.assertEqual(validate_split_source_consistency(combined, config), [])
+
+    def test_source_consistency_reports_count_and_labeled_range_mismatches(self):
+        config = {
+            "step_kmh": 10.0,
+            "high": {"start": 100.0, "end": 80.0, "reference": 90.0},
+            "low": {"start": 60.0, "end": 50.0, "reference": 55.0},
+        }
+        labeled = [
+            {
+                "filename": "high.csv",
+                "role": "high",
+                "all_run_data": {
+                    7: {
+                        "interval_measurements": [
+                            {"column": "100-95", "time_s": 4.0},
+                            {"column": "95-90", "time_s": 5.0},
+                        ]
+                    }
+                },
+            }
+        ]
+        combined = [
+            {
+                "filename": "combined.csv",
+                "role": "full_or_combined",
+                "all_run_data": {
+                    1: {
+                        "interval_measurements": [
+                            {"column": f"unnamed_col_{index}", "time_s": 1.0}
+                            for index in range(4)
+                        ]
+                    },
+                    3: {
+                        "interval_measurements": [
+                            {"column": "unnamed_col_4", "time_s": 7.0},
+                            {"column": "unnamed_col_5", "time_s": 8.0},
+                        ]
+                    },
+                },
+            }
+        ]
+
+        labeled_issue = validate_split_source_consistency(labeled, config)[0]
+        combined_messages = [
+            issue["message"]
+            for issue in validate_split_source_consistency(combined, config)
+        ]
+
+        self.assertIn("expected [100-90, 90-80]", labeled_issue["message"])
+        self.assertIn("found [100-95, 95-90]", labeled_issue["message"])
+        self.assertIn("high.csv run 7", labeled_issue["message"])
+        self.assertTrue(
+            any("High: 2 expected, 4 found" in message for message in combined_messages)
+        )
+
+    def test_source_consistency_rejects_non_divisible_configuration(self):
+        config = {
+            "step_kmh": 10.0,
+            "high": {"start": 100.0, "end": 85.0, "reference": 90.0},
+            "low": {"start": 60.0, "end": 40.0, "reference": 50.0},
+        }
+
+        issues = validate_split_source_consistency([], config)
+
+        self.assertEqual([issue["code"] for issue in issues], ["incompatible_step"])
+
+    def test_source_consistency_blocks_ambiguous_combined_positions(self):
+        config = {
+            "step_kmh": 10.0,
+            "high": {"start": 100.0, "end": 80.0, "reference": 90.0},
+            "low": {"start": 60.0, "end": 40.0, "reference": 50.0},
+        }
+        sources = [
+            {
+                "filename": "ambiguous.csv",
+                "role": "full_or_combined",
+                "all_run_data": {
+                    9: {
+                        "interval_measurements": [
+                            {"column": f"unnamed_col_{index}", "time_s": 1.0}
+                            for index in range(4)
+                        ]
+                    }
+                },
+            }
+        ]
+
+        issues = validate_split_source_consistency(sources, config)
+
+        self.assertEqual([issue["code"] for issue in issues], ["source_interval_mismatch"])
+        self.assertIn("Ambiguous interval structure", issues[0]["message"])
+        self.assertIn("ambiguous.csv run 9", issues[0]["message"])
 
     def test_parser_extracts_exact_bins_with_ten_kmh_step(self):
         config = {

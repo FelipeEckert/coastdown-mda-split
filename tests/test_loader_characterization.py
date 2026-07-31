@@ -32,7 +32,7 @@ SPLIT_COASTDOWN_EXPECTATIONS = {
     "baixas ioniq_16012026.csv": (20, 20),
     "ford-HighSpeed-ok.csv": (14, 14),
     "Ford-LowSpeed-ok.csv": (18, 18),
-    "intercalado ioniq_16012026.csv": (20, 10),
+    "intercalado ioniq_16012026.csv": (20, 20),
     "spli_MrLee_LowSpd_ctvi.csv": (20, 20),
     "split eliezer high.csv": (20, 20),
     "split eliezer low.csv": (20, 20),

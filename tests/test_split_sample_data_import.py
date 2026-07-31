@@ -27,7 +27,11 @@ from core.split_state import (
 from core.weather_sync import sync_weather_to_run
 from data.loaders import carregar_dados_csv_robusto
 from data.split_exporters import export_split_final_results_to_excel
-from data.split_parser import default_split_interval_config, parse_split_sources
+from data.split_parser import (
+    default_split_interval_config,
+    parse_split_sources,
+    validate_split_source_consistency,
+)
 from data.weather_loader import read_weather_file
 
 
@@ -35,6 +39,67 @@ SAMPLE_DIR = Path(__file__).resolve().parents[1] / "sample_data" / "Split"
 
 
 class SplitSampleDataImportTest(unittest.TestCase):
+    def test_single_combined_fixture_classifies_runs_from_populated_columns(self):
+        path = SAMPLE_DIR / "coastdown" / "sample_arquivo_unico_split.csv"
+        _, runs, _ = carregar_dados_csv_robusto(
+            str(path),
+            using_split_method=True,
+        )
+
+        parsed = parse_split_sources(
+            [
+                {
+                    "filename": path.name,
+                    "role": "full_or_combined",
+                    "all_run_data": runs,
+                }
+            ],
+            default_split_interval_config(),
+        )
+
+        self.assertEqual(
+            validate_split_source_consistency(
+                [
+                    {
+                        "filename": path.name,
+                        "role": "full_or_combined",
+                        "all_run_data": runs,
+                    }
+                ],
+                default_split_interval_config(),
+            ),
+            [],
+        )
+
+        self.assertEqual(
+            [
+                (record["run_id"], record["heading"])
+                for record in parsed["high"]
+                if record["run_id"] <= 8
+            ],
+            [(1, "+"), (2, "-"), (5, "+"), (6, "-")],
+        )
+        self.assertEqual(
+            [
+                (record["run_id"], record["heading"])
+                for record in parsed["low"]
+                if record["run_id"] <= 8
+            ],
+            [(3, "+"), (4, "-"), (7, "+"), (8, "-")],
+        )
+
+        high = parsed["high"][0]
+        low = parsed["low"][0]
+        self.assertEqual(high["source_columns"], [f"unnamed_col_{i}" for i in range(4)])
+        self.assertEqual(low["source_columns"], ["unnamed_col_4", "unnamed_col_5"])
+        self.assertEqual(high["start_time_str"], "19:12:07.262")
+        self.assertEqual(low["start_time_str"], "19:14:51.013")
+        self.assertEqual(high["start_timestamp"], datetime(2026, 7, 30, 19, 12, 7, 262000))
+        self.assertEqual(low["start_timestamp"], datetime(2026, 7, 30, 19, 14, 51, 13000))
+        self.assertEqual(high["filename"], path.name)
+        self.assertEqual(low["source_role"], "full_or_combined")
+        self.assertEqual(parsed["warnings"], [])
+
     def test_two_csv_high_low_eliezer_extracts_expected_deltas_and_coefficients(self):
         high_path = SAMPLE_DIR / "coastdown" / "split eliezer high.csv"
         low_path = SAMPLE_DIR / "coastdown" / "split eliezer low.csv"

@@ -747,3 +747,30 @@ Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
 - [x] Protect the shell correction with one focused presentation-contract test.
 - [x] Pass compile checks, 21 shell/routing tests, the 460-test full suite, and
   final diff checks.
+
+## Split single-file loader regression - 2026-07-31
+
+- [x] Reproduce the missing Low runs with `sample_arquivo_unico_split.csv`.
+- [x] Classify unlabeled combined runs from exact populated column ranges and
+  the configured High/Low bin counts, without run-order or low-from-high fallback.
+- [x] Preserve direction, millisecond timestamps, source columns, filename,
+  source role and coverage warnings.
+- [x] Keep Standard loading and separate-file Split parsing behavior unchanged.
+- [x] Pass the 77-test loader/parser regression suite.
+- [ ] Optional: manually upload the fixture in combined mode and review the
+  resulting 20 High and 20 Low records in the running application.
+
+## Split interval/file consistency guard - 2026-07-31
+
+- [x] Reuse the existing Process-button validation/failure path before parsing.
+- [x] Validate configured High and Low bin counts independently against fixed
+  populated columns for separate and combined inputs.
+- [x] Compare exact labeled ranges and exact combined High-then-Low positions.
+- [x] Keep the existing non-divisible span validation as the first blocking check.
+- [x] Block ambiguous or mismatched structures without truncation, redistribution,
+  run-order inference or low-from-high fallback.
+- [x] Add focused valid, mismatched, non-divisible, ambiguous and workflow-block tests.
+- [x] Make validation and parsing reuse one per-run classification so valid High
+  runs are never checked as Low, and valid Low runs are never checked as High.
+- [x] Pass the 121-test loader/parser/workflow regression set, compile checks,
+  scoped Ruff and diff hygiene.

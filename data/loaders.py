@@ -498,7 +498,10 @@ def carregar_dados_csv_robusto(file_path, using_split_method=False, is_alta=True
                 except Exception:
                     time_interval = np.nan
 
-                if pd.isna(time_interval) or time_interval < 0: 
+                if using_split_method and pd.isna(time_interval):
+                    col_idx += 1
+                    continue
+                if pd.isna(time_interval) or time_interval < 0:
                     break
 
                 interval_measurements.append(

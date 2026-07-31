@@ -70,6 +70,73 @@ class SplitTabRoutingTests(unittest.TestCase):
             ["split_input_mode_combined", "combined.csv", "no_meteo_file"],
         )
 
+    def test_workflow_blocks_parsing_when_loaded_intervals_do_not_match(self):
+        config = {
+            "step_kmh": 10.0,
+            "high": {"start": 100.0, "reference": 90.0, "end": 80.0},
+            "low": {"start": 60.0, "reference": 50.0, "end": 40.0},
+        }
+        sources = [{"filename": "combined.csv", "role": "full_or_combined"}]
+        issue = {
+            "code": "source_interval_mismatch",
+            "message": "Split intervals differ from the loaded file. High: 2 expected, 4 found.",
+        }
+        state = _SessionState(
+            active_test_id="active",
+            language="en",
+            data_loaded=True,
+            vehicle_data_complete=True,
+            split_input_sources=sources,
+            split_interval_config=config,
+            split_parsed_runs={},
+            split_parse_dirty=True,
+            split_parse_feedback_current=False,
+            split_parse_validation_issues=[],
+        )
+        streamlit = page_split_workflow.st
+
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(streamlit, "session_state", state))
+            stack.enter_context(
+                patch.object(streamlit, "container", return_value=_Container())
+            )
+            stack.enter_context(
+                patch.object(streamlit, "spinner", return_value=_Container())
+            )
+            for method in ("header", "info", "space"):
+                stack.enter_context(patch.object(streamlit, method))
+            warning = stack.enter_context(patch.object(streamlit, "warning"))
+            stack.enter_context(
+                patch.object(page_split_workflow, "_render_input_sources")
+            )
+            stack.enter_context(
+                patch.object(streamlit, "button", side_effect=(True, False))
+            )
+            stack.enter_context(
+                patch.object(
+                    page_split_workflow,
+                    "_render_interval_config",
+                    return_value=config,
+                )
+            )
+            validator = stack.enter_context(
+                patch.object(
+                    page_split_workflow,
+                    "validate_split_source_consistency",
+                    return_value=[issue],
+                )
+            )
+            parser = stack.enter_context(
+                patch.object(page_split_workflow, "parse_split_sources")
+            )
+
+            page_split_workflow.render(_translate)
+
+        validator.assert_called_once_with(sources, config)
+        parser.assert_not_called()
+        self.assertEqual(state["split_parse_validation_issues"], [issue])
+        warning.assert_any_call(issue["message"], icon=":material/warning:")
+
     def test_each_main_tab_executes_only_its_renderer(self):
         pages = (
             ("2_dados_veiculo", page_2_dados_veiculo),
