@@ -3201,3 +3201,59 @@ Metadados exibidos em mais de um local devem compartilhar a mesma constante;
 prefixos visuais como `v` nao fazem parte do valor canonico.
 
 ---
+
+## 2026-07-31 - Arquivo Split Combinado Usa Colunas Populadas
+
+### Decisao:
+
+No carregamento Split, uma celula de intervalo vazia nao encerra mais a leitura
+da linha; colunas validas posteriores continuam preservadas. Para arquivos
+combinados sem rotulos de velocidade, o parser aceita somente o conjunto exato
+de colunas da faixa High ou da faixa Low, calculado pelas quantidades de bins da
+configuracao atual. Linhas ambiguas continuam bloqueadas, sem inferencia por
+ordem das passadas e sem reaproveitar tempos High como Low. O carregamento
+Standard e a classificacao por role dos arquivos Split separados permanecem
+inalterados.
+
+### Licao:
+
+Em exportacoes VBOX intercaladas, vazio significa intervalo ausente naquela
+passada, nao fim dos dados. A posicao rastreavel da coluna pode classificar a
+passada com seguranca somente quando coincide exatamente com uma faixa
+configurada; qualquer outro padrao deve continuar gerando os avisos existentes.
+
+---
+
+## 2026-07-31 - Configuracao Split Deve Coincidir Com A Estrutura Do Arquivo
+
+### Decisao:
+
+A consistencia entre configuracao e arquivo e validada no clique de Processar,
+depois da carga e antes de `parse_split_sources()`. A validacao reutiliza o
+fluxo existente de `split_parse_validation_issues`, portanto uma falha mantem a
+previa anterior obsoleta e nao grava configuracao ou records processados.
+
+Arquivos separados sem rotulos exigem a contagem exata da role High ou Low;
+colunas rotuladas exigem as faixas exatas; combinados sem rotulos exigem as
+posicoes exatas High-then-Low ja usadas pelo parser. Dados continuos com
+velocidades sao comparados apenas dentro de cada faixa configurada. A primeira
+divergencia de cada faixa e reportada com arquivo e run, sem alterar a
+classificacao ou os contratos dos records.
+
+A classificacao de cada run agora ocorre uma unica vez em um helper compartilhado
+pelo validador e pelo parser. Antes disso, o validador aceitava as posicoes
+combinadas, mas o parser ainda tentava High e Low para cada run e gerava um aviso
+falso da faixa oposta apesar de extrair o record correto.
+
+### Licao:
+
+Um parser que consegue extrair um subconjunto nao prova que a configuracao
+representa o arquivo. Contagem, faixa rotulada e posicao devem ser validadas na
+fronteira anterior ao processamento; caso contrario, truncar colunas extras
+parece sucesso e produz um Delta t semanticamente incorreto.
+
+Classificacao e validacao devem consumir a mesma decisao canonica. Repetir a
+regra em cada etapa permite que a previa classifique corretamente enquanto a
+etapa seguinte ainda reporte a faixa oposta como ausente.
+
+---

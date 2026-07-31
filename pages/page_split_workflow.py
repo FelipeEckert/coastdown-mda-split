@@ -16,7 +16,7 @@ from data.split_parser import (
     default_split_interval_config,
     normalize_split_interval_config,
     parse_split_sources,
-    validate_split_interval_config,
+    validate_split_source_consistency,
 )
 
 DRAFT_WIDGET_PATHS = {
@@ -126,6 +126,8 @@ def _records_dataframe(records: list[dict]) -> pd.DataFrame:
 def _config_issue_text(issue: dict, t) -> str:
     if issue["code"] == "invalid_step":
         return t("split_interval_step_invalid")
+    if issue["code"] == "source_interval_mismatch":
+        return issue["message"]
     interval_name = t(f"split_interval_{issue.get('interval')}").lower()
     if issue["code"] == "incompatible_step":
         return t(
@@ -249,11 +251,11 @@ def render(t):
         )
 
     if process_requested:
-        issues = validate_split_interval_config(draft_config)
+        sources = st.session_state.get("split_input_sources") or []
+        issues = validate_split_source_consistency(sources, draft_config)
         if issues:
             record_split_parse_failure(st.session_state, issues)
         else:
-            sources = st.session_state.get("split_input_sources") or []
             parsed_runs = parse_split_sources(sources, draft_config)
             store_processed_split_intervals(
                 st.session_state,

@@ -9,6 +9,11 @@ import re
 from core.split_calculations import DEFAULT_SPLIT_INTERVAL_CONFIG, delta_v_kmh
 
 
+_HIGH_SOURCE_ROLES = {"high", "alta", "high_speed"}
+_LOW_SOURCE_ROLES = {"low", "baixa", "low_speed"}
+_COMBINED_SOURCE_ROLES = {"full_or_combined", "combined", "single_combined"}
+
+
 def default_split_interval_config() -> dict:
     """Return a fresh copy of the default Split interval configuration."""
     return {
@@ -164,6 +169,292 @@ def parse_speed_bin_label(label) -> tuple[float, float] | None:
     return start, end
 
 
+def _unnamed_column_positions(measurements: list[dict]) -> list[int] | None:
+    """Return exact VBOX unnamed-column positions, or None for mixed columns."""
+    positions = []
+    for measurement in measurements:
+        match = re.fullmatch(
+            r"unnamed_col_(\d+)",
+            str(measurement.get("column") or ""),
+        )
+        if not match:
+            return None
+        positions.append(int(match.group(1)))
+    return positions
+
+
+def _populated_interval_measurements(measurements: list[dict]) -> list[dict]:
+    """Return only measurements that contain a usable positive time."""
+    populated = []
+    for measurement in measurements:
+        try:
+            time_s = float(measurement.get("time_s"))
+        except (TypeError, ValueError):
+            continue
+        if math.isfinite(time_s) and time_s > 0:
+            populated.append(measurement)
+    return populated
+
+
+def _ranges_for_interval(rows, expected_ranges):
+    """Return populated ranges located inside one configured interval."""
+    start = expected_ranges[0][0]
+    end = expected_ranges[-1][1]
+    return tuple(
+        (float(row["start_kmh"]), float(row["end_kmh"]))
+        for row in rows
+        if float(row["start_kmh"]) <= start
+        and float(row["end_kmh"]) >= end
+    )
+
+
+def _classify_split_run(run_data, source_role, expected):
+    """Classify one run once and prepare valid combined positional columns."""
+    role_text = str(source_role or "").lower()
+    if role_text in _HIGH_SOURCE_ROLES:
+        return ("high",), run_data
+    if role_text in _LOW_SOURCE_ROLES:
+        return ("low",), run_data
+
+    measurements = run_data.get("interval_measurements")
+    if measurements is None:
+        rows = normalize_run_intervals(run_data)
+        return tuple(
+            interval_name
+            for interval_name in ("high", "low")
+            if _ranges_for_interval(rows, expected[interval_name])
+        ), run_data
+
+    populated = _populated_interval_measurements(measurements)
+    labels = [
+        parse_speed_bin_label(item.get("label") or item.get("column"))
+        for item in populated
+    ]
+    found_ranges = tuple(label for label in labels if label)
+    if found_ranges:
+        if len(found_ranges) != len(populated):
+            return (), run_data
+        rows = [
+            {"start_kmh": start, "end_kmh": end}
+            for start, end in found_ranges
+        ]
+        return tuple(
+            interval_name
+            for interval_name in ("high", "low")
+            if _ranges_for_interval(rows, expected[interval_name])
+        ), run_data
+
+    positions = _unnamed_column_positions(populated)
+    high_positions = list(range(len(expected["high"])))
+    low_positions = list(
+        range(len(expected["high"]), len(expected["high"]) + len(expected["low"]))
+    )
+    if not positions or positions == high_positions + low_positions:
+        return (), run_data
+    if positions[0] == 0:
+        interval_name = "high"
+        expected_positions = high_positions
+    elif positions[0] == len(expected["high"]):
+        interval_name = "low"
+        expected_positions = low_positions
+    else:
+        return (), run_data
+    if positions != expected_positions:
+        return (interval_name,), run_data
+
+    return (interval_name,), {
+        **run_data,
+        "interval_measurements": [
+            {**measurement, "label": format_speed_bin(*speed_bin)}
+            for measurement, speed_bin in zip(populated, expected[interval_name])
+        ],
+    }
+
+
+def _source_consistency_issue(
+    interval_name,
+    expected_ranges,
+    found_count,
+    filename,
+    run_id,
+    *,
+    found_ranges=(),
+    expected_positions=(),
+    found_positions=(),
+) -> dict:
+    """Build one concise blocking issue for the first structural mismatch."""
+    if interval_name:
+        detail = f"{interval_name.title()}: {len(expected_ranges)} expected, {found_count} found"
+        if found_ranges and tuple(found_ranges) != tuple(expected_ranges):
+            detail += (
+                f"; expected [{', '.join(format_speed_bin(*item) for item in expected_ranges)}], "
+                f"found [{', '.join(format_speed_bin(*item) for item in found_ranges)}]"
+            )
+        if found_positions:
+            detail += (
+                f"; expected columns [{', '.join(map(str, expected_positions))}], "
+                f"found [{', '.join(map(str, found_positions))}]"
+            )
+    else:
+        detail = f"Ambiguous interval structure: {found_count} populated columns"
+    return {
+        "code": "source_interval_mismatch",
+        "interval": interval_name,
+        "message": (
+            f"Split intervals differ from the loaded file. {detail}. "
+            f"Affected: {filename} run {run_id}."
+        ),
+    }
+
+
+def validate_split_source_consistency(
+    sources: list[dict],
+    config: dict | None = None,
+) -> list[dict]:
+    """Return the first fixed-column/configuration mismatch before parsing."""
+    interval_config = normalize_split_interval_config(config)
+    issues = validate_split_interval_config(interval_config)
+    if issues:
+        return issues
+
+    step_kmh = float(interval_config["step_kmh"])
+    expected = {
+        name: required_subintervals(
+            interval_config[name]["start"],
+            interval_config[name]["end"],
+            step_kmh,
+        )
+        for name in ("high", "low")
+    }
+    source_issues = {}
+
+    def add_issue(issue):
+        source_issues.setdefault(issue["interval"] or "ambiguous", issue)
+
+    for source in sources or []:
+        filename = source.get("filename", "N/A")
+        role_text = str(source.get("role", "")).lower()
+        if role_text in _HIGH_SOURCE_ROLES:
+            source_interval = "high"
+        elif role_text in _LOW_SOURCE_ROLES:
+            source_interval = "low"
+        elif role_text in _COMBINED_SOURCE_ROLES:
+            source_interval = None
+        else:
+            continue
+
+        for run_id, run_data in (source.get("all_run_data") or {}).items():
+            measurements = run_data.get("interval_measurements")
+            populated = (
+                _populated_interval_measurements(measurements)
+                if measurements is not None
+                else None
+            )
+            if measurements is not None and not populated:
+                continue
+
+            run_intervals, _ = _classify_split_run(run_data, role_text, expected)
+            if not run_intervals:
+                found_count = len(populated or normalize_run_intervals(run_data))
+                add_issue(_source_consistency_issue(
+                    None,
+                    (),
+                    found_count,
+                    filename,
+                    run_id,
+                ))
+                continue
+
+            if measurements is None:
+                rows = normalize_run_intervals(run_data)
+                for interval_name in run_intervals:
+                    found_ranges = _ranges_for_interval(rows, expected[interval_name])
+                    if found_ranges != tuple(expected[interval_name]):
+                        add_issue(_source_consistency_issue(
+                            interval_name,
+                            expected[interval_name],
+                            len(found_ranges),
+                            filename,
+                            run_id,
+                            found_ranges=found_ranges,
+                        ))
+                continue
+
+            labels = [
+                parse_speed_bin_label(item.get("label") or item.get("column"))
+                for item in populated
+            ]
+            found_ranges = tuple(label for label in labels if label)
+            if len(found_ranges) == len(populated):
+                rows = [
+                    {"start_kmh": start, "end_kmh": end}
+                    for start, end in found_ranges
+                ]
+                matched_count = 0
+                for interval_name in run_intervals:
+                    interval_ranges = _ranges_for_interval(
+                        rows,
+                        expected[interval_name],
+                    )
+                    matched_count += len(interval_ranges)
+                    if interval_ranges != tuple(expected[interval_name]):
+                        add_issue(_source_consistency_issue(
+                            interval_name,
+                            expected[interval_name],
+                            len(interval_ranges),
+                            filename,
+                            run_id,
+                            found_ranges=interval_ranges,
+                        ))
+                if matched_count != len(found_ranges):
+                    add_issue(_source_consistency_issue(
+                        None,
+                        (),
+                        len(populated),
+                        filename,
+                        run_id,
+                        found_ranges=found_ranges,
+                    ))
+                continue
+
+            if found_ranges:
+                add_issue(_source_consistency_issue(None, (), len(populated), filename, run_id))
+                continue
+            if source_interval:
+                if len(populated) != len(expected[source_interval]):
+                    add_issue(_source_consistency_issue(
+                        source_interval,
+                        expected[source_interval],
+                        len(populated),
+                        filename,
+                        run_id,
+                    ))
+                continue
+
+            positions = _unnamed_column_positions(populated)
+            high_positions = list(range(len(expected["high"])))
+            low_positions = list(
+                range(len(expected["high"]), len(expected["high"]) + len(expected["low"]))
+            )
+            interval_name = run_intervals[0] if len(run_intervals) == 1 else None
+            expected_positions = (
+                high_positions if interval_name == "high" else low_positions
+            ) if interval_name else ()
+            if positions == expected_positions:
+                continue
+            add_issue(_source_consistency_issue(
+                interval_name,
+                expected.get(interval_name, ()),
+                len(populated),
+                filename,
+                run_id,
+                expected_positions=expected_positions,
+                found_positions=positions or (),
+            ))
+
+    return list(source_issues.values())
+
+
 def _rows_from_interval_measurements(
     run_data: dict,
     expected_bins: list[tuple[float, float]] | None,
@@ -210,11 +501,9 @@ def _rows_from_interval_measurements(
 
     role_text = str(source_role or "").lower()
     role_matches_interval = (
-        interval_name == "high"
-        and role_text in {"high", "alta", "high_speed"}
+        interval_name == "high" and role_text in _HIGH_SOURCE_ROLES
     ) or (
-        interval_name == "low"
-        and role_text in {"low", "baixa", "low_speed"}
+        interval_name == "low" and role_text in _LOW_SOURCE_ROLES
     )
     if not role_matches_interval or not expected_bins:
         return [], available_labels
@@ -406,83 +695,55 @@ def parse_split_sources(sources: list[dict], config: dict | None = None) -> dict
         return parsed
 
     step_kmh = float(interval_config["step_kmh"])
+    expected = {
+        interval_name: required_subintervals(
+            interval_config[interval_name]["start"],
+            interval_config[interval_name]["end"],
+            step_kmh,
+        )
+        for interval_name in ("high", "low")
+    }
     for source in sources:
         filename = source.get("filename", "N/A")
         role = source.get("role", "coastdown")
         all_run_data = source.get("all_run_data") or {}
-        role_text = str(role).lower()
-        parse_high = role_text not in {"low", "baixa", "low_speed"}
-        parse_low = role_text not in {"high", "alta", "high_speed"}
 
         for run_id, run_data in all_run_data.items():
-            if parse_high:
-                high_expected = required_subintervals(
-                    interval_config["high"]["start"],
-                    interval_config["high"]["end"],
-                    step_kmh,
-                )
-                high_record = extract_interval_record(
+            run_intervals, classified_run_data = _classify_split_run(
+                run_data,
+                role,
+                expected,
+            )
+            for interval_name in run_intervals or ("high", "low"):
+                record = extract_interval_record(
                     run_id,
-                    run_data,
+                    classified_run_data,
                     filename,
                     role,
-                    "high",
-                    interval_config["high"],
+                    interval_name,
+                    interval_config[interval_name],
                     step_kmh,
                 )
-                if high_record:
-                    parsed["high"].append(high_record)
+                if record:
+                    parsed[interval_name].append(record)
                 else:
-                    high_rows = normalize_run_intervals(
-                        run_data,
-                        high_expected,
+                    rows = normalize_run_intervals(
+                        classified_run_data,
+                        expected[interval_name],
                         role,
-                        "high",
+                        interval_name,
                     )
-                    coverage = inspect_interval_coverage(high_rows, high_expected)
+                    coverage = inspect_interval_coverage(
+                        rows,
+                        expected[interval_name],
+                    )
                     parsed["warnings"].append(
                         _coverage_warning(
                             filename,
                             run_id,
-                            "high",
+                            interval_name,
                             coverage,
-                            run_data,
-                            role,
-                        )
-                    )
-
-            if parse_low:
-                low_expected = required_subintervals(
-                    interval_config["low"]["start"],
-                    interval_config["low"]["end"],
-                    step_kmh,
-                )
-                low_record = extract_interval_record(
-                    run_id,
-                    run_data,
-                    filename,
-                    role,
-                    "low",
-                    interval_config["low"],
-                    step_kmh,
-                )
-                if low_record:
-                    parsed["low"].append(low_record)
-                else:
-                    low_rows = normalize_run_intervals(
-                        run_data,
-                        low_expected,
-                        role,
-                        "low",
-                    )
-                    coverage = inspect_interval_coverage(low_rows, low_expected)
-                    parsed["warnings"].append(
-                        _coverage_warning(
-                            filename,
-                            run_id,
-                            "low",
-                            coverage,
-                            run_data,
+                            classified_run_data,
                             role,
                         )
                     )
@@ -514,11 +775,7 @@ def _coverage_warning(
         for item in measurements
     )
     label_note = ""
-    if measurements and not has_explicit_labels and role_text in {
-        "full_or_combined",
-        "combined",
-        "single_combined",
-    }:
+    if measurements and not has_explicit_labels and role_text in _COMBINED_SOURCE_ROLES:
         label_note = " Combined input has no identifiable speed-bin labels."
     return (
         f"{filename} run {run_id} {interval_name}: expected bins [{expected_text}]; "
