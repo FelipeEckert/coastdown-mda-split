@@ -123,6 +123,7 @@ def apply_font_size_css(font_size_option):
         --mda-surface-raised: #112438;
         --mda-border: #2A4058;
         --mda-accent: #3A9CFF;
+        --mda-tab-inactive: #050D18;
     }}
 
     [data-testid="stAppViewContainer"],
@@ -252,15 +253,54 @@ def apply_font_size_css(font_size_option):
         min-width: 2.75rem !important;
     }}
 
-    .stTabs [data-baseweb="tab"] {{
-        font-size: var(--mda-font-tab) !important;
-        font-weight: 500 !important;
-        padding-left: 1rem !important;
-        padding-right: 1rem !important;
+    [data-testid="stMainBlockContainer"]
+    [data-testid="stElementContainer"]:has(h1):has(~ [class*="st-key-main_analysis_tabs_"]) h1 {{
+        font-size: calc(var(--mda-font-title) + 2px) !important;
     }}
 
-    .stTabs [data-baseweb="tab-list"] {{
-        gap: 2px;
+    [class*="st-key-main_analysis_tabs_"] [role="tablist"] {{
+        max-width: 100%;
+        gap: 0 !important;
+        overflow-x: auto;
+        overflow-y: hidden;
+        overscroll-behavior-inline: contain;
+        scrollbar-width: thin;
+    }}
+
+    [class*="st-key-main_analysis_tabs_"] [data-testid="stTab"] {{
+        flex: 0 0 auto;
+        min-width: max-content;
+        padding-inline: 1.25rem !important;
+        position: relative;
+        white-space: nowrap;
+        color: var(--text-color) !important;
+        background-color: var(--mda-tab-inactive) !important;
+        border: 1px solid var(--mda-border);
+        border-radius: 8px 8px 0 0;
+    }}
+
+    [class*="st-key-main_analysis_tabs_"]
+    [data-testid="stTab"] [data-testid="stMarkdownContainer"] p {{
+        margin: 0;
+        font-size: calc(var(--mda-font-tab) + 1px) !important;
+        font-weight: 600;
+        white-space: nowrap;
+    }}
+
+    [class*="st-key-main_analysis_tabs_"] [data-testid="stTab"] + [data-testid="stTab"] {{
+        margin-left: -1px;
+    }}
+
+    [class*="st-key-main_analysis_tabs_"] [data-testid="stTab"][aria-selected="true"] {{
+        z-index: 1;
+        background-color: var(--background-color) !important;
+        border-bottom-color: var(--background-color);
+        box-shadow: inset 0 3px 0 var(--mda-accent);
+    }}
+
+    [class*="st-key-main_analysis_tabs_"]
+    [data-testid="stTab"] > .react-aria-SelectionIndicator {{
+        display: none;
     }}
 
     .stDataFrame,
