@@ -822,46 +822,11 @@ def _render_coefficient_calculation(t):
         return
 
     parsed = st.session_state.get("split_parsed_runs") or {}
-    input_sources = st.session_state.get("split_input_sources") or []
     high_records = parsed.get("high") or []
     low_records = parsed.get("low") or []
     grouped = group_split_records_by_direction(high_records, low_records)
     effective_mass = _effective_mass()
     config = st.session_state.get("split_interval_config") or default_split_interval_config()
-
-    source_files = ", ".join(
-        source.get("filename", "N/A")
-        for source in input_sources
-        if source.get("filename")
-    ) or "N/A"
-    with st.container(border=True):
-        with st.container(horizontal=True, gap="small"):
-            st.metric(
-                t("split_high_plus_records_available"),
-                str(len(grouped["high_plus"])),
-                border=True,
-            )
-            st.metric(
-                t("split_low_plus_records_available"),
-                str(len(grouped["low_plus"])),
-                border=True,
-            )
-            st.metric(
-                t("split_high_minus_records_available"),
-                str(len(grouped["high_minus"])),
-                border=True,
-            )
-            st.metric(
-                t("split_low_minus_records_available"),
-                str(len(grouped["low_minus"])),
-                border=True,
-            )
-            st.metric(
-                t("split_effective_mass_available"),
-                t("yes") if effective_mass else t("no"),
-                border=True,
-            )
-        st.caption(t("split_input_sources_summary", files=source_files))
 
     if not high_records and not low_records:
         st.warning(t("split_no_parsed_records_for_calculation"))

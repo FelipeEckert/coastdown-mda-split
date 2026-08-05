@@ -359,10 +359,29 @@ class SplitResultsFormattingTest(unittest.TestCase):
         with patch("pages.page_split_results.st", fake_st):
             _render_summary(summary, {"passed": True}, t)
         fake_st.markdown.assert_not_called()
+        fake_st.container.assert_called_once_with(border=True, gap="small")
+        self.assertEqual(
+            layout.container.call_args_list,
+            [
+                call(
+                    border=True,
+                    horizontal=True,
+                    vertical_alignment="center",
+                    gap="small",
+                ),
+                call(horizontal=True, gap="small"),
+                call(horizontal=True, gap="small"),
+                call(border=True, height="stretch"),
+                call(border=True, height="stretch"),
+            ],
+        )
         layout.badge.assert_called_once_with(
             t("split_results_status_conforming"),
             icon=":material/check_circle:",
             color="green",
+        )
+        layout.markdown.assert_called_once_with(
+            f"**{t('split_results_card_conformity')}**"
         )
         metric_labels = [call.args[0] for call in layout.metric.call_args_list]
         self.assertEqual(
@@ -372,9 +391,23 @@ class SplitResultsFormattingTest(unittest.TestCase):
                 t("split_results_final_f0"),
                 t("split_results_final_f2"),
                 t("split_results_mean_energy"),
+            ],
+        )
+        self.assertTrue(all(
+            metric_call.kwargs == {"border": True, "height": "stretch"}
+            for metric_call in layout.metric.call_args_list
+        ))
+        self.assertEqual(
+            [call.args[0] for call in layout.caption.call_args_list],
+            [
+                t("split_results_card_conformity_criteria"),
                 f"{t('split_results_cv_f0')} {t('split_results_diagnostic_label')}",
                 f"{t('split_results_cv_f2')} {t('split_results_diagnostic_label')}",
             ],
+        )
+        self.assertEqual(
+            [call.args[0] for call in layout.write.call_args_list],
+            ["-", "-"],
         )
 
     def test_is_meteo_sync_warning_classifies_technical_notes(self):

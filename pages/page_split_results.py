@@ -521,17 +521,16 @@ def _render_summary(summary, time_validation, t):
     st.subheader(
         f":material/summarize: {t('split_results_consolidated')}"
     )
-    section = st.container(border=True)
+    section = st.container(border=True, gap="small")
     status = _conformity_status_from_time_validation(time_validation)
     status_icon, status_color = CONFORMITY_BADGES[status]
 
-    headline = section.container(horizontal=True, gap="small")
-    headline.metric(
-        t("split_selected_pairs"),
-        str(summary.get("num_pairs", 0)),
+    conformity = section.container(
         border=True,
+        horizontal=True,
+        vertical_alignment="center",
+        gap="small",
     )
-    conformity = headline.container(border=True)
     conformity.markdown(f"**{t('split_results_card_conformity')}**")
     conformity.badge(
         t(CONFORMITY_LABEL_KEYS[status]),
@@ -542,33 +541,39 @@ def _render_summary(summary, time_validation, t):
 
     metrics = section.container(horizontal=True, gap="small")
     metrics.metric(
+        t("split_selected_pairs"),
+        str(summary.get("num_pairs", 0)),
+        border=True,
+        height="stretch",
+    )
+    metrics.metric(
         t("split_results_final_f0"),
         _display(summary.get("mean_f0"), 4),
         border=True,
+        height="stretch",
     )
     metrics.metric(
         t("split_results_final_f2"),
         _display(summary.get("mean_f2"), 6),
         border=True,
+        height="stretch",
     )
     metrics.metric(
         t("split_results_mean_energy"),
         _display(summary.get("mean_energy"), 4),
         border=True,
+        height="stretch",
     )
 
     diagnostic_label = t("split_results_diagnostic_label")
     diagnostics = section.container(horizontal=True, gap="small")
-    diagnostics.metric(
-        f"{t('split_results_cv_f0')} {diagnostic_label}",
-        _display(summary.get("cv_f0"), 2),
-        border=True,
-    )
-    diagnostics.metric(
-        f"{t('split_results_cv_f2')} {diagnostic_label}",
-        _display(summary.get("cv_f2"), 2),
-        border=True,
-    )
+    for label, value in (
+        (t("split_results_cv_f0"), summary.get("cv_f0")),
+        (t("split_results_cv_f2"), summary.get("cv_f2")),
+    ):
+        card = diagnostics.container(border=True, height="stretch")
+        card.caption(f"{label} {diagnostic_label}")
+        card.write(_display(value, 2))
 
 
 def _render_vehicle(summary, t):
@@ -610,7 +615,9 @@ def _render_coefficients(summary, t):
     st.dataframe(
         pd.DataFrame(rows, columns=("Coeficiente", "Valor médio", "CV [%]")),
         width="stretch",
+        height="content",
         hide_index=True,
+        row_height=36,
     )
     critical_warnings, _ = _split_warnings_by_audience(summary.get("warnings"))
     for warning in critical_warnings:
@@ -665,20 +672,26 @@ def _render_deviation_summary(analysis, selected_pairs, t):
     st.markdown(f"**{t('split_results_deviation_time_criteria_title')}**")
     time_rows = _time_normative_metric_rows(times, selected_pairs, t)
     if time_rows:
-        status_colors = {
-            t("split_results_status_conforming"): "#2DD36F52",
-            t("split_results_status_nonconforming"): "#FF6B6B52",
+        status_styles = {
+            t("split_results_status_conforming"): (
+                "background-color: #2DD36F52; color: #F8FAFC; font-weight: 700"
+            ),
+            t("split_results_status_nonconforming"): (
+                "background-color: #FF6B6B52; color: #F8FAFC; font-weight: 700"
+            ),
         }
         status_key = t("split_results_deviation_status")
         styled_rows = pd.DataFrame(time_rows).style.map(
-            lambda value: (
-                f"background-color: {status_colors[value]}; color: #1f1f1f"
-                if value in status_colors
-                else ""
-            ),
+            lambda value: status_styles.get(value, ""),
             subset=[status_key],
         )
-        st.dataframe(styled_rows, width="stretch", hide_index=True)
+        st.dataframe(
+            styled_rows,
+            width="stretch",
+            height="content",
+            hide_index=True,
+            row_height=40,
+        )
 
     st.markdown(f"**{t('split_results_deviation_coefficients_title')}**")
     diagnostic_label = t("split_results_diagnostic_label")
@@ -732,12 +745,12 @@ def render(t):
     _render_summary(summary, analysis.get("time_summary"), t)
     st.space("small")
     with st.container(border=True):
-        _render_vehicle(summary, t)
+        _render_coefficients(summary, t)
+        _render_deviation_summary(analysis, selected_pairs, t)
 
     st.space("small")
     with st.container(border=True):
-        _render_coefficients(summary, t)
-        _render_deviation_summary(analysis, selected_pairs, t)
+        _render_vehicle(summary, t)
 
     st.space("small")
     with st.container(border=True):

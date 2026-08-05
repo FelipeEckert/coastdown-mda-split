@@ -747,6 +747,10 @@ Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
 - [x] Protect the shell correction with one focused presentation-contract test.
 - [x] Pass compile checks, 21 shell/routing tests, the 460-test full suite, and
   final diff checks.
+- [x] Remove the Coefficient Calculation availability and input-file summary
+  without changing its data, validation or calculation flow.
+- [x] Rebalance Resultados consolidados into a full-width conformity strip,
+  one responsive four-metric row and one compact two-card diagnostic row.
 
 ## Split single-file loader regression - 2026-07-31
 

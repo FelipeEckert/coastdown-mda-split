@@ -3368,3 +3368,34 @@ regra em cada etapa permite que a previa classifique corretamente enquanto a
 etapa seguinte ainda reporte a faixa oposta como ausente.
 
 ---
+
+## 2026-08-05 - Remocao Visual Nao Deve Remover Disponibilidade
+
+### Decisao:
+
+O resumo superior de disponibilidade e arquivos foi removido apenas do fluxo de
+renderizacao do Calculo de Coeficientes. Os agrupamentos direcionais e a massa
+efetiva continuam sendo calculados e usados pelas validacoes existentes.
+
+### Licao:
+
+Ao retirar um resumo visual, remova somente a formatacao exclusiva dele. Valores
+derivados que tambem sustentam bloqueios ou calculos devem permanecer no fluxo.
+
+---
+
+## 2026-08-05 - Status E Indicadores Pedem Hierarquias Separadas
+
+### Decisao:
+
+O resumo consolidado manteve componentes nativos, mas separou a conformidade em
+uma faixa horizontal. Pares, F0, F2 e energia passaram a compartilhar uma unica
+linha de metricas; os dois CVs ficaram em cards menores e equivalentes.
+
+### Licao:
+
+Status qualitativo nao deve competir em proporcao com indicadores numericos.
+Uma faixa dedicada e linhas homogeneas tornam a hierarquia mais compacta sem
+duplicar valores, estilos ou logica responsiva.
+
+---
