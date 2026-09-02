@@ -295,7 +295,7 @@ def apply_font_size_css(font_size_option):
         z-index: 1;
         background-color: var(--background-color) !important;
         border-bottom-color: var(--background-color);
-        box-shadow: inset 0 3px 0 var(--mda-accent);
+        box-shadow: inset 0 2.3px 0 var(--mda-accent);
     }}
 
     [class*="st-key-main_analysis_tabs_"]
@@ -322,7 +322,7 @@ def apply_font_size_css(font_size_option):
 
     .mda-pair-energy-unit {{
         margin: 0;
-        color: #A9B6C7;
+        color: #c7a9a9;
         font-size: var(--mda-font-small);
     }}
 

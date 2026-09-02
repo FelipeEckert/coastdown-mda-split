@@ -23,7 +23,7 @@ font = "sans-serif"
 
 [theme.sidebar]
 primaryColor = "#1264C8"
-backgroundColor = "#081522"
+backgroundColor = "#0a1f33"
 secondaryBackgroundColor = "#0D1B2B"
 textColor = "#F4F8FC"
 borderColor = "#2A4058"
