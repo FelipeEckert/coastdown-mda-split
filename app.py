@@ -120,6 +120,7 @@ def apply_font_size_css(font_size_option):
         --mda-font-metric-value: {tokens["metric_value"]};
         --mda-font-metric-label: {tokens["metric_label"]};
         --mda-font-table: {tokens["table"]};
+        --mda-card-surface: #0D1B2B;
         --mda-surface-raised: #112438;
         --mda-border: #2A4058;
         --mda-accent: #3A9CFF;
@@ -339,6 +340,14 @@ def apply_font_size_css(font_size_option):
     [data-testid="stMainBlockContainer"] {{
         padding-top: 1.25rem !important;
         padding-bottom: 2rem !important;
+    }}
+
+    [data-testid="stAppViewContainer"]
+    [data-testid="stLayoutWrapper"] >
+    [data-testid="stVerticalBlock"]:not([class*="st-key-"]),
+    [data-testid="stAppViewContainer"] [data-testid="stMetric"] {{
+        background-color: var(--mda-card-surface) !important;
+        box-shadow: inset 0 0 0 0.5px var(--mda-border);
     }}
 
     section[data-testid="stSidebar"] [class*="st-key-test_card_active_"] {{
@@ -1808,7 +1817,9 @@ def render_test_analysis(t):
     tab_pages = [
         ("2_dados_veiculo", t("page_vehicle_data")),
         ("split_workflow", t("page_split_workflow")),
-        ("split_coefficient_calculation", t("page_split_pair_analysis")),
+        ("split_coefficient_calculation", t("page_split_coefficient_calculation")),
+        ("split_auto_selection", t("split_auto_tab")),
+        ("split_pair_analysis", t("page_split_pair_analysis")),
         ("split_final_comparison", t("page_split_final_comparison")),
         ("split_results", t("page_split_results")),
     ]
@@ -1826,7 +1837,7 @@ def render_test_analysis(t):
     if st.session_state.get(tab_key) not in label_to_page:
         st.session_state[tab_key] = default_label
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs(
         tab_labels,
         default=st.session_state[tab_key],
         key=tab_key,
@@ -1837,7 +1848,7 @@ def render_test_analysis(t):
     if selected_page:
         st.session_state.current_page = selected_page
 
-    if tab5.open:
+    if tab7.open:
         normalize_split_comparison_selection_state(st.session_state)
 
     if tab1.open:
@@ -1851,17 +1862,25 @@ def render_test_analysis(t):
     elif tab3.open:
         with tab3:
             from pages import page_split_coefficient_calculation
-            page_split_coefficient_calculation.render(t)
+            page_split_coefficient_calculation.render_manual(t)
     elif tab4.open:
         with tab4:
-            from pages import page_split_final_comparison
-            page_split_final_comparison.render(t)
+            from pages import page_split_auto_selection
+            page_split_auto_selection.render(t)
     elif tab5.open:
         with tab5:
+            from pages import page_split_coefficient_calculation
+            page_split_coefficient_calculation.render(t)
+    elif tab6.open:
+        with tab6:
+            from pages import page_split_final_comparison
+            page_split_final_comparison.render(t)
+    elif tab7.open:
+        with tab7:
             from pages import page_split_results
             page_split_results.render(t)
 
-    if tab1.open or tab2.open or tab3.open:
+    if tab1.open or tab2.open or tab3.open or tab4.open or tab5.open:
         normalize_split_comparison_selection_state(st.session_state)
 
 

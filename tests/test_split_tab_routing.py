@@ -139,13 +139,19 @@ class SplitTabRoutingTests(unittest.TestCase):
 
     def test_each_main_tab_executes_only_its_renderer(self):
         pages = (
-            ("2_dados_veiculo", page_2_dados_veiculo),
-            ("split_workflow", page_split_workflow),
-            ("split_coefficient_calculation", page_split_coefficient_calculation),
-            ("split_final_comparison", page_split_final_comparison),
-            ("split_results", page_split_results),
+            ("2_dados_veiculo", page_2_dados_veiculo, "render"),
+            ("split_workflow", page_split_workflow, "render"),
+            (
+                "split_coefficient_calculation",
+                page_split_coefficient_calculation,
+                "render_manual",
+            ),
+            ("split_auto_selection", page_split_auto_selection, "render"),
+            ("split_pair_analysis", page_split_coefficient_calculation, "render"),
+            ("split_final_comparison", page_split_final_comparison, "render"),
+            ("split_results", page_split_results, "render"),
         )
-        for selected, (page_id, _) in enumerate(pages):
+        for selected, (page_id, _, _) in enumerate(pages):
             with self.subTest(page=page_id), ExitStack() as stack:
                 state = _SessionState(
                     tests={"active": {"name": "Active"}},
@@ -157,15 +163,15 @@ class SplitTabRoutingTests(unittest.TestCase):
                 stack.enter_context(patch.object(app.st, "session_state", state))
                 stack.enter_context(patch.object(app.st, "title"))
                 stack.enter_context(
-                    patch.object(app.st, "tabs", return_value=_containers(5, selected))
+                    patch.object(app.st, "tabs", return_value=_containers(7, selected))
                 )
                 renderers = []
-                for renderer_page, module in pages:
+                for renderer_page, module, renderer_name in pages:
                     renderers.append(
                         stack.enter_context(
                             patch.object(
                                 module,
-                                "render",
+                                renderer_name,
                                 side_effect=lambda _t, name=renderer_page: state.__setitem__(
                                     f"rendered_{name}", True
                                 ),
@@ -184,51 +190,77 @@ class SplitTabRoutingTests(unittest.TestCase):
                     {f"rendered_{page_id}"},
                 )
 
-    def test_each_nested_pair_tab_executes_only_its_renderer(self):
-        for selected in range(3):
-            with self.subTest(selected=selected), ExitStack() as stack:
-                state = _SessionState(active_test_id="active", language="pt")
-                stack.enter_context(
-                    patch.object(
-                        page_split_coefficient_calculation.st,
-                        "session_state",
-                        state,
-                    )
-                )
-                stack.enter_context(
-                    patch.object(page_split_coefficient_calculation.st, "header")
-                )
-                stack.enter_context(
-                    patch.object(
-                        page_split_coefficient_calculation.st,
-                        "tabs",
-                        return_value=_containers(3, selected),
-                    )
-                )
-                renderers = (
-                    stack.enter_context(
-                        patch.object(
-                            page_split_coefficient_calculation,
-                            "_render_coefficient_calculation",
-                        )
-                    ),
-                    stack.enter_context(
-                        patch.object(
-                            page_split_coefficient_calculation,
-                            "_render_graphical_analysis",
-                        )
-                    ),
-                    stack.enter_context(
-                        patch.object(page_split_auto_selection, "render")
-                    ),
-                )
+    def test_main_navigation_uses_the_requested_portuguese_order(self):
+        state = _SessionState(
+            tests={"active": {"name": "Active"}},
+            active_test_id="active",
+            language="pt",
+            current_page="2_dados_veiculo",
+            split_comparison_pairs=[],
+        )
+        translator = app.get_translator("pt")
 
-                page_split_coefficient_calculation.render(_translate)
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(app.st, "session_state", state))
+            stack.enter_context(patch.object(app.st, "title"))
+            tabs = stack.enter_context(
+                patch.object(app.st, "tabs", return_value=_containers(7, 0))
+            )
+            stack.enter_context(patch.object(page_2_dados_veiculo, "render"))
 
-                self.assertEqual(
-                    [renderer.call_count for renderer in renderers],
-                    [int(index == selected) for index in range(3)],
+            app.render_test_analysis(translator)
+
+        self.assertEqual(
+            tabs.call_args.args[0],
+            [
+                "Dados do Veículo",
+                "Setup Intervalos",
+                "Seleção Manual",
+                "Seleção Automática",
+                "Análise de Pares",
+                "Comparativo Final",
+                "Resultados",
+            ],
+        )
+
+    def test_manual_main_route_reuses_the_existing_calculation_renderer(self):
+        with patch.object(
+            page_split_coefficient_calculation.st, "header"
+        ), patch.object(
+            page_split_coefficient_calculation,
+            "_render_coefficient_calculation",
+        ) as calculation:
+            page_split_coefficient_calculation.render_manual(_translate)
+
+        calculation.assert_called_once_with(_translate)
+
+    def test_pair_analysis_keeps_only_the_graphical_lazy_subtab(self):
+        state = _SessionState(active_test_id="active", language="pt")
+        tab_key = "split_pair_analysis_tabs_active_pt"
+        streamlit = page_split_coefficient_calculation.st
+
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(streamlit, "session_state", state))
+            stack.enter_context(patch.object(streamlit, "header"))
+            tabs = stack.enter_context(
+                patch.object(streamlit, "tabs", return_value=_containers(1, 0))
+            )
+            graph = stack.enter_context(
+                patch.object(
+                    page_split_coefficient_calculation,
+                    "_render_graphical_analysis",
                 )
+            )
+
+            page_split_coefficient_calculation.render(_translate)
+
+        tabs.assert_called_once_with(
+            ["split_graphical_analysis"],
+            default="split_graphical_analysis",
+            key=tab_key,
+            on_change="rerun",
+        )
+        graph.assert_called_once_with(_translate)
 
     def test_each_parser_review_tab_renders_only_its_table(self):
         config = {
@@ -293,12 +325,14 @@ class SplitTabRoutingTests(unittest.TestCase):
                 self.assertEqual(rendered_records[0]["Interval"], expected_interval)
 
     def test_main_tab_selection_persists_and_switches_on_rerun(self):
-        pages = (
-            page_2_dados_veiculo,
-            page_split_workflow,
-            page_split_coefficient_calculation,
-            page_split_final_comparison,
-            page_split_results,
+        renderers = (
+            (page_2_dados_veiculo, "render"),
+            (page_split_workflow, "render"),
+            (page_split_coefficient_calculation, "render_manual"),
+            (page_split_auto_selection, "render"),
+            (page_split_coefficient_calculation, "render"),
+            (page_split_final_comparison, "render"),
+            (page_split_results, "render"),
         )
         state = _SessionState(
             tests={"active": {"name": "Active"}},
@@ -316,8 +350,9 @@ class SplitTabRoutingTests(unittest.TestCase):
             stack.enter_context(patch.object(app.st, "session_state", state))
             stack.enter_context(patch.object(app.st, "title"))
             stack.enter_context(patch.object(app.st, "tabs", side_effect=selected_containers))
-            renderers = [
-                stack.enter_context(patch.object(module, "render")) for module in pages
+            renderer_mocks = [
+                stack.enter_context(patch.object(module, name))
+                for module, name in renderers
             ]
 
             app.render_test_analysis(_translate)
@@ -325,46 +360,11 @@ class SplitTabRoutingTests(unittest.TestCase):
             app.render_test_analysis(_translate)
             app.render_test_analysis(_translate)
 
-        self.assertEqual([renderer.call_count for renderer in renderers], [1, 2, 0, 0, 0])
+        self.assertEqual(
+            [renderer.call_count for renderer in renderer_mocks],
+            [1, 2, 0, 0, 0, 0, 0],
+        )
         self.assertEqual(state.current_page, "split_workflow")
-
-    def test_nested_tab_selection_persists_and_switches_on_rerun(self):
-        state = _SessionState(active_test_id="active", language="pt")
-        tab_key = "split_pair_analysis_tabs_active_pt"
-
-        def selected_containers(labels, **_kwargs):
-            return _containers(len(labels), labels.index(state[tab_key]))
-
-        with ExitStack() as stack:
-            streamlit = page_split_coefficient_calculation.st
-            stack.enter_context(patch.object(streamlit, "session_state", state))
-            stack.enter_context(patch.object(streamlit, "header"))
-            stack.enter_context(patch.object(streamlit, "tabs", side_effect=selected_containers))
-            calculate = stack.enter_context(
-                patch.object(
-                    page_split_coefficient_calculation,
-                    "_render_coefficient_calculation",
-                )
-            )
-            graph = stack.enter_context(
-                patch.object(
-                    page_split_coefficient_calculation,
-                    "_render_graphical_analysis",
-                )
-            )
-            automatic = stack.enter_context(
-                patch.object(page_split_auto_selection, "render")
-            )
-
-            state[tab_key] = "split_graphical_analysis"
-            page_split_coefficient_calculation.render(_translate)
-            page_split_coefficient_calculation.render(_translate)
-            state[tab_key] = "split_auto_tab"
-            page_split_coefficient_calculation.render(_translate)
-
-        calculate.assert_not_called()
-        self.assertEqual(graph.call_count, 2)
-        automatic.assert_called_once_with(_translate)
 
     def test_shared_comparison_repair_runs_without_rendering_final_tab(self):
         state = _SessionState(
@@ -382,7 +382,7 @@ class SplitTabRoutingTests(unittest.TestCase):
             stack.enter_context(patch.object(app.st, "session_state", state))
             stack.enter_context(patch.object(app.st, "title"))
             stack.enter_context(
-                patch.object(app.st, "tabs", return_value=_containers(5, 0))
+                patch.object(app.st, "tabs", return_value=_containers(7, 0))
             )
             vehicle_render = stack.enter_context(
                 patch.object(page_2_dados_veiculo, "render")
@@ -410,7 +410,7 @@ class SplitTabRoutingTests(unittest.TestCase):
             split_comparison_pairs=[],
         )
         tab_key = "main_analysis_tabs_active_pt"
-        state[tab_key] = "page_split_pair_analysis"
+        state[tab_key] = "page_split_coefficient_calculation"
         results_observations = []
 
         def selected_containers(labels, **_kwargs):
@@ -435,7 +435,7 @@ class SplitTabRoutingTests(unittest.TestCase):
             coefficient_render = stack.enter_context(
                 patch.object(
                     page_split_coefficient_calculation,
-                    "render",
+                    "render_manual",
                     side_effect=insert_uncorrected_pair,
                 )
             )

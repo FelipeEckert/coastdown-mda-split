@@ -461,11 +461,18 @@ class AppStateOrchestrationTests(unittest.TestCase):
 
 
 class AppWorkflowAppTestTests(unittest.TestCase):
-    def test_shell_css_keeps_accessible_targets_and_reduced_motion(self):
+    def test_shell_css_keeps_cards_accessible_targets_and_reduced_motion(self):
         with patch.object(app.st, "markdown") as markdown:
             app.apply_font_size_css("medium")
 
         css = markdown.call_args.args[0]
+        self.assertIn('[data-testid="stLayoutWrapper"] >', css)
+        self.assertIn('[data-testid="stMetric"]', css)
+        self.assertIn(
+            "background-color: var(--mda-card-surface) !important",
+            css,
+        )
+        self.assertIn("box-shadow: inset 0 0 0 0.5px var(--mda-border)", css)
         self.assertIn('div[data-testid="stButton"] button', css)
         self.assertIn("[data-testid=\"stRadioOption\"]", css)
         self.assertIn("min-height: 2.75rem !important", css)
@@ -532,16 +539,6 @@ class AppWorkflowAppTestTests(unittest.TestCase):
         )
         app_test.run()
         nested_key = "split_pair_analysis_tabs_incomplete_pt"
-        self.assertEqual(len(app_test.exception), 0)
-        self.assertEqual(
-            app_test.session_state[nested_key],
-            app.get_translator("pt")("page_split_coefficient_calculation"),
-        )
-
-        app_test.session_state[nested_key] = app.get_translator("pt")(
-            "split_graphical_analysis"
-        )
-        app_test.run()
         self.assertEqual(len(app_test.exception), 0)
         self.assertEqual(
             app_test.session_state[nested_key],

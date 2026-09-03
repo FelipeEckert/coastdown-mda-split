@@ -778,3 +778,21 @@ Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
   runs are never checked as Low, and valid Low runs are never checked as High.
 - [x] Pass the 121-test loader/parser/workflow regression set, compile checks,
   scoped Ruff and diff hygiene.
+
+## Dark-theme bordered cards - 2026-09-02
+
+- [x] Give main bordered containers and metric cards the existing secondary navy
+  surface without changing controls, tabs, badges or semantic colors.
+- [x] Add a visual 0.5px inset to the existing border without changing radius,
+  spacing or layout dimensions.
+- [x] Protect the shared shell rule with the focused UI contract test.
+
+## Split main navigation - 2026-09-03
+
+- [x] Reorder the main workflow into Vehicle Data, Interval Setup, Manual
+  Selection, Automatic Selection, Pair Analysis, Final Comparison and Results.
+- [x] Reuse the existing manual, automatic and graphical renderers without
+  changing widget keys, callbacks, calculations or data contracts.
+- [x] Keep Pair Analysis lazy with Graphical Analysis as its sub-tab.
+- [x] Update PT/EN navigation labels and focused routing coverage.
+- [x] Pass compile, focused routing, full-suite and diff-hygiene validation.

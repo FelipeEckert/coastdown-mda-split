@@ -41,9 +41,10 @@ Split-specific areas must remain owned and validated by Split modules:
 ## Current Ownership
 
 - Active navigation: `page_2_dados_veiculo.py`, `page_split_workflow.py`,
-  `page_split_coefficient_calculation.py`, `page_split_final_comparison.py`, and
-  `page_split_results.py`.
-- Automatic Selection is a sub-tab rendered by `page_split_auto_selection.py`.
+  `page_split_coefficient_calculation.py`, `page_split_auto_selection.py`,
+  `page_split_final_comparison.py`, and `page_split_results.py`.
+- Manual Selection and Automatic Selection are main tabs. Pair Analysis keeps
+  Graphical Analysis as its lazy sub-tab.
 - `data/split_parser.py` owns Split parsing; `data/split_exporters.py` owns the
   Split workbook; `data/weather_loader.py` owns weather-file loading.
 - `core/split_*.py` modules own Split calculations, correction, validation,

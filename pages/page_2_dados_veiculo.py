@@ -80,7 +80,7 @@ def render(t):
                 step=10.0,
                 format="%.2f",
             )
-            with st.container():
+            with st.container(key="vehicle_rotational_mass_controls"):
                 rotational_available = st.checkbox(
                     t("split_rotational_mass_available"),
                     value=has_informed_rotational_mass,

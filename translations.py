@@ -291,8 +291,8 @@ TRANSLATIONS = {
     },
     # ===== SPLIT WORKFLOW =====
     "page_split_workflow": {
-        "pt": "Seleção de Intervalos",
-        "en": "Interval Selection"
+        "pt": "Setup Intervalos",
+        "en": "Interval Setup"
     },
     "split_interval_configuration": {
         "pt": "Configuração dos intervalos Split",
@@ -387,8 +387,8 @@ TRANSLATIONS = {
         "en": "The {interval} values must be numeric and finite."
     },
     "page_split_coefficient_calculation": {
-        "pt": "Cálculo dos Coeficientes",
-        "en": "Coefficient Calculation"
+        "pt": "Seleção Manual",
+        "en": "Manual Selection"
     },
     "page_split_pair_analysis": {
         "pt": "Análise de Pares",
@@ -1020,8 +1020,8 @@ TRANSLATIONS = {
         "en": "Final Comparison"
     },
     "page_split_results": {
-        "pt": "Resultados Split",
-        "en": "Split Results"
+        "pt": "Resultados",
+        "en": "Results"
     },
     "split_results_consolidated": {
         "pt": "Resultados consolidados",

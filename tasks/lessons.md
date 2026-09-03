@@ -3399,3 +3399,42 @@ Uma faixa dedicada e linhas homogeneas tornam a hierarquia mais compacta sem
 duplicar valores, estilos ou logica responsiva.
 
 ---
+
+## 2026-09-02 - Superficies De Cards Nao Devem Alterar Controles
+
+### Decisao:
+
+Os containers com borda e os cards de metricas da area principal usam um token
+navy proprio com o mesmo valor da superficie secundaria configurada. Isso evita
+depender de uma variavel CSS interna que o Streamlit 1.60 nao publica e mantem
+os inputs intocados. A espessura visual ganhou um inset de 0,5 px sobre a borda
+nativa, preservando o box model, o raio e o espacamento. Containers de layout
+com chave, cards especiais da sidebar, botoes, tabs, inputs, badges e cores
+semanticas permanecem fora do seletor.
+
+### Licao:
+
+Quando a API de tema nao expoe espessura de borda nem superficie exclusiva de
+card, uma regra central curta deve selecionar somente os blocos nativos que o
+aplicativo usa como cards. Um inset aumenta o peso visual sem deslocar conteudo
+ou duplicar ajustes de padding em cada pagina.
+
+---
+
+## 2026-09-03 - Promover Sub-Abas Nao Deve Duplicar Fluxos Split
+
+### Decisao:
+
+A navegacao principal passou a chamar diretamente os renderizadores existentes
+de selecao manual e automatica. `page_split_coefficient_calculation.py` manteve
+o fluxo manual intacto por meio de um wrapper publico curto e conservou a chave
+da sub-aba de Analise de Pares, agora dedicada a Analise Grafica. A chave das
+abas principais, o rerun rastreado e os testes de `.open` tambem permanecem.
+
+### Licao:
+
+Quando uma sub-aba vira etapa principal, mova apenas o ponto de roteamento. Nao
+copie widgets nem calculos: reutilizar o renderizador preserva callbacks, chaves,
+estado, contratos de dados e execucao lazy por construcao.
+
+---
