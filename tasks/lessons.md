@@ -3438,3 +3438,22 @@ copie widgets nem calculos: reutilizar o renderizador preserva callbacks, chaves
 estado, contratos de dados e execucao lazy por construcao.
 
 ---
+
+## 2026-09-03 - CSS Global Deve Ter Um Unico Dono
+
+### Decisao:
+
+O CSS transversal do shell e as escalas de fonte em runtime foram extraidos de
+`app.py` para `ui/theme.css`, aplicados pelo loader minimo em `ui/styles.py`.
+A paleta e os valores visuais repetidos usam variaveis CSS com os mesmos valores
+resolvidos. O tema nativo continua em `.streamlit/config.toml`, e CSS de tabelas
+e cards especializados permanece nas paginas que o utilizam.
+
+### Licao:
+
+Separar o stylesheet global do orquestrador facilita manutencao sem justificar
+uma nova camada de componentes. Em uma refatoracao visualmente neutra, compare o
+CSS expandido com a versao anterior e preserve seletores, media queries e tokens
+de runtime antes de confiar apenas em testes de roteamento.
+
+---

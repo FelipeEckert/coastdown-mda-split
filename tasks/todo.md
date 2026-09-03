@@ -796,3 +796,15 @@ Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
 - [x] Keep Pair Analysis lazy with Graphical Analysis as its sub-tab.
 - [x] Update PT/EN navigation labels and focused routing coverage.
 - [x] Pass compile, focused routing, full-suite and diff-hygiene validation.
+
+## Global UI stylesheet module - 2026-09-03
+
+- [x] Move the global shell and runtime font CSS from `app.py` to
+  `ui/theme.css`.
+- [x] Keep `app.py` limited to calling `apply_global_styles()` and preserve
+  page-specific CSS in its owning pages.
+- [x] Centralize the existing palette and repeated shell values as CSS variables
+  without changing their resolved values.
+- [x] Keep native Streamlit theme settings in `.streamlit/config.toml`.
+- [x] Pass focused UI/routing tests, the full suite, compile checks and final
+  diff hygiene.

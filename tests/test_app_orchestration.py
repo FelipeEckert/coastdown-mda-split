@@ -461,22 +461,28 @@ class AppStateOrchestrationTests(unittest.TestCase):
 
 
 class AppWorkflowAppTestTests(unittest.TestCase):
-    def test_shell_css_keeps_cards_accessible_targets_and_reduced_motion(self):
+    def test_global_styles_keep_cards_accessible_targets_and_reduced_motion(self):
         with patch.object(app.st, "markdown") as markdown:
-            app.apply_font_size_css("medium")
+            app.apply_global_styles("medium")
 
         css = markdown.call_args.args[0]
+        self.assertIn("--mda-font-base: 16px", css)
         self.assertIn('[data-testid="stLayoutWrapper"] >', css)
         self.assertIn('[data-testid="stMetric"]', css)
         self.assertIn(
             "background-color: var(--mda-card-surface) !important",
             css,
         )
-        self.assertIn("box-shadow: inset 0 0 0 0.5px var(--mda-border)", css)
+        self.assertIn("--mda-card-inset-width: 0.5px", css)
+        self.assertIn(
+            "box-shadow: inset 0 0 0 var(--mda-card-inset-width) var(--mda-border)",
+            css,
+        )
         self.assertIn('div[data-testid="stButton"] button', css)
         self.assertIn("[data-testid=\"stRadioOption\"]", css)
-        self.assertIn("min-height: 2.75rem !important", css)
-        self.assertIn("min-width: 2.75rem !important", css)
+        self.assertIn("--mda-control-target: 2.75rem", css)
+        self.assertIn("min-height: var(--mda-control-target) !important", css)
+        self.assertIn("min-width: var(--mda-control-target) !important", css)
         self.assertIn("@media (prefers-reduced-motion: reduce)", css)
         self.assertIn("animation-duration: 0.01ms !important", css)
         self.assertIn("transition-duration: 0.01ms !important", css)
