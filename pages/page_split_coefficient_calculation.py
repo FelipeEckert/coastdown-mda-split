@@ -3,6 +3,7 @@
 
 import html
 import math
+import statistics
 
 import pandas as pd
 import streamlit as st
@@ -21,7 +22,11 @@ from core.split_corrections import (
     weather_sync_ambient_conditions,
 )
 from core.split_display import format_run_option_label, format_split_pair_label
-from core.split_time_validation import TIME_COMPONENTS, validate_split_selected_times
+from core.split_time_validation import (
+    TIME_COMPONENTS,
+    coefficient_of_variation_percent,
+    validate_split_selected_times,
+)
 from core.weather_sync import (
     DEFAULT_MAX_TIME_DELTA_SECONDS,
     sync_weather_to_run,
@@ -58,6 +63,17 @@ COMPONENT_LABEL_KEYS = {
     "high_minus": "split_high_speed_volta",
     "low_minus": "split_low_speed_volta",
 }
+
+ROBUST_Z_SCALE = 0.6744897501960817
+MODERATE_DISPERSION_SCORE = 2.5
+STRONG_DISPERSION_SCORE = 3.5
+MODERATE_DISPERSION_STYLE = (
+    "background-color: rgba(245,184,46,0.18); color: #F8FAFC"
+)
+STRONG_DISPERSION_STYLE = (
+    "background-color: rgba(255,107,107,0.24); color: #F8FAFC; "
+    "font-weight: 600"
+)
 
 
 def _record_direction(record: dict):
@@ -1324,34 +1340,81 @@ def _parsed_run_time_validation(parsed: dict) -> dict:
     return validate_split_selected_times(candidates)
 
 
-def _parsed_run_table_rows(parsed: dict) -> list[dict]:
-    """Project each parsed run without changing its stored data."""
+def _parsed_interval_matrix(records: list[dict]):
+    """Project parsed runs and descriptive statistics by subinterval."""
+    labels = list(
+        dict.fromkeys(
+            str(label)
+            for record in records
+            for label in record.get("subintervals") or []
+        )
+    )
     rows = []
-    for interval_name in ("high", "low"):
-        for record in parsed.get(interval_name) or []:
-            direction = normalized_record_direction(record)
-            run_id = record.get("run_id")
-            rows.append(
-                {
-                    "group": f"{interval_name.title()}{direction or '?'}",
-                    "run": None if run_id in (None, "") else str(run_id),
-                    "direction": direction or None,
-                    "file": record.get("filename"),
-                    "start_kmh": record.get("start_kmh"),
-                    "end_kmh": record.get("end_kmh"),
-                    "reference_kmh": record.get("reference_kmh"),
-                    "delta_v_kmh": record.get("delta_v_kmh"),
-                    "delta_t_s": record.get("delta_t_s"),
-                    "subintervals": " · ".join(
-                        str(value) for value in record.get("subintervals") or []
-                    ) or None,
-                    "subinterval_times_s": " · ".join(
-                        str(value)
-                        for value in record.get("subinterval_times_s") or []
-                    ) or None,
-                }
-            )
-    return rows
+    samples = {label: [] for label in labels}
+    for record in records:
+        record_labels = [
+            str(label) for label in record.get("subintervals") or []
+        ]
+        stored_times = record.get("subinterval_times_s")
+        interval_times = (
+            {str(label): value for label, value in stored_times.items()}
+            if isinstance(stored_times, dict)
+            else dict(zip(record_labels, stored_times or []))
+        )
+        run_id = record.get("run_id")
+        row = {
+            "run": None if run_id in (None, "") else str(run_id),
+            "direction": normalized_record_direction(record),
+            **{label: interval_times.get(label) for label in labels},
+            "total_delta_t_s": record.get("delta_t_s"),
+        }
+        rows.append(row)
+        for label in labels:
+            value = row[label]
+            if (
+                isinstance(value, (int, float))
+                and not isinstance(value, bool)
+                and math.isfinite(value)
+            ):
+                samples[label].append(float(value))
+
+    statistics_rows = [
+        {
+            "interval": label,
+            "mean_s": statistics.mean(values) if values else None,
+            "stdev_s": statistics.stdev(values) if len(values) >= 2 else None,
+            "cv_pct": coefficient_of_variation_percent(values),
+        }
+        for label, values in samples.items()
+    ]
+    return labels, rows, statistics_rows
+
+
+def _interval_matrix_dispersion_styles(frame, labels):
+    """Highlight robust relative dispersion within each direction and bin."""
+    styles = pd.DataFrame("", index=frame.index, columns=frame.columns)
+    for direction in ("+", "-"):
+        population = frame[frame["direction"] == direction]
+        for label in labels:
+            values = population[label].dropna()
+            if values.empty:
+                continue
+            median = statistics.median(values)
+            deviations = {
+                index: abs(float(value) - median)
+                for index, value in values.items()
+            }
+            mad = statistics.median(deviations.values())
+            for index, deviation in deviations.items():
+                if mad <= 1e-12:
+                    score = math.inf if deviation > 1e-12 else 0.0
+                else:
+                    score = ROBUST_Z_SCALE * deviation / mad
+                if score >= STRONG_DISPERSION_SCORE:
+                    styles.at[index, label] = STRONG_DISPERSION_STYLE
+                elif score >= MODERATE_DISPERSION_SCORE:
+                    styles.at[index, label] = MODERATE_DISPERSION_STYLE
+    return styles
 
 
 def _normative_status_label(passed, t) -> str:
@@ -1372,8 +1435,7 @@ def _render_statistical_analysis(t):
         return
 
     parsed = st.session_state.get("split_parsed_runs") or {}
-    run_rows = _parsed_run_table_rows(parsed)
-    if not run_rows:
+    if not any(parsed.get(interval) for interval in ("high", "low")):
         st.info(t("split_graph_process_intervals_first"))
         return
 
@@ -1498,46 +1560,77 @@ def _render_statistical_analysis(t):
             **table_options,
         )
 
-    st.space("small")
-    with st.container(border=True):
-        st.subheader(f":material/table_rows: {t('split_statistical_run_table')}")
-        st.dataframe(
-            pd.DataFrame(run_rows),
-            column_config={
-                "group": st.column_config.TextColumn(
-                    t("split_statistical_group"), width="small", pinned=True
-                ),
-                "run": st.column_config.TextColumn(t("split_run"), width="small"),
-                "direction": st.column_config.TextColumn(
-                    t("split_direction"), width="small"
-                ),
-                "file": st.column_config.TextColumn(
-                    t("split_file"), width="medium"
-                ),
-                "start_kmh": st.column_config.NumberColumn(
-                    t("split_statistical_start_speed"), format="%.1f"
-                ),
-                "end_kmh": st.column_config.NumberColumn(
-                    t("split_statistical_end_speed"), format="%.1f"
-                ),
-                "reference_kmh": st.column_config.NumberColumn(
-                    t("split_statistical_reference_speed"), format="%.1f"
-                ),
-                "delta_v_kmh": st.column_config.NumberColumn(
-                    "ΔV [km/h]", format="%.1f"
-                ),
-                "delta_t_s": st.column_config.NumberColumn(
-                    "Δt [s]", format="%.3f"
-                ),
-                "subintervals": st.column_config.TextColumn(
-                    t("split_statistical_subintervals"), width="large"
-                ),
-                "subinterval_times_s": st.column_config.TextColumn(
-                    t("split_statistical_subinterval_times"), width="large"
-                ),
+    interval_titles = {
+        "high": "split_graph_high_section_title",
+        "low": "split_graph_low_section_title",
+    }
+    for interval, title_key in interval_titles.items():
+        records = parsed.get(interval) or []
+        if not records:
+            continue
+        labels, matrix_rows, statistics_rows = _parsed_interval_matrix(records)
+        matrix_columns = {
+            "run": st.column_config.TextColumn(
+                t("split_run"), width="small", pinned=True
+            ),
+            "direction": st.column_config.TextColumn(
+                t("split_direction"), width="small"
+            ),
+            **{
+                label: st.column_config.NumberColumn(
+                    f"{label} [s]", format="%.3f", width="small"
+                )
+                for label in labels
             },
-            **table_options,
-        )
+            "total_delta_t_s": st.column_config.NumberColumn(
+                t("split_statistical_total_time"),
+                format="%.3f",
+                width="small",
+            ),
+        }
+
+        st.space("small")
+        with st.container(border=True):
+            st.subheader(f":material/table_rows: {t(title_key)}")
+            st.markdown(
+                f"**{t('split_statistical_dispersion_title')}**",
+                help=t("split_statistical_dispersion_help"),
+            )
+            st.markdown(t("split_statistical_dispersion_scale"))
+            st.caption(t("split_statistical_dispersion_caption"))
+            matrix_frame = pd.DataFrame(matrix_rows)
+            st.dataframe(
+                matrix_frame.style.apply(
+                    _interval_matrix_dispersion_styles,
+                    axis=None,
+                    labels=labels,
+                ),
+                column_config=matrix_columns,
+                **table_options,
+            )
+            st.markdown(f"**{t('split_statistical_interval_statistics')}**")
+            st.dataframe(
+                pd.DataFrame(statistics_rows),
+                column_config={
+                    "interval": st.column_config.TextColumn(
+                        t("split_statistical_subinterval"), pinned=True
+                    ),
+                    "mean_s": st.column_config.NumberColumn(
+                        t("split_deviation_mean_time"),
+                        format="%.3f",
+                        width="small",
+                    ),
+                    "stdev_s": st.column_config.NumberColumn(
+                        f"{t('split_deviation_sample_stdev')} [s]",
+                        format="%.3f",
+                        width="small",
+                    ),
+                    "cv_pct": st.column_config.NumberColumn(
+                        "C.V. [%]", format="%.2f", width="small"
+                    ),
+                },
+                **table_options,
+            )
 
 
 def render_manual(t):

@@ -941,9 +941,41 @@ TRANSLATIONS = {
         "pt": "Comparação entre direções opostas",
         "en": "Opposite-direction comparison"
     },
-    "split_statistical_run_table": {
-        "pt": "Passadas parseadas",
-        "en": "Parsed runs"
+    "split_statistical_dispersion_title": {
+        "pt": "Dispersão em relação ao grupo — escore robusto (MAD)",
+        "en": "Dispersion relative to the group — robust score (MAD)"
+    },
+    "split_statistical_dispersion_scale": {
+        "pt": (
+            "- :gray-background[Sem destaque]: `score < 2,5`\n"
+            "- :orange-background[Moderado]: `2,5 ≤ score < 3,5`\n"
+            "- :red-background[Forte]: `score ≥ 3,5`"
+        ),
+        "en": (
+            "- :gray-background[No highlight]: `score < 2.5`\n"
+            "- :orange-background[Moderate]: `2.5 ≤ score < 3.5`\n"
+            "- :red-background[Strong]: `score ≥ 3.5`"
+        )
+    },
+    "split_statistical_dispersion_caption": {
+        "pt": (
+            "Comparação relativa dentro da mesma direção e subintervalo. "
+            "Uso diagnóstico — não define conformidade normativa."
+        ),
+        "en": (
+            "Relative comparison within the same direction and subinterval. "
+            "Diagnostic use — it does not define normative conformity."
+        )
+    },
+    "split_statistical_dispersion_help": {
+        "pt": (
+            "score = 0,67449 × |valor − mediana| / MAD. MAD é a mediana dos "
+            "desvios absolutos em relação à mediana."
+        ),
+        "en": (
+            "score = 0.67449 × |value − median| / MAD. MAD is the median "
+            "absolute deviation from the median."
+        )
     },
     "split_statistical_group": {
         "pt": "Grupo",
@@ -953,25 +985,21 @@ TRANSLATIONS = {
         "pt": "Comparação",
         "en": "Comparison"
     },
-    "split_statistical_start_speed": {
-        "pt": "Início [km/h]",
-        "en": "Start [km/h]"
-    },
-    "split_statistical_end_speed": {
-        "pt": "Fim [km/h]",
-        "en": "End [km/h]"
-    },
     "split_statistical_reference_speed": {
         "pt": "Vel. ref. [km/h]",
         "en": "Ref. speed [km/h]"
     },
-    "split_statistical_subintervals": {
-        "pt": "Subintervalos",
-        "en": "Subintervals"
+    "split_statistical_total_time": {
+        "pt": "Total Δt [s]",
+        "en": "Total Δt [s]"
     },
-    "split_statistical_subinterval_times": {
-        "pt": "Tempos dos subintervalos [s]",
-        "en": "Subinterval times [s]"
+    "split_statistical_interval_statistics": {
+        "pt": "Estatísticas descritivas por subintervalo",
+        "en": "Descriptive statistics by subinterval"
+    },
+    "split_statistical_subinterval": {
+        "pt": "Subintervalo",
+        "en": "Subinterval"
     },
     "split_graph_available_runs": {
         "pt": "Passadas disponíveis",

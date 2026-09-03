@@ -3486,13 +3486,38 @@ agrupar as passadas com `group_split_records_by_direction` e encaminha-las a
 `validate_split_selected_times`. O validador canonico continua sendo o unico
 dono do CV amostral, da diferenca percentual entre medias opostas, dos limites
 e do status normativo; apenas passou a expor o desvio-padrao que ja fundamenta
-o CV. A interface e uma projecao nativa e nao escreve em estado.
+o CV. As passadas High e Low usam seus proprios rotulos parseados como colunas
+de matriz, e o resumo descritivo por subintervalo reutiliza o mesmo helper
+canonico de CV. A interface e uma projecao nativa e nao escreve em estado.
 
 ### Licao:
 
 Quando a mesma regra normativa precisa avaliar outra granularidade, adapte a
 entrada ao contrato existente em vez de copiar a formula na pagina. Mantenha os
-registros individuais como linhas independentes para que diagnosticos futuros
-possam ser adicionados sem alterar o parser nem antecipar clustering ou outliers.
+registros individuais como linhas e derive colunas da rastreabilidade do parser,
+sem presumir faixas fixas. Assim, diagnosticos futuros podem ser adicionados sem
+alterar o parser nem antecipar clustering ou outliers.
+
+---
+
+## 2026-09-03 - Destaque Diagnostico Nao E Regra Normativa
+
+### Decisao:
+
+As celulas dos subintervalos usam um escore robusto baseado na mediana e no MAD,
+calculado separadamente para High+, High-, Low+ e Low-. A pagina aplica apenas
+estilos de aviso moderado ou forte via `Pandas Styler`; os valores, o total Delta
+t, as estatisticas descritivas e o validador normativo permanecem inalterados.
+A legenda identifica explicitamente a escala como dispersao relativa e nao como
+conformidade. Sua forma compacta exibe o escore MAD e os limiares dos tres niveis;
+a formula e a definicao de MAD ficam no `help` nativo do titulo, sem criar widget,
+chave ou estado adicional.
+
+### Licao:
+
+Um mapa diagnostico deve comparar somente populacoes equivalentes e ficar na
+camada de apresentacao. Manter a classificacao visual fora do estado evita que
+uma heuristica exploratoria se transforme acidentalmente em selecao, exclusao
+ou regra normativa.
 
 ---

@@ -822,10 +822,16 @@ Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
 - [x] Keep Statistical Analysis beside Graphical Analysis with the existing
   Pair Analysis tab key and lazy `.open` routing.
 - [x] Replace the calculated-pair table with High+/High-/Low+/Low- summaries,
-  opposite-direction comparisons and one read-only row per parsed run.
+  opposite-direction comparisons and read-only interval matrices.
 - [x] Reuse the canonical Split time validator for CV, opposite-direction
   difference, limits and normative status.
+- [x] Separate High and Low runs into dynamic subinterval columns and add mean,
+  sample standard deviation and canonical CV summaries per column.
+- [x] Add median/MAD diagnostic highlighting independently for High+, High-,
+  Low+ and Low-, with a non-normative dispersion legend.
+- [x] Make the compact legend explicit about the robust score and thresholds,
+  with the formula and MAD definition in native help.
 - [x] Keep parsed-run data, calculations, workflow and widget state unchanged.
 - [x] Pass focused, full-suite, compile and diff-hygiene validation.
-- [ ] Add clustering or outlier diagnostics only after their contracts are
-  explicitly defined.
+- [ ] Add clustering, candidate grouping or explicit outlier detection only
+  after their contracts are explicitly defined.

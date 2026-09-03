@@ -5,6 +5,8 @@ from copy import deepcopy
 import unittest
 from unittest.mock import patch
 
+import pandas as pd
+
 import app
 from pages import (
     page_2_dados_veiculo,
@@ -14,6 +16,7 @@ from pages import (
     page_split_results,
     page_split_workflow,
 )
+from translations import get_translator
 
 
 class _SessionState(dict):
@@ -282,7 +285,7 @@ class SplitTabRoutingTests(unittest.TestCase):
                 renderers[1 - selected].assert_not_called()
 
     def test_statistical_run_overview_reuses_normative_logic_without_mutation(self):
-        def run(run_id, direction, delta_t, interval):
+        def run(run_id, direction, delta_t, interval, interval_times):
             return {
                 "run_id": run_id,
                 "heading": direction,
@@ -292,22 +295,26 @@ class SplitTabRoutingTests(unittest.TestCase):
                 "reference_kmh": 80.0 if interval == "high" else 40.0,
                 "delta_v_kmh": 20.0 if interval == "high" else 10.0,
                 "delta_t_s": delta_t,
-                "subintervals": ["90-85", "85-80"],
-                "subinterval_times_s": [4.9, 5.1],
+                "subintervals": (
+                    ["90-85", "85-80"]
+                    if interval == "high"
+                    else ["45-40", "40-35"]
+                ),
+                "subinterval_times_s": interval_times,
             }
 
         parsed = {
             "high": [
-                run(1, "+", 20.0, "high"),
-                run(2, "+", 20.2, "high"),
-                run(3, "-", 21.0, "high"),
-                run(4, "-", 21.2, "high"),
+                run(1, "+", 20.0, "high", [9.9, 10.1]),
+                run(2, "+", 20.2, "high", [10.0, 10.2]),
+                run(3, "-", 21.0, "high", [10.4, 10.6]),
+                run(4, "-", 21.2, "high", [10.5, 10.7]),
             ],
             "low": [
-                run(5, "+", 10.0, "low"),
-                run(6, "+", 10.1, "low"),
-                run(7, "-", 12.0, "low"),
-                run(8, "-", 12.2, "low"),
+                run(5, "+", 10.0, "low", [4.9, 5.1]),
+                run(6, "+", 10.1, "low", [5.0, 5.1]),
+                run(7, "-", 12.0, "low", [5.9, 6.1]),
+                run(8, "-", 12.2, "low", [6.0, 6.2]),
             ],
         }
         state = _SessionState(
@@ -323,8 +330,10 @@ class SplitTabRoutingTests(unittest.TestCase):
             stack.enter_context(
                 patch.object(streamlit, "container", return_value=_Container())
             )
-            for method in ("subheader", "caption", "markdown", "space"):
+            for method in ("subheader", "space"):
                 stack.enter_context(patch.object(streamlit, method))
+            markdown = stack.enter_context(patch.object(streamlit, "markdown"))
+            caption = stack.enter_context(patch.object(streamlit, "caption"))
             dataframe = stack.enter_context(patch.object(streamlit, "dataframe"))
             validator = stack.enter_context(
                 patch.object(
@@ -339,7 +348,7 @@ class SplitTabRoutingTests(unittest.TestCase):
             )
 
         validator.assert_called_once()
-        self.assertEqual(dataframe.call_count, 3)
+        self.assertEqual(dataframe.call_count, 6)
         group_rows = dataframe.call_args_list[0].args[0].to_dict("records")
         self.assertEqual(
             [row["group"] for row in group_rows],
@@ -359,12 +368,145 @@ class SplitTabRoutingTests(unittest.TestCase):
         self.assertTrue(opposite_rows[1]["status"].startswith("✕ "))
         self.assertEqual(opposite_rows[1]["limit_pct"], 10.0)
 
-        run_rows = dataframe.call_args_list[2].args[0].to_dict("records")
-        self.assertEqual(len(run_rows), 8)
-        self.assertEqual(run_rows[0]["group"], "High+")
-        self.assertEqual(run_rows[0]["delta_t_s"], 20.0)
-        self.assertEqual(run_rows[-1]["group"], "Low-")
+        high_frame = dataframe.call_args_list[2].args[0].data
+        high_rows = high_frame.to_dict("records")
+        self.assertEqual(
+            list(high_frame.columns),
+            ["run", "direction", "90-85", "85-80", "total_delta_t_s"],
+        )
+        self.assertEqual(len(high_rows), 4)
+        self.assertEqual(high_rows[0]["run"], "1")
+        self.assertEqual(high_rows[0]["direction"], "+")
+        self.assertEqual(high_rows[0]["90-85"], 9.9)
+        self.assertEqual(high_rows[-1]["total_delta_t_s"], 21.2)
+
+        high_statistics = dataframe.call_args_list[3].args[0].to_dict("records")
+        self.assertEqual(
+            [row["interval"] for row in high_statistics],
+            ["90-85", "85-80"],
+        )
+        self.assertAlmostEqual(high_statistics[0]["mean_s"], 10.2)
+        self.assertAlmostEqual(
+            high_statistics[0]["stdev_s"], 0.29439202887759464
+        )
+        self.assertAlmostEqual(
+            high_statistics[0]["cv_pct"], 2.8861963615450455
+        )
+
+        low_frame = dataframe.call_args_list[4].args[0].data
+        low_rows = low_frame.to_dict("records")
+        self.assertEqual(
+            list(low_frame.columns),
+            ["run", "direction", "45-40", "40-35", "total_delta_t_s"],
+        )
+        self.assertEqual(len(low_rows), 4)
+        self.assertEqual(low_rows[-1]["run"], "8")
+
+        low_statistics = dataframe.call_args_list[5].args[0].to_dict("records")
+        self.assertEqual(
+            [row["interval"] for row in low_statistics],
+            ["45-40", "40-35"],
+        )
+        self.assertEqual(
+            sum(
+                call.args[0] == "split_statistical_dispersion_caption"
+                for call in caption.call_args_list
+            ),
+            2,
+        )
+        legend_titles = [
+            call
+            for call in markdown.call_args_list
+            if call.args[0] == "**split_statistical_dispersion_title**"
+        ]
+        self.assertEqual(len(legend_titles), 2)
+        self.assertTrue(
+            all(
+                call.kwargs["help"] == "split_statistical_dispersion_help"
+                for call in legend_titles
+            )
+        )
+        self.assertEqual(
+            sum(
+                call.args[0] == "split_statistical_dispersion_scale"
+                for call in markdown.call_args_list
+            ),
+            2,
+        )
         self.assertEqual(state, original)
+
+    def test_interval_matrix_heatmap_is_robust_and_population_local(self):
+        frame = pd.DataFrame(
+            {
+                "run": [str(index) for index in range(1, 11)],
+                "direction": ["+"] * 5 + ["-"] * 5,
+                "90-85": [
+                    10.0, 10.1, 10.2, 10.3, 10.6,
+                    20.0, 20.1, 20.2, 20.3, 20.4,
+                ],
+                "85-80": [
+                    5.0, 5.1, 5.2, 5.3, 5.8,
+                    8.0, 8.1, 8.2, 8.3, 8.4,
+                ],
+                "total_delta_t_s": [15.0] * 10,
+            }
+        )
+        styles = page_split_coefficient_calculation._interval_matrix_dispersion_styles(
+            frame,
+            ["90-85", "85-80"],
+        )
+
+        self.assertEqual(
+            styles.at[4, "90-85"],
+            page_split_coefficient_calculation.MODERATE_DISPERSION_STYLE,
+        )
+        self.assertEqual(
+            styles.at[4, "85-80"],
+            page_split_coefficient_calculation.STRONG_DISPERSION_STYLE,
+        )
+        self.assertTrue(
+            (styles.loc[5:, ["90-85", "85-80"]] == "").all().all()
+        )
+        self.assertTrue(
+            (
+                styles[["run", "direction", "total_delta_t_s"]] == ""
+            ).all().all()
+        )
+
+    def test_dispersion_legend_translations_disclose_metric_and_thresholds(self):
+        for language, moderate, strong, formula, mad_definition in (
+            (
+                "pt",
+                "2,5",
+                "3,5",
+                "score = 0,67449 × |valor − mediana| / MAD",
+                "MAD é a mediana dos desvios absolutos",
+            ),
+            (
+                "en",
+                "2.5",
+                "3.5",
+                "score = 0.67449 × |value − median| / MAD",
+                "MAD is the median absolute deviation",
+            ),
+        ):
+            t = get_translator(language)
+            title = t("split_statistical_dispersion_title")
+            scale = t("split_statistical_dispersion_scale")
+            help_text = t("split_statistical_dispersion_help")
+            caption = t("split_statistical_dispersion_caption")
+
+            self.assertIn("MAD", title)
+            self.assertIn(f"score < {moderate}", scale)
+            self.assertIn(f"{moderate} ≤ score < {strong}", scale)
+            self.assertIn(f"score ≥ {strong}", scale)
+            self.assertIn(formula, help_text)
+            self.assertIn(mad_definition, help_text)
+            self.assertIn(
+                "direction" if language == "en" else "direção",
+                caption,
+            )
+            self.assertIn("normativ", caption.lower())
 
     def test_each_parser_review_tab_renders_only_its_table(self):
         config = {
