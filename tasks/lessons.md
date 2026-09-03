@@ -3457,3 +3457,22 @@ CSS expandido com a versao anterior e preserve seletores, media queries e tokens
 de runtime antes de confiar apenas em testes de roteamento.
 
 ---
+
+## 2026-09-03 - O Launcher Streamlit Ja Prepara O Caminho Do App
+
+### Decisao:
+
+Os imports locais de `app.py` foram movidos para o bloco normal de imports e a
+insercao manual de `BASE_DIR` em `sys.path` foi removida. O launcher do
+Streamlit 1.60 adiciona explicitamente o diretorio do script antes de executa-lo,
+e a execucao Python direta possui o mesmo contrato. Nenhum modulo importado
+executa comandos Streamlit no carregamento, portanto `st.set_page_config()`
+continua sendo o primeiro comando da interface.
+
+### Licao:
+
+Antes de aceitar E402 em um entry point, confirme se o runner ja torna o
+diretorio do script importavel. Um ajuste de `sys.path` herdado e redundante
+deve ser removido, nao escondido com `noqa`.
+
+---

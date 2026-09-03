@@ -14,21 +14,10 @@ Arquitetura:
 import copy
 import hashlib
 import os
-import sys
 import tempfile
 import uuid
 
 import streamlit as st
-
-# Adiciona o diretório raiz ao path para imports
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ASSETS_DIR = os.path.join(BASE_DIR, "assets")
-APP_LOGO_SVG_PATH = os.path.join(ASSETS_DIR, "app_logo.svg")
-APP_LOGO_PNG_PATH = os.path.join(ASSETS_DIR, "app_logo.png")
-HYUNDAI_LOGO_SVG_PATH = os.path.join(ASSETS_DIR, "hyundai_logo.svg")
-HYUNDAI_LOGO_PNG_PATH = os.path.join(ASSETS_DIR, "hyundai_logo.png")
-
-sys.path.insert(0, BASE_DIR)
 
 from version import APP_NAME, APP_VERSION
 from translations import get_translator, get_available_languages
@@ -46,6 +35,13 @@ from core.split_state import (
     normalize_split_comparison_selection_state,
     split_final_results_status,
 )
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ASSETS_DIR = os.path.join(BASE_DIR, "assets")
+APP_LOGO_SVG_PATH = os.path.join(ASSETS_DIR, "app_logo.svg")
+APP_LOGO_PNG_PATH = os.path.join(ASSETS_DIR, "app_logo.png")
+HYUNDAI_LOGO_SVG_PATH = os.path.join(ASSETS_DIR, "hyundai_logo.svg")
+HYUNDAI_LOGO_PNG_PATH = os.path.join(ASSETS_DIR, "hyundai_logo.png")
 
 # ===== CONFIGURAÇÃO DA PÁGINA =====
 st.set_page_config(

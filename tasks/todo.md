@@ -808,3 +808,11 @@ Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
 - [x] Keep native Streamlit theme settings in `.streamlit/config.toml`.
 - [x] Pass focused UI/routing tests, the full suite, compile checks and final
   diff hygiene.
+
+## App import ordering - 2026-09-03
+
+- [x] Remove the redundant app-local `sys.path` insertion and move project
+  imports into the normal top-level import section.
+- [x] Preserve asset-path initialization and keep `st.set_page_config()` as
+  the first Streamlit command.
+- [x] Pass Ruff, compile, app orchestration/import and diff-hygiene checks.
