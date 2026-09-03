@@ -106,6 +106,10 @@ class SplitTimeValidationTest(unittest.TestCase):
             result["opposite_direction"][interval]["passed"]
             for interval in ("high", "low")
         ))
+        self.assertAlmostEqual(
+            result["groups"]["high_plus"]["stdev"],
+            statistics.stdev([20.0, 20.1, 20.2]),
+        )
 
     def test_validation_fails_when_cv_exceeds_limit(self):
         result = validate_split_selected_times(
@@ -147,6 +151,7 @@ class SplitTimeValidationTest(unittest.TestCase):
 
         self.assertIsNone(result["passed"])
         self.assertIsNone(result["groups"]["high_plus"]["cv_pct"])
+        self.assertIsNone(result["groups"]["high_plus"]["stdev"])
         self.assertIsNone(result["groups"]["high_plus"]["passed"])
         self.assertNotEqual(result["passed"], False)
         self.assertTrue(result["warnings"])

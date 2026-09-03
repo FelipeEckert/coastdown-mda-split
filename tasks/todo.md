@@ -816,3 +816,16 @@ Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
 - [x] Preserve asset-path initialization and keep `st.set_page_config()` as
   the first Streamlit command.
 - [x] Pass Ruff, compile, app orchestration/import and diff-hygiene checks.
+
+## Run-level statistical analysis - 2026-09-03
+
+- [x] Keep Statistical Analysis beside Graphical Analysis with the existing
+  Pair Analysis tab key and lazy `.open` routing.
+- [x] Replace the calculated-pair table with High+/High-/Low+/Low- summaries,
+  opposite-direction comparisons and one read-only row per parsed run.
+- [x] Reuse the canonical Split time validator for CV, opposite-direction
+  difference, limits and normative status.
+- [x] Keep parsed-run data, calculations, workflow and widget state unchanged.
+- [x] Pass focused, full-suite, compile and diff-hygiene validation.
+- [ ] Add clustering or outlier diagnostics only after their contracts are
+  explicitly defined.

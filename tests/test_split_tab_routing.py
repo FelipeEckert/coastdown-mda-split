@@ -1,6 +1,7 @@
 """Characterization coverage for active Split tab orchestration."""
 
 from contextlib import ExitStack
+from copy import deepcopy
 import unittest
 from unittest.mock import patch
 
@@ -234,33 +235,136 @@ class SplitTabRoutingTests(unittest.TestCase):
 
         calculation.assert_called_once_with(_translate)
 
-    def test_pair_analysis_keeps_only_the_graphical_lazy_subtab(self):
-        state = _SessionState(active_test_id="active", language="pt")
+    def test_pair_analysis_subtabs_render_only_the_open_surface(self):
         tab_key = "split_pair_analysis_tabs_active_pt"
+        streamlit = page_split_coefficient_calculation.st
+        labels = ["split_graphical_analysis", "split_statistical_analysis"]
+
+        for selected in range(2):
+            with self.subTest(selected=selected), ExitStack() as stack:
+                state = _SessionState(
+                    active_test_id="active",
+                    language="pt",
+                    **{tab_key: labels[selected]},
+                )
+                stack.enter_context(patch.object(streamlit, "session_state", state))
+                stack.enter_context(patch.object(streamlit, "header"))
+                tabs = stack.enter_context(
+                    patch.object(
+                        streamlit,
+                        "tabs",
+                        return_value=_containers(2, selected),
+                    )
+                )
+                graph = stack.enter_context(
+                    patch.object(
+                        page_split_coefficient_calculation,
+                        "_render_graphical_analysis",
+                    )
+                )
+                statistics = stack.enter_context(
+                    patch.object(
+                        page_split_coefficient_calculation,
+                        "_render_statistical_analysis",
+                    )
+                )
+
+                page_split_coefficient_calculation.render(_translate)
+
+                tabs.assert_called_once_with(
+                    labels,
+                    default=labels[selected],
+                    key=tab_key,
+                    on_change="rerun",
+                )
+                renderers = (graph, statistics)
+                renderers[selected].assert_called_once_with(_translate)
+                renderers[1 - selected].assert_not_called()
+
+    def test_statistical_run_overview_reuses_normative_logic_without_mutation(self):
+        def run(run_id, direction, delta_t, interval):
+            return {
+                "run_id": run_id,
+                "heading": direction,
+                "filename": f"{interval}.csv",
+                "start_kmh": 90.0 if interval == "high" else 45.0,
+                "end_kmh": 70.0 if interval == "high" else 35.0,
+                "reference_kmh": 80.0 if interval == "high" else 40.0,
+                "delta_v_kmh": 20.0 if interval == "high" else 10.0,
+                "delta_t_s": delta_t,
+                "subintervals": ["90-85", "85-80"],
+                "subinterval_times_s": [4.9, 5.1],
+            }
+
+        parsed = {
+            "high": [
+                run(1, "+", 20.0, "high"),
+                run(2, "+", 20.2, "high"),
+                run(3, "-", 21.0, "high"),
+                run(4, "-", 21.2, "high"),
+            ],
+            "low": [
+                run(5, "+", 10.0, "low"),
+                run(6, "+", 10.1, "low"),
+                run(7, "-", 12.0, "low"),
+                run(8, "-", 12.2, "low"),
+            ],
+        }
+        state = _SessionState(
+            data_loaded=True,
+            split_parse_dirty=False,
+            split_parsed_runs=parsed,
+        )
+        original = deepcopy(state)
         streamlit = page_split_coefficient_calculation.st
 
         with ExitStack() as stack:
             stack.enter_context(patch.object(streamlit, "session_state", state))
-            stack.enter_context(patch.object(streamlit, "header"))
-            tabs = stack.enter_context(
-                patch.object(streamlit, "tabs", return_value=_containers(1, 0))
+            stack.enter_context(
+                patch.object(streamlit, "container", return_value=_Container())
             )
-            graph = stack.enter_context(
+            for method in ("subheader", "caption", "markdown", "space"):
+                stack.enter_context(patch.object(streamlit, method))
+            dataframe = stack.enter_context(patch.object(streamlit, "dataframe"))
+            validator = stack.enter_context(
                 patch.object(
                     page_split_coefficient_calculation,
-                    "_render_graphical_analysis",
+                    "validate_split_selected_times",
+                    wraps=page_split_coefficient_calculation.validate_split_selected_times,
                 )
             )
 
-            page_split_coefficient_calculation.render(_translate)
+            page_split_coefficient_calculation._render_statistical_analysis(
+                _translate
+            )
 
-        tabs.assert_called_once_with(
-            ["split_graphical_analysis"],
-            default="split_graphical_analysis",
-            key=tab_key,
-            on_change="rerun",
+        validator.assert_called_once()
+        self.assertEqual(dataframe.call_count, 3)
+        group_rows = dataframe.call_args_list[0].args[0].to_dict("records")
+        self.assertEqual(
+            [row["group"] for row in group_rows],
+            ["High+", "High-", "Low+", "Low-"],
         )
-        graph.assert_called_once_with(_translate)
+        self.assertEqual([row["count"] for row in group_rows], [2, 2, 2, 2])
+        self.assertAlmostEqual(group_rows[0]["mean_s"], 20.1)
+        self.assertAlmostEqual(group_rows[0]["stdev_s"], 0.141421356237309)
+        self.assertTrue(group_rows[0]["status"].startswith("✓ "))
+
+        opposite_rows = dataframe.call_args_list[1].args[0].to_dict("records")
+        self.assertEqual(
+            [row["comparison"] for row in opposite_rows],
+            ["High+ × High-", "Low+ × Low-"],
+        )
+        self.assertTrue(opposite_rows[0]["status"].startswith("✓ "))
+        self.assertTrue(opposite_rows[1]["status"].startswith("✕ "))
+        self.assertEqual(opposite_rows[1]["limit_pct"], 10.0)
+
+        run_rows = dataframe.call_args_list[2].args[0].to_dict("records")
+        self.assertEqual(len(run_rows), 8)
+        self.assertEqual(run_rows[0]["group"], "High+")
+        self.assertEqual(run_rows[0]["delta_t_s"], 20.0)
+        self.assertEqual(run_rows[-1]["group"], "Low-")
+        self.assertEqual(state, original)
 
     def test_each_parser_review_tab_renders_only_its_table(self):
         config = {

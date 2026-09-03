@@ -13,16 +13,15 @@ from core.split_comparison import (
     calculate_complete_split_pair,
     coefficient_variation_percent,
     group_split_records_by_direction,
+    normalized_record_direction,
 )
 from core.split_corrections import (
     apply_split_pair_correction,
     fixed_ambient_conditions,
     weather_sync_ambient_conditions,
 )
-from core.split_display import (
-    format_run_option_label,
-    format_split_pair_label,
-)
+from core.split_display import format_run_option_label, format_split_pair_label
+from core.split_time_validation import TIME_COMPONENTS, validate_split_selected_times
 from core.weather_sync import (
     DEFAULT_MAX_TIME_DELTA_SECONDS,
     sync_weather_to_run,
@@ -1311,6 +1310,236 @@ def _render_graphical_analysis(t):
     _render_available_split_runs(t)
 
 
+def _parsed_run_time_validation(parsed: dict) -> dict:
+    """Apply the canonical normative time validator to parsed Split runs."""
+    grouped = group_split_records_by_direction(
+        parsed.get("high") or [],
+        parsed.get("low") or [],
+    )
+    candidates = [
+        {component: record}
+        for component in TIME_COMPONENTS
+        for record in grouped[component]
+    ]
+    return validate_split_selected_times(candidates)
+
+
+def _parsed_run_table_rows(parsed: dict) -> list[dict]:
+    """Project each parsed run without changing its stored data."""
+    rows = []
+    for interval_name in ("high", "low"):
+        for record in parsed.get(interval_name) or []:
+            direction = normalized_record_direction(record)
+            run_id = record.get("run_id")
+            rows.append(
+                {
+                    "group": f"{interval_name.title()}{direction or '?'}",
+                    "run": None if run_id in (None, "") else str(run_id),
+                    "direction": direction or None,
+                    "file": record.get("filename"),
+                    "start_kmh": record.get("start_kmh"),
+                    "end_kmh": record.get("end_kmh"),
+                    "reference_kmh": record.get("reference_kmh"),
+                    "delta_v_kmh": record.get("delta_v_kmh"),
+                    "delta_t_s": record.get("delta_t_s"),
+                    "subintervals": " · ".join(
+                        str(value) for value in record.get("subintervals") or []
+                    ) or None,
+                    "subinterval_times_s": " · ".join(
+                        str(value)
+                        for value in record.get("subinterval_times_s") or []
+                    ) or None,
+                }
+            )
+    return rows
+
+
+def _normative_status_label(passed, t) -> str:
+    if passed is True:
+        return f"✓ {t('split_results_status_conforming')}"
+    if passed is False:
+        return f"✕ {t('split_results_status_nonconforming')}"
+    return f"— {t('split_results_status_not_evaluable')}"
+
+
+def _render_statistical_analysis(t):
+    """Render read-only normative statistics for individual parsed runs."""
+    if not st.session_state.get("data_loaded"):
+        st.info(t("split_graph_process_intervals_first"))
+        return
+    if not split_parse_is_current(st.session_state):
+        st.warning(t("split_graph_process_intervals_first"))
+        return
+
+    parsed = st.session_state.get("split_parsed_runs") or {}
+    run_rows = _parsed_run_table_rows(parsed)
+    if not run_rows:
+        st.info(t("split_graph_process_intervals_first"))
+        return
+
+    validation = _parsed_run_time_validation(parsed)
+    groups = validation["groups"]
+    reference_speeds = {
+        interval: next(
+            (
+                record.get("reference_kmh")
+                for record in parsed.get(interval) or []
+                if record.get("reference_kmh") is not None
+            ),
+            None,
+        )
+        for interval in ("high", "low")
+    }
+    group_rows = [
+        {
+            "group": {
+                "high_plus": "High+",
+                "high_minus": "High-",
+                "low_plus": "Low+",
+                "low_minus": "Low-",
+            }[component],
+            "count": groups[component]["count"],
+            "reference_kmh": reference_speeds[component.split("_", 1)[0]],
+            "mean_s": groups[component]["mean"],
+            "stdev_s": groups[component]["stdev"],
+            "cv_pct": groups[component]["cv_pct"],
+            "limit_pct": validation["cv_limit_pct"],
+            "status": _normative_status_label(groups[component]["passed"], t),
+        }
+        for component in TIME_COMPONENTS
+    ]
+    opposite_rows = [
+        {
+            "comparison": f"{interval.title()}+ × {interval.title()}-",
+            "reference_kmh": reference_speeds[interval],
+            "mean_plus_s": result["mean_plus"],
+            "mean_minus_s": result["mean_minus"],
+            "difference_pct": result["diff_pct"],
+            "limit_pct": validation["opposite_mean_limit_pct"],
+            "status": _normative_status_label(result["passed"], t),
+        }
+        for interval, result in validation["opposite_direction"].items()
+    ]
+    table_options = {
+        "width": "stretch",
+        "height": "content",
+        "hide_index": True,
+        "row_height": 32,
+        "placeholder": "—",
+    }
+
+    with st.container(border=True):
+        st.subheader(
+            f":material/fact_check: {t('split_statistical_time_overview')}"
+        )
+        st.caption(
+            t(
+                "split_statistical_time_criteria",
+                cv_limit=validation["cv_limit_pct"],
+                opposite_limit=validation["opposite_mean_limit_pct"],
+            )
+        )
+        st.dataframe(
+            pd.DataFrame(group_rows),
+            column_config={
+                "group": st.column_config.TextColumn(
+                    t("split_statistical_group"), width="small", pinned=True
+                ),
+                "count": st.column_config.NumberColumn("n", format="%d"),
+                "reference_kmh": st.column_config.NumberColumn(
+                    t("split_statistical_reference_speed"), format="%.1f"
+                ),
+                "mean_s": st.column_config.NumberColumn(
+                    t("split_deviation_mean_time"), format="%.3f"
+                ),
+                "stdev_s": st.column_config.NumberColumn(
+                    t("split_deviation_sample_stdev"), format="%.3f"
+                ),
+                "cv_pct": st.column_config.NumberColumn(
+                    "C.V. Δt [%]", format="%.2f"
+                ),
+                "limit_pct": st.column_config.NumberColumn(
+                    t("split_deviation_limit"), format="%.1f"
+                ),
+                "status": st.column_config.TextColumn(
+                    t("split_deviation_status"), width="medium"
+                ),
+            },
+            **table_options,
+        )
+        st.markdown(f"**{t('split_statistical_opposite_directions')}**")
+        st.dataframe(
+            pd.DataFrame(opposite_rows),
+            column_config={
+                "comparison": st.column_config.TextColumn(
+                    t("split_statistical_comparison"),
+                    width="medium",
+                    pinned=True,
+                ),
+                "reference_kmh": st.column_config.NumberColumn(
+                    t("split_statistical_reference_speed"), format="%.1f"
+                ),
+                "mean_plus_s": st.column_config.NumberColumn(
+                    t("split_deviation_mean_plus"), format="%.3f"
+                ),
+                "mean_minus_s": st.column_config.NumberColumn(
+                    t("split_deviation_mean_minus"), format="%.3f"
+                ),
+                "difference_pct": st.column_config.NumberColumn(
+                    t("split_deviation_difference_pct"), format="%.2f"
+                ),
+                "limit_pct": st.column_config.NumberColumn(
+                    t("split_deviation_limit"), format="%.1f"
+                ),
+                "status": st.column_config.TextColumn(
+                    t("split_deviation_status"), width="medium"
+                ),
+            },
+            **table_options,
+        )
+
+    st.space("small")
+    with st.container(border=True):
+        st.subheader(f":material/table_rows: {t('split_statistical_run_table')}")
+        st.dataframe(
+            pd.DataFrame(run_rows),
+            column_config={
+                "group": st.column_config.TextColumn(
+                    t("split_statistical_group"), width="small", pinned=True
+                ),
+                "run": st.column_config.TextColumn(t("split_run"), width="small"),
+                "direction": st.column_config.TextColumn(
+                    t("split_direction"), width="small"
+                ),
+                "file": st.column_config.TextColumn(
+                    t("split_file"), width="medium"
+                ),
+                "start_kmh": st.column_config.NumberColumn(
+                    t("split_statistical_start_speed"), format="%.1f"
+                ),
+                "end_kmh": st.column_config.NumberColumn(
+                    t("split_statistical_end_speed"), format="%.1f"
+                ),
+                "reference_kmh": st.column_config.NumberColumn(
+                    t("split_statistical_reference_speed"), format="%.1f"
+                ),
+                "delta_v_kmh": st.column_config.NumberColumn(
+                    "ΔV [km/h]", format="%.1f"
+                ),
+                "delta_t_s": st.column_config.NumberColumn(
+                    "Δt [s]", format="%.3f"
+                ),
+                "subintervals": st.column_config.TextColumn(
+                    t("split_statistical_subintervals"), width="large"
+                ),
+                "subinterval_times_s": st.column_config.TextColumn(
+                    t("split_statistical_subinterval_times"), width="large"
+                ),
+            },
+            **table_options,
+        )
+
+
 def render_manual(t):
     """Render the existing manual Split pair selection flow."""
     st.header(f":material/calculate: {t('page_split_coefficient_calculation')}")
@@ -1318,18 +1547,21 @@ def render_manual(t):
 
 
 def render(t):
-    """Render Split pair analysis with its existing graphical sub-tab."""
+    """Render Split pair analysis with lazy graphical and table sub-tabs."""
     st.header(
         f":material/analytics: {t('page_split_pair_analysis')}"
     )
-    tab_labels = [t("split_graphical_analysis")]
+    tab_labels = [
+        t("split_graphical_analysis"),
+        t("split_statistical_analysis"),
+    ]
     tab_key = (
         f"split_pair_analysis_tabs_{st.session_state.active_test_id}_"
         f"{st.session_state.language}"
     )
     if st.session_state.get(tab_key) not in tab_labels:
         st.session_state[tab_key] = tab_labels[0]
-    (tab_graph,) = st.tabs(
+    tab_graph, tab_statistics = st.tabs(
         tab_labels,
         default=st.session_state[tab_key],
         key=tab_key,
@@ -1338,3 +1570,6 @@ def render(t):
     if tab_graph.open:
         with tab_graph:
             _render_graphical_analysis(t)
+    elif tab_statistics.open:
+        with tab_statistics:
+            _render_statistical_analysis(t)

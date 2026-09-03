@@ -96,6 +96,7 @@ def _group_result(values: list[float], cv_limit_pct: float) -> dict:
     return {
         "count": len(valid),
         "mean": statistics.mean(valid) if valid else None,
+        "stdev": statistics.stdev(valid) if len(valid) >= 2 else None,
         "cv_pct": cv_pct,
         "passed": None if cv_pct is None else cv_pct <= cv_limit_pct,
     }

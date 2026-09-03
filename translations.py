@@ -919,6 +919,60 @@ TRANSLATIONS = {
         "pt": "Análise Gráfica",
         "en": "Graphical Analysis"
     },
+    "split_statistical_analysis": {
+        "pt": "Análise Estatística",
+        "en": "Statistical Analysis"
+    },
+    "split_statistical_time_overview": {
+        "pt": "Variação dos tempos por direção",
+        "en": "Time variation by direction"
+    },
+    "split_statistical_time_criteria": {
+        "pt": (
+            "Critérios normativos: C.V. por direção ≤ {cv_limit:g}% e "
+            "diferença entre médias opostas ≤ {opposite_limit:g}%."
+        ),
+        "en": (
+            "Normative criteria: directional C.V. ≤ {cv_limit:g}% and "
+            "opposite mean difference ≤ {opposite_limit:g}%."
+        )
+    },
+    "split_statistical_opposite_directions": {
+        "pt": "Comparação entre direções opostas",
+        "en": "Opposite-direction comparison"
+    },
+    "split_statistical_run_table": {
+        "pt": "Passadas parseadas",
+        "en": "Parsed runs"
+    },
+    "split_statistical_group": {
+        "pt": "Grupo",
+        "en": "Group"
+    },
+    "split_statistical_comparison": {
+        "pt": "Comparação",
+        "en": "Comparison"
+    },
+    "split_statistical_start_speed": {
+        "pt": "Início [km/h]",
+        "en": "Start [km/h]"
+    },
+    "split_statistical_end_speed": {
+        "pt": "Fim [km/h]",
+        "en": "End [km/h]"
+    },
+    "split_statistical_reference_speed": {
+        "pt": "Vel. ref. [km/h]",
+        "en": "Ref. speed [km/h]"
+    },
+    "split_statistical_subintervals": {
+        "pt": "Subintervalos",
+        "en": "Subintervals"
+    },
+    "split_statistical_subinterval_times": {
+        "pt": "Tempos dos subintervalos [s]",
+        "en": "Subinterval times [s]"
+    },
     "split_graph_available_runs": {
         "pt": "Passadas disponíveis",
         "en": "Available runs"

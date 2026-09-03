@@ -3476,3 +3476,23 @@ diretorio do script importavel. Um ajuste de `sys.path` herdado e redundante
 deve ser removido, nao escondido com `noqa`.
 
 ---
+
+## 2026-09-03 - A Analise De Runs Deve Reusar A Regra Normativa
+
+### Decisao:
+
+A sub-aba Analise Estatistica passou a ler diretamente `split_parsed_runs`,
+agrupar as passadas com `group_split_records_by_direction` e encaminha-las a
+`validate_split_selected_times`. O validador canonico continua sendo o unico
+dono do CV amostral, da diferenca percentual entre medias opostas, dos limites
+e do status normativo; apenas passou a expor o desvio-padrao que ja fundamenta
+o CV. A interface e uma projecao nativa e nao escreve em estado.
+
+### Licao:
+
+Quando a mesma regra normativa precisa avaliar outra granularidade, adapte a
+entrada ao contrato existente em vez de copiar a formula na pagina. Mantenha os
+registros individuais como linhas independentes para que diagnosticos futuros
+possam ser adicionados sem alterar o parser nem antecipar clustering ou outliers.
+
+---
