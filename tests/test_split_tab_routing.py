@@ -330,16 +330,28 @@ class SplitTabRoutingTests(unittest.TestCase):
             stack.enter_context(
                 patch.object(streamlit, "container", return_value=_Container())
             )
+            expander = stack.enter_context(
+                patch.object(streamlit, "expander", return_value=_Container())
+            )
             for method in ("subheader", "space"):
                 stack.enter_context(patch.object(streamlit, method))
             markdown = stack.enter_context(patch.object(streamlit, "markdown"))
             caption = stack.enter_context(patch.object(streamlit, "caption"))
             dataframe = stack.enter_context(patch.object(streamlit, "dataframe"))
+            stack.enter_context(patch.object(streamlit, "button", return_value=False))
+            stack.enter_context(patch.object(streamlit, "info"))
             validator = stack.enter_context(
                 patch.object(
                     page_split_coefficient_calculation,
                     "validate_split_selected_times",
                     wraps=page_split_coefficient_calculation.validate_split_selected_times,
+                )
+            )
+            analyzer = stack.enter_context(
+                patch.object(
+                    page_split_coefficient_calculation,
+                    "analyze_split_statistical_candidates",
+                    wraps=page_split_coefficient_calculation.analyze_split_statistical_candidates,
                 )
             )
 
@@ -348,6 +360,7 @@ class SplitTabRoutingTests(unittest.TestCase):
             )
 
         validator.assert_called_once()
+        analyzer.assert_not_called()
         self.assertEqual(dataframe.call_count, 6)
         group_rows = dataframe.call_args_list[0].args[0].to_dict("records")
         self.assertEqual(
@@ -433,7 +446,416 @@ class SplitTabRoutingTests(unittest.TestCase):
             ),
             2,
         )
+        self.assertEqual(
+            [call.args[0] for call in expander.call_args_list],
+            ["split_graph_high_section_title", "split_graph_low_section_title"],
+        )
+        self.assertTrue(
+            all(
+                call.kwargs == {
+                    "expanded": False,
+                    "icon": ":material/table_rows:",
+                }
+                for call in expander.call_args_list
+            )
+        )
         self.assertEqual(state, original)
+
+    def test_statistical_candidate_analysis_is_explicit_and_cached_per_parse(self):
+        state = _SessionState(
+            active_test_id="active",
+            split_input_version=3,
+            split_processed_at="2026-09-04T12:00:00+00:00",
+        )
+        parsed = {"high": [{"run_id": 1}], "low": []}
+        analysis = {"candidate_groups": ()}
+        streamlit = page_split_coefficient_calculation.st
+
+        with ExitStack() as stack:
+            stack.enter_context(patch.object(streamlit, "session_state", state))
+            for method in ("subheader", "space", "caption"):
+                stack.enter_context(patch.object(streamlit, method))
+            button = stack.enter_context(
+                patch.object(
+                    streamlit,
+                    "button",
+                    side_effect=(False, True, False, False),
+                )
+            )
+            spinner = stack.enter_context(
+                patch.object(streamlit, "spinner", return_value=_Container())
+            )
+            info = stack.enter_context(patch.object(streamlit, "info"))
+            success = stack.enter_context(patch.object(streamlit, "success"))
+            analyzer = stack.enter_context(
+                patch.object(
+                    page_split_coefficient_calculation,
+                    "analyze_split_statistical_candidates",
+                    return_value=analysis,
+                )
+            )
+            candidate_groups = stack.enter_context(
+                patch.object(
+                    page_split_coefficient_calculation,
+                    "_render_statistical_candidate_groups",
+                )
+            )
+            compatibility = stack.enter_context(
+                patch.object(
+                    page_split_coefficient_calculation,
+                    "_render_statistical_direction_compatibility",
+                )
+            )
+
+            for _ in range(3):
+                page_split_coefficient_calculation._render_statistical_candidate_analysis(
+                    parsed,
+                    _translate,
+                    {},
+                )
+            state["split_input_version"] += 1
+            page_split_coefficient_calculation._render_statistical_candidate_analysis(
+                parsed,
+                _translate,
+                {},
+            )
+
+        self.assertEqual(button.call_count, 4)
+        self.assertEqual(info.call_count, 2)
+        info.assert_called_with(
+            "split_statistical_grouping_idle",
+            icon=":material/info:",
+        )
+        spinner.assert_called_once_with(
+            "split_statistical_grouping_running",
+            show_time=True,
+        )
+        analyzer.assert_called_once_with(parsed)
+        self.assertEqual(success.call_count, 2)
+        self.assertEqual(candidate_groups.call_count, 2)
+        self.assertEqual(compatibility.call_count, 2)
+        self.assertIs(
+            state["split_statistical_candidate_analysis_cache"]["analysis"],
+            analysis,
+        )
+
+    def test_statistical_candidates_are_read_only_ranked_and_collapsible(self):
+        def candidate(candidate_id, population, *, conforming, cohesion):
+            return {
+                "id": candidate_id,
+                "population": population,
+                "run_ids": (1, 2, 3, 4, 5),
+                "runs": tuple(
+                    {"source_index": index} for index in range(5)
+                ),
+                "size": 5,
+                "mean_delta_t_s": 20.0,
+                "sample_stdev_s": 0.2,
+                "cv_pct": 1.0 if conforming else 3.0,
+                "cv_conforming": conforming,
+                "cv_limit_pct": 2.5,
+                "cohesion_distance": cohesion,
+            }
+
+        def record(run_id, interval, direction):
+            labels = (
+                ["90-85", "85-80"]
+                if interval == "high"
+                else ["45-40", "40-35"]
+            )
+            times = [run_id / 10, run_id / 10 + 0.1]
+            return {
+                "run_id": run_id,
+                "heading": direction,
+                "subintervals": labels,
+                "subinterval_times_s": times,
+                "delta_t_s": sum(times),
+            }
+
+        parsed = {
+            interval: [
+                *(
+                    record(run_id, interval, "+")
+                    for run_id in range(start, start + 5)
+                ),
+                *(
+                    record(run_id, interval, "-")
+                    for run_id in range(start + 5, start + 10)
+                ),
+            ]
+            for interval, start in (("high", 1), ("low", 11))
+        }
+
+        high_plus_secondary = candidate(
+            "high_plus_1", "high_plus", conforming=False, cohesion=0.1
+        )
+        high_plus_primary = candidate(
+            "high_plus_2", "high_plus", conforming=True, cohesion=0.8
+        )
+        populations = {
+            "high_plus": {
+                "candidate_groups": (
+                    high_plus_secondary,
+                    high_plus_primary,
+                )
+            },
+            **{
+                component: {
+                    "candidate_groups": (
+                        candidate(
+                            f"{component}_1",
+                            component,
+                            conforming=True,
+                            cohesion=0.4,
+                        ),
+                    )
+                }
+                for component in ("high_minus", "low_plus", "low_minus")
+            },
+        }
+
+        def combination(interval, rank, *, opposite_conforming):
+            plus_candidate_id = (
+                "high_plus_2"
+                if interval == "high" and rank == 1
+                else f"{interval}_plus_1"
+            )
+            return {
+                "rank": rank,
+                "plus_candidate_id": plus_candidate_id,
+                "plus_run_ids": (1, 2, 3, 4, 5),
+                "plus_size": 5,
+                "plus_mean_delta_t_s": 20.0,
+                "plus_cv_pct": 1.0,
+                "plus_cv_conforming": True,
+                "minus_candidate_id": f"{interval}_minus_1",
+                "minus_run_ids": (6, 7, 8, 9, 10),
+                "minus_size": 5,
+                "minus_mean_delta_t_s": 22.4,
+                "minus_cv_pct": 1.2,
+                "minus_cv_conforming": True,
+                "both_directional_cvs_conforming": True,
+                "opposite_difference_pct": 12.0 if not opposite_conforming else 8.0,
+                "opposite_conforming": opposite_conforming,
+                "opposite_limit_pct": 10.0,
+                "usable_run_count": 10,
+                "cohesion_distance": 0.8,
+            }
+
+        analysis = {
+            "minimum_group_size": 5,
+            "populations": populations,
+            "opposite_direction_combinations": {
+                "high": (
+                    combination("high", 1, opposite_conforming=False),
+                    combination("high", 2, opposite_conforming=False),
+                ),
+                "low": (combination("low", 1, opposite_conforming=True),),
+            },
+        }
+        original = deepcopy(analysis)
+        t = get_translator("en")
+        streamlit = page_split_coefficient_calculation.st
+        table_options = {
+            "width": "stretch",
+            "height": "content",
+            "hide_index": True,
+            "row_height": 32,
+            "placeholder": "—",
+        }
+
+        with ExitStack() as stack:
+            container = stack.enter_context(
+                patch.object(streamlit, "container", return_value=_Container())
+            )
+            expander = stack.enter_context(
+                patch.object(streamlit, "expander", return_value=_Container())
+            )
+            for method in ("subheader", "space"):
+                stack.enter_context(patch.object(streamlit, method))
+            metric = stack.enter_context(patch.object(streamlit, "metric"))
+            markdown = stack.enter_context(patch.object(streamlit, "markdown"))
+            stack.enter_context(patch.object(streamlit, "caption"))
+            badge = stack.enter_context(patch.object(streamlit, "badge"))
+            dataframe = stack.enter_context(patch.object(streamlit, "dataframe"))
+            warning = stack.enter_context(patch.object(streamlit, "warning"))
+            controls = [
+                stack.enter_context(patch.object(streamlit, method))
+                for method in ("button", "checkbox", "selectbox")
+            ]
+
+            candidate_labels = page_split_coefficient_calculation._render_statistical_candidate_groups(
+                analysis,
+                parsed,
+                t,
+                table_options,
+            )
+            page_split_coefficient_calculation._render_statistical_direction_compatibility(
+                analysis,
+                candidate_labels,
+                t,
+                table_options,
+            )
+
+        rendered_markdown = [call.args[0] for call in markdown.call_args_list]
+        self.assertIn(
+            "**Top-ranked candidate — Candidate 1**",
+            rendered_markdown,
+        )
+        self.assertIn("**Secondary candidates (1)**", rendered_markdown)
+        population_expanders = expander.call_args_list[:4]
+        self.assertEqual(
+            [call.args[0] for call in population_expanders],
+            ["High+", "High-", "Low+", "Low-"],
+        )
+        self.assertTrue(
+            all(
+                call.kwargs == {
+                    "expanded": False,
+                    "icon": ":material/groups:",
+                    "type": "default",
+                }
+                for call in population_expanders
+            )
+        )
+        self.assertNotIn(
+            "Secondary candidates (1)",
+            [call.args[0] for call in expander.call_args_list],
+        )
+        self.assertEqual(badge.call_count, 10)
+        run_count_badges = [
+            call
+            for call in badge.call_args_list
+            if call.args and call.args[0] == "5 runs"
+        ]
+        self.assertEqual(len(run_count_badges), 4)
+        self.assertTrue(
+            all(call.kwargs == {"color": "blue"} for call in run_count_badges)
+        )
+        directional_badges = [
+            call
+            for call in badge.call_args_list
+            if call.args and call.args[0].startswith("Directional CV")
+        ]
+        self.assertEqual(len(directional_badges), 4)
+        self.assertTrue(any(call.kwargs["color"] == "red" for call in badge.call_args_list))
+        self.assertTrue(
+            all(
+                call.args[0].startswith("Directional CV")
+                for call in directional_badges
+            )
+        )
+        candidate_metrics = metric.call_args_list[:12]
+        self.assertEqual(len(candidate_metrics), 12)
+        self.assertNotIn("n", [call.args[0] for call in candidate_metrics])
+        self.assertTrue(
+            all(call.kwargs["width"] == "stretch" for call in candidate_metrics)
+        )
+        centered_rows = [
+            call
+            for call in container.call_args_list
+            if call.kwargs.get("horizontal_alignment") == "center"
+        ]
+        self.assertEqual(len(centered_rows), 8)
+        self.assertTrue(
+            all(
+                call.kwargs.get("vertical_alignment") == "center"
+                for call in centered_rows
+            )
+        )
+        cohesion_metrics = [
+            call
+            for call in candidate_metrics
+            if call.args[0] == "Cohesion distance"
+        ]
+        self.assertTrue(
+            all(
+                call.kwargs["help"].startswith("Largest normalized distance")
+                for call in cohesion_metrics
+            )
+        )
+        self.assertEqual(
+            page_split_coefficient_calculation._normative_status_badge(
+                None,
+                _translate,
+            ),
+            {
+                "label": "split_results_status_not_evaluable",
+                "color": "gray",
+                "icon": ":material/help:",
+            },
+        )
+        self.assertEqual(
+            page_split_coefficient_calculation._candidate_cv_status(
+                high_plus_primary,
+                t,
+            )["label"],
+            "Directional CV conforming (1.00% ≤ 2.5%)",
+        )
+        priority_matrices = [
+            call.args[0]
+            for call in dataframe.call_args_list
+            if "total_delta_t_s" in call.args[0].columns
+            and "direction" not in call.args[0].columns
+        ]
+        self.assertEqual(len(priority_matrices), 4)
+        self.assertEqual(
+            list(priority_matrices[0].columns),
+            ["run", "90-85", "85-80", "total_delta_t_s"],
+        )
+        self.assertEqual(
+            priority_matrices[0]["run"].tolist(),
+            ["1", "2", "3", "4", "5"],
+        )
+        secondary_candidate_rows = next(
+            call.args[0].to_dict("records")
+            for call in dataframe.call_args_list
+            if "candidate" in call.args[0].columns
+            and "direction" not in call.args[0].columns
+            and "rank" not in call.args[0].columns
+        )
+        self.assertEqual(
+            [row["candidate"] for row in secondary_candidate_rows],
+            ["Candidate 2"],
+        )
+        self.assertEqual(
+            secondary_candidate_rows[0]["cv_status"],
+            "✕ Directional CV nonconforming (3.00% > 2.5%)",
+        )
+        secondary_candidate_table = next(
+            call
+            for call in dataframe.call_args_list
+            if "candidate" in call.args[0].columns
+            and "direction" not in call.args[0].columns
+            and "rank" not in call.args[0].columns
+        )
+        self.assertEqual(secondary_candidate_table.kwargs["width"], "stretch")
+        self.assertEqual(secondary_candidate_table.kwargs["height"], "content")
+        secondary_combination_rows = next(
+            call.args[0].to_dict("records")
+            for call in dataframe.call_args_list
+            if "rank" in call.args[0].columns
+        )
+        self.assertEqual(secondary_combination_rows[0]["rank"], 2)
+        rendered_values = " ".join(
+            [*rendered_markdown]
+            + [
+                str(value)
+                for call in dataframe.call_args_list
+                for value in call.args[0].astype(str).to_numpy().flat
+            ]
+        )
+        self.assertNotIn("high_plus_", rendered_values)
+        self.assertNotIn("high_minus_", rendered_values)
+        self.assertNotIn("low_plus_", rendered_values)
+        self.assertNotIn("low_minus_", rendered_values)
+        warning.assert_called_once_with(
+            "Both directional CVs conform, but opposite-direction compatibility "
+            "exceeds the 10% limit.",
+            icon=":material/warning:",
+        )
+        self.assertTrue(all(control.call_count == 0 for control in controls))
+        self.assertEqual(analysis, original)
 
     def test_interval_matrix_heatmap_is_robust_and_population_local(self):
         frame = pd.DataFrame(
@@ -507,6 +929,69 @@ class SplitTabRoutingTests(unittest.TestCase):
                 caption,
             )
             self.assertIn("normativ", caption.lower())
+
+    def test_statistical_candidate_translations_cover_read_only_statuses(self):
+        keys = (
+            "split_statistical_time_overview",
+            "split_statistical_candidate_groups_title",
+            "split_statistical_candidate_groups_caption",
+            "split_statistical_run_grouping",
+            "split_statistical_grouping_idle",
+            "split_statistical_grouping_running",
+            "split_statistical_grouping_completed",
+            "split_statistical_no_candidate_groups",
+            "split_statistical_primary_candidate",
+            "split_statistical_candidate_number",
+            "split_statistical_run_count",
+            "split_statistical_cv_conforming",
+            "split_statistical_cv_nonconforming",
+            "split_statistical_cv_not_evaluable",
+            "split_statistical_cv_status",
+            "split_statistical_primary_run_details",
+            "split_statistical_candidate_runs",
+            "split_statistical_secondary_candidates",
+            "split_statistical_candidate_id",
+            "split_statistical_runs",
+            "split_statistical_cohesion",
+            "split_statistical_cohesion_help",
+            "split_statistical_compatibility_title",
+            "split_statistical_compatibility_caption",
+            "split_statistical_no_compatibility",
+            "split_statistical_secondary_combinations",
+            "split_statistical_directional_pass_opposite_fail",
+            "split_statistical_rank",
+            "split_statistical_plus_candidate",
+            "split_statistical_minus_candidate",
+            "split_statistical_plus_runs",
+            "split_statistical_minus_runs",
+            "split_statistical_plus_status",
+            "split_statistical_minus_status",
+            "split_statistical_usable_runs",
+        )
+        for language in ("pt", "en"):
+            t = get_translator(language)
+            self.assertTrue(all(t(key) != key for key in keys))
+            self.assertIn(
+                "faixa e direção" if language == "pt" else "speed range and direction",
+                t("split_statistical_time_overview"),
+            )
+            self.assertIn(
+                "somente leitura" if language == "pt" else "Read-only",
+                t("split_statistical_candidate_groups_caption"),
+            )
+            self.assertEqual(
+                t("split_statistical_candidate_groups_title"),
+                "Candidatos prioritários"
+                if language == "pt"
+                else "Priority candidates",
+            )
+            self.assertIn(
+                "10%",
+                t(
+                    "split_statistical_directional_pass_opposite_fail",
+                    limit=10.0,
+                ),
+            )
 
     def test_each_parser_review_tab_renders_only_its_table(self):
         config = {

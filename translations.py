@@ -924,8 +924,8 @@ TRANSLATIONS = {
         "en": "Statistical Analysis"
     },
     "split_statistical_time_overview": {
-        "pt": "Variação dos tempos por direção",
-        "en": "Time variation by direction"
+        "pt": "Consistência e variação dos tempos por faixa e direção",
+        "en": "Time consistency and variation by speed range and direction"
     },
     "split_statistical_time_criteria": {
         "pt": (
@@ -1000,6 +1000,168 @@ TRANSLATIONS = {
     "split_statistical_subinterval": {
         "pt": "Subintervalo",
         "en": "Subinterval"
+    },
+    "split_statistical_candidate_groups_title": {
+        "pt": "Candidatos prioritários",
+        "en": "Priority candidates"
+    },
+    "split_statistical_candidate_groups_caption": {
+        "pt": (
+            "Diagnóstico exploratório somente leitura. Os agrupamentos são "
+            "ordenados pelos critérios existentes; nenhuma passada é selecionada."
+        ),
+        "en": (
+            "Read-only exploratory diagnostic. Groups follow the existing "
+            "ranking criteria; no run is selected."
+        )
+    },
+    "split_statistical_run_grouping": {
+        "pt": "Executar análise de agrupamentos",
+        "en": "Run grouping analysis"
+    },
+    "split_statistical_grouping_idle": {
+        "pt": (
+            "A análise ainda não foi executada para os dados processados atuais."
+        ),
+        "en": "The analysis has not been run for the current processed data."
+    },
+    "split_statistical_grouping_running": {
+        "pt": "Analisando agrupamentos e compatibilidade entre direções...",
+        "en": "Analyzing groups and opposite-direction compatibility..."
+    },
+    "split_statistical_grouping_completed": {
+        "pt": "Análise concluída para os dados processados atuais.",
+        "en": "Analysis completed for the current processed data."
+    },
+    "split_statistical_no_candidate_groups": {
+        "pt": "Nenhum agrupamento com pelo menos {minimum} passadas.",
+        "en": "No group contains at least {minimum} runs."
+    },
+    "split_statistical_primary_candidate": {
+        "pt": "Candidato prioritário",
+        "en": "Top-ranked candidate"
+    },
+    "split_statistical_candidate_number": {
+        "pt": "Candidato {number}",
+        "en": "Candidate {number}"
+    },
+    "split_statistical_run_count": {
+        "pt": "{count} passadas",
+        "en": "{count} runs"
+    },
+    "split_statistical_cv_conforming": {
+        "pt": "CV direcional conforme ({cv}% ≤ {limit}%)",
+        "en": "Directional CV conforming ({cv}% ≤ {limit}%)"
+    },
+    "split_statistical_cv_nonconforming": {
+        "pt": "CV direcional não conforme ({cv}% > {limit}%)",
+        "en": "Directional CV nonconforming ({cv}% > {limit}%)"
+    },
+    "split_statistical_cv_not_evaluable": {
+        "pt": "CV direcional não avaliável",
+        "en": "Directional CV not evaluable"
+    },
+    "split_statistical_cv_status": {
+        "pt": "CV direcional / status",
+        "en": "Directional CV / status"
+    },
+    "split_statistical_primary_run_details": {
+        "pt": "Tempos das passadas do candidato prioritário",
+        "en": "Top-ranked candidate run times"
+    },
+    "split_statistical_candidate_runs": {
+        "pt": "Passadas do candidato: {runs}",
+        "en": "Candidate runs: {runs}"
+    },
+    "split_statistical_secondary_candidates": {
+        "pt": "Candidatos secundários ({count})",
+        "en": "Secondary candidates ({count})"
+    },
+    "split_statistical_candidate_id": {
+        "pt": "Candidato",
+        "en": "Candidate"
+    },
+    "split_statistical_runs": {
+        "pt": "Passadas",
+        "en": "Runs"
+    },
+    "split_statistical_cohesion": {
+        "pt": "Distância de coesão",
+        "en": "Cohesion distance"
+    },
+    "split_statistical_cohesion_help": {
+        "pt": (
+            "Maior distância normalizada entre duas passadas do agrupamento. "
+            "Valores menores indicam maior semelhança; uso apenas diagnóstico."
+        ),
+        "en": (
+            "Largest normalized distance between two runs in the group. Lower "
+            "values indicate greater similarity; diagnostic use only."
+        )
+    },
+    "split_statistical_compatibility_title": {
+        "pt": "Compatibilidade entre agrupamentos opostos",
+        "en": "Compatibility between opposite-direction groups"
+    },
+    "split_statistical_compatibility_caption": {
+        "pt": (
+            "Combinações High+/High- e Low+/Low- na ordem diagnóstica "
+            "calculada. Nenhum par Split é formado."
+        ),
+        "en": (
+            "High+/High- and Low+/Low- combinations in the calculated "
+            "diagnostic order. No Split pair is formed."
+        )
+    },
+    "split_statistical_no_compatibility": {
+        "pt": "Nenhuma combinação candidata disponível.",
+        "en": "No candidate combination is available."
+    },
+    "split_statistical_secondary_combinations": {
+        "pt": "Combinações secundárias ({count})",
+        "en": "Secondary combinations ({count})"
+    },
+    "split_statistical_directional_pass_opposite_fail": {
+        "pt": (
+            "Os C.V.s direcionais são conformes, mas a compatibilidade entre "
+            "sentidos excede o limite de {limit:g}%."
+        ),
+        "en": (
+            "Both directional CVs conform, but opposite-direction compatibility "
+            "exceeds the {limit:g}% limit."
+        )
+    },
+    "split_statistical_rank": {
+        "pt": "Posição",
+        "en": "Rank"
+    },
+    "split_statistical_plus_candidate": {
+        "pt": "Candidato +",
+        "en": "+ candidate"
+    },
+    "split_statistical_minus_candidate": {
+        "pt": "Candidato -",
+        "en": "- candidate"
+    },
+    "split_statistical_plus_runs": {
+        "pt": "Passadas +",
+        "en": "+ runs"
+    },
+    "split_statistical_minus_runs": {
+        "pt": "Passadas -",
+        "en": "- runs"
+    },
+    "split_statistical_plus_status": {
+        "pt": "Status C.V. +",
+        "en": "+ CV status"
+    },
+    "split_statistical_minus_status": {
+        "pt": "Status C.V. -",
+        "en": "- CV status"
+    },
+    "split_statistical_usable_runs": {
+        "pt": "Passadas utilizáveis",
+        "en": "Usable runs"
     },
     "split_graph_available_runs": {
         "pt": "Passadas disponíveis",

@@ -3521,3 +3521,116 @@ uma heuristica exploratoria se transforme acidentalmente em selecao, exclusao
 ou regra normativa.
 
 ---
+
+## 2026-09-04 - Agrupamento Estatistico Nao E Selecao De Pares
+
+### Decisao:
+
+O backend estatistico constroi vetores somente dos tempos canonicos por
+subintervalo e normaliza cada coluna dentro de High+, High-, Low+ e Low-
+separadamente. O agrupamento usa ligacao completa deterministica e distancia
+euclidiana dividida pela raiz quadrada da quantidade de features. O dendrograma
+completo e percorrido por niveis de distancia distintos; cada conjunto unico
+com pelo menos cinco runs aparece uma vez, sem limiar fixo de descoberta.
+Nenhum par e montado, ranqueado ou gravado. O CV de cada grupo continua delegado
+a `validate_split_selected_times`.
+
+NumPy, ja declarado pelo projeto, e suficiente para as matrizes e distancias.
+SciPy esta presente apenas no ambiente atual e nao foi transformado em nova
+dependencia para um volume de runs pequeno.
+
+### Licao:
+
+Clustering exploratorio deve produzir uma projecao rastreavel e sem efeitos
+colaterais antes de tocar selecao ou UI. Z-score por coluna nao elimina o efeito
+da dimensionalidade na distancia euclidiana; normalize tambem a distancia antes
+de comparar faixas com quantidades diferentes de subintervalos. Percorrer a
+hierarquia uma vez evita que limiares arbitrarios decidam quais candidatos
+existem, e deduplicar por membros remove repeticoes entre niveis. Repetir o CV
+normativo ainda criaria duas fontes de verdade.
+
+---
+
+## 2026-09-04 - Compatibilidade Direcional Continua Sendo Diagnostico
+
+### Decisao:
+
+Os candidatos High+ sao combinados somente com High-, e Low+ somente com Low-.
+Cada produto cartesiano permanece uma projecao sem estado e encaminha seus runs
+ao `validate_split_selected_times`, que continua dono dos CVs, da diferenca
+percentual entre medias e do limite de 10%. Nenhuma combinacao cria pares Split
+ou alimenta a selecao automatica.
+
+O ranking deterministico prioriza conformidade entre sentidos, conformidade dos
+dois CVs, menor diferenca, maior soma de runs utilizaveis e menor pior coesao
+direcional. A soma das coesoes e os IDs resolvem apenas empates finais.
+
+### Licao:
+
+Compatibilidade estatistica entre populacoes nao equivale a selecionar passadas
+nem pares. Preserve todas as alternativas diagnosticas, inclusive reprovadas,
+e ordene-as sem substituir a regra normativa por uma pontuacao heuristica.
+
+---
+
+## 2026-09-04 - A Interface De Candidatos Deve Ser Uma Projecao
+
+### Decisao:
+
+A sub-aba Analise Estatistica mantem o agrupamento atras de uma acao explicita e
+projeta os resultados abaixo das matrizes somente depois dessa solicitacao. Cada
+populacao destaca primeiro um candidato conforme pelo C.V., quando existente, e
+recolhe os demais em tabela. High e Low preservam a ordem de compatibilidade
+entregue pelo backend, destacam a primeira combinacao e explicitam quando os dois
+C.V.s passam, mas a diferenca entre sentidos excede 10%. A pagina nao recalcula
+estatisticas nem cria controles de selecao; guarda apenas o resultado derivado
+associado ao teste ativo e a versao processada do parser.
+
+### Licao:
+
+Resultados hierarquicos de diagnostico podem ser densos sem virar um novo fluxo
+de selecao: mostre a alternativa prioritaria com status textual e mantenha as
+demais sob divulgacao progressiva. Calculo caro ou opcional nao deve ficar solto
+no corpo de uma aba Streamlit: um botao explicito, feedback imediato e cache de
+sessao com assinatura da entrada evitam trabalho em reruns alheios sem esconder
+quando o resultado ficou obsoleto. A ordem normativa e os metadados devem chegar
+prontos do core; a pagina apenas formata e organiza a leitura.
+
+---
+
+## 2026-09-04 - IDs De Agrupamento Nao Sao Rotulos De Interface
+
+### Decisao:
+
+Os IDs hierarquicos permanecem internos para associacao e desempate. A interface
+atribui Candidato 1, 2, ... na ordem ja apresentada em cada populacao e usa esse
+mesmo mapa nas comparacoes entre sentidos. A matriz do candidato prioritario e
+uma projecao dos registros canonicos identificados pelo `source_index` retornado
+pelo backend, reutilizando os subintervalos dinamicos sem reparsing ou recalculo.
+
+### Licao:
+
+Status de CV direcional deve nomear a regra, o valor e o limite para nao parecer
+uma aprovacao normativa global. Coesao e apenas diagnostica e precisa ser
+explicada como distancia, enquanto identificadores tecnicos nunca devem vazar
+para cartoes ou tabelas voltados ao usuario.
+
+---
+
+## 2026-09-04 - Uma Camada De Divulgacao Evita Rolagem Aninhada
+
+### Decisao:
+
+Cada populacao estatistica usa um unico `st.expander` nativo, fechado por
+padrao. Os candidatos secundarios ficam na mesma camada quando a populacao e
+aberta, em dataframe de altura pelo conteudo e largura total, preservando a
+rolagem horizontal nativa sem empilhar expanders ou superficies de rolagem.
+
+### Licao:
+
+Em resultados densos, recolher o bloco de dominio ja fornece divulgacao
+progressiva. Aninhar outro expander para uma tabela cria hierarquia e interacao
+desnecessarias; uma unica fronteira recolhivel e colunas com larguras explicitas
+mantem a leitura previsivel.
+
+---

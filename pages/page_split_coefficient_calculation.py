@@ -22,6 +22,7 @@ from core.split_corrections import (
     weather_sync_ambient_conditions,
 )
 from core.split_display import format_run_option_label, format_split_pair_label
+from core.split_statistical_analysis import analyze_split_statistical_candidates
 from core.split_time_validation import (
     TIME_COMPONENTS,
     coefficient_of_variation_percent,
@@ -1390,6 +1391,33 @@ def _parsed_interval_matrix(records: list[dict]):
     return labels, rows, statistics_rows
 
 
+def _interval_matrix_columns(labels, t, *, include_direction: bool) -> dict:
+    """Build the shared dynamic column presentation for parsed run matrices."""
+    columns = {
+        "run": st.column_config.TextColumn(
+            t("split_run"), width="small", pinned=True
+        )
+    }
+    if include_direction:
+        columns["direction"] = st.column_config.TextColumn(
+            t("split_direction"), width="small"
+        )
+    columns.update(
+        {
+            label: st.column_config.NumberColumn(
+                f"{label} [s]", format="%.3f", width="small"
+            )
+            for label in labels
+        }
+    )
+    columns["total_delta_t_s"] = st.column_config.NumberColumn(
+        t("split_statistical_total_time"),
+        format="%.3f",
+        width="small",
+    )
+    return columns
+
+
 def _interval_matrix_dispersion_styles(frame, labels):
     """Highlight robust relative dispersion within each direction and bin."""
     styles = pd.DataFrame("", index=frame.index, columns=frame.columns)
@@ -1423,6 +1451,505 @@ def _normative_status_label(passed, t) -> str:
     if passed is False:
         return f"✕ {t('split_results_status_nonconforming')}"
     return f"— {t('split_results_status_not_evaluable')}"
+
+
+def _normative_status_badge(passed, t) -> dict:
+    """Return one accessible badge treatment for each normative status."""
+    if passed is True:
+        return {
+            "label": t("split_results_status_conforming"),
+            "color": "green",
+            "icon": ":material/check_circle:",
+        }
+    if passed is False:
+        return {
+            "label": t("split_results_status_nonconforming"),
+            "color": "red",
+            "icon": ":material/cancel:",
+        }
+    return {
+        "label": t("split_results_status_not_evaluable"),
+        "color": "gray",
+        "icon": ":material/help:",
+    }
+
+
+def _candidate_cv_status(candidate: dict, t) -> dict:
+    """Describe directional CV without implying overall conformity."""
+    passed = candidate["cv_conforming"]
+    if passed is None:
+        return {
+            "label": t("split_statistical_cv_not_evaluable"),
+            "table_label": f"— {t('split_statistical_cv_not_evaluable')}",
+            "color": "gray",
+            "icon": ":material/help:",
+        }
+
+    values = {
+        "cv": f"{candidate['cv_pct']:.2f}",
+        "limit": f"{candidate['cv_limit_pct']:g}",
+    }
+    key = (
+        "split_statistical_cv_conforming"
+        if passed
+        else "split_statistical_cv_nonconforming"
+    )
+    label = t(key, **values)
+    symbol = "✓" if passed else "✕"
+    return {
+        "label": label,
+        "table_label": f"{symbol} {label}",
+        "color": "green" if passed else "red",
+        "icon": ":material/check_circle:" if passed else ":material/cancel:",
+    }
+
+
+def _render_statistical_candidate_groups(
+    analysis: dict,
+    parsed: dict,
+    t,
+    table_options,
+) -> dict:
+    """Render candidate populations without adding selection state."""
+    labels = {
+        "high_plus": "High+",
+        "high_minus": "High-",
+        "low_plus": "Low+",
+        "low_minus": "Low-",
+    }
+    grouped_records = group_split_records_by_direction(
+        parsed.get("high") or [],
+        parsed.get("low") or [],
+    )
+    candidate_labels = {}
+    minimum_size = analysis["minimum_group_size"]
+    for component in TIME_COMPONENTS:
+        candidates = sorted(
+            analysis["populations"][component]["candidate_groups"],
+            key=lambda candidate: (
+                candidate["cv_conforming"] is not True,
+                candidate["cohesion_distance"],
+                -candidate["size"],
+                candidate["id"],
+            ),
+        )
+        public_labels = {
+            candidate["id"]: t(
+                "split_statistical_candidate_number",
+                number=index,
+            )
+            for index, candidate in enumerate(candidates, start=1)
+        }
+        candidate_labels[component] = public_labels
+        with st.expander(
+            labels[component],
+            expanded=False,
+            icon=":material/groups:",
+            type="default",
+        ):
+            if not candidates:
+                st.caption(
+                    t(
+                        "split_statistical_no_candidate_groups",
+                        minimum=minimum_size,
+                    )
+                )
+                continue
+
+            primary = candidates[0]
+            st.markdown(
+                f"**{t('split_statistical_primary_candidate')} — "
+                f"{public_labels[primary['id']]}**"
+            )
+            cv_status = _candidate_cv_status(primary, t)
+            with st.container(
+                horizontal=True,
+                horizontal_alignment="center",
+                vertical_alignment="center",
+                gap="small",
+            ):
+                st.badge(
+                    t("split_statistical_run_count", count=primary["size"]),
+                    color="blue",
+                )
+                st.badge(
+                    cv_status["label"],
+                    color=cv_status["color"],
+                    icon=cv_status["icon"],
+                )
+            with st.container(
+                horizontal=True,
+                horizontal_alignment="center",
+                vertical_alignment="center",
+                gap="small",
+            ):
+                st.metric(
+                    t("split_deviation_mean_time"),
+                    f"{primary['mean_delta_t_s']:.3f} s",
+                    width="stretch",
+                )
+                st.metric(
+                    "C.V. Δt [%]",
+                    f"{primary['cv_pct']:.2f}%",
+                    width="stretch",
+                )
+                st.metric(
+                    t("split_statistical_cohesion"),
+                    f"{primary['cohesion_distance']:.3f}",
+                    help=t("split_statistical_cohesion_help"),
+                    width="stretch",
+                )
+
+            member_records = [
+                grouped_records[component][run["source_index"]]
+                for run in primary["runs"]
+            ]
+            interval_labels, run_rows, _ = _parsed_interval_matrix(member_records)
+            visible_columns = ["run", *interval_labels, "total_delta_t_s"]
+            st.markdown(
+                f":material/table_rows: "
+                f"**{t('split_statistical_primary_run_details')}**"
+            )
+            st.dataframe(
+                pd.DataFrame(run_rows)[visible_columns],
+                column_config=_interval_matrix_columns(
+                    interval_labels,
+                    t,
+                    include_direction=False,
+                ),
+                **table_options,
+            )
+
+            secondary = candidates[1:]
+            if secondary:
+                secondary_title = t(
+                    "split_statistical_secondary_candidates",
+                    count=len(secondary),
+                )
+                st.markdown(f"**{secondary_title}**")
+                rows = [
+                    {
+                        "candidate": public_labels[candidate["id"]],
+                        "runs": ", ".join(map(str, candidate["run_ids"])),
+                        "size": candidate["size"],
+                        "mean_s": candidate["mean_delta_t_s"],
+                        "cv_status": _candidate_cv_status(candidate, t)[
+                            "table_label"
+                        ],
+                        "cohesion": candidate["cohesion_distance"],
+                    }
+                    for candidate in secondary
+                ]
+                st.dataframe(
+                    pd.DataFrame(rows),
+                    column_config={
+                        "candidate": st.column_config.TextColumn(
+                            t("split_statistical_candidate_id"),
+                            width="medium",
+                            pinned=True,
+                        ),
+                        "runs": st.column_config.TextColumn(
+                            t("split_statistical_runs"), width="large"
+                        ),
+                        "size": st.column_config.NumberColumn(
+                            "n", format="%d", width="small"
+                        ),
+                        "mean_s": st.column_config.NumberColumn(
+                            t("split_deviation_mean_time"),
+                            format="%.3f",
+                            width="small",
+                        ),
+                        "cv_status": st.column_config.TextColumn(
+                            t("split_statistical_cv_status"), width="large"
+                        ),
+                        "cohesion": st.column_config.NumberColumn(
+                            t("split_statistical_cohesion"),
+                            help=t("split_statistical_cohesion_help"),
+                            format="%.3f",
+                            width="small",
+                        ),
+                    },
+                    **table_options,
+                )
+    return candidate_labels
+
+
+def _render_statistical_direction_compatibility(
+    analysis: dict,
+    candidate_labels: dict,
+    t,
+    table_options,
+) -> None:
+    """Render ranked opposite-direction diagnostics without forming pairs."""
+    st.space("small")
+    st.subheader(
+        f":material/compare_arrows: "
+        f"{t('split_statistical_compatibility_title')}"
+    )
+    st.caption(t("split_statistical_compatibility_caption"))
+
+    for interval, label in (("high", "High"), ("low", "Low")):
+        combinations = analysis["opposite_direction_combinations"][interval]
+        with st.container(border=True):
+            st.markdown(f"**{label}**")
+            if not combinations:
+                st.caption(t("split_statistical_no_compatibility"))
+                continue
+
+            primary = combinations[0]
+            plus_label = candidate_labels[f"{interval}_plus"].get(
+                primary["plus_candidate_id"], "—"
+            )
+            minus_label = candidate_labels[f"{interval}_minus"].get(
+                primary["minus_candidate_id"], "—"
+            )
+            st.markdown(
+                f"**#{primary['rank']} · {plus_label} (+) × "
+                f"{minus_label} (-)**"
+            )
+            st.badge(**_normative_status_badge(primary["opposite_conforming"], t))
+            direction_rows = [
+                {
+                    "direction": direction,
+                    "candidate": candidate_labels[
+                        f"{interval}_{prefix}"
+                    ].get(primary[f"{prefix}_candidate_id"], "—"),
+                    "runs": ", ".join(
+                        map(str, primary[f"{prefix}_run_ids"])
+                    ),
+                    "size": primary[f"{prefix}_size"],
+                    "mean_s": primary[f"{prefix}_mean_delta_t_s"],
+                    "cv_pct": primary[f"{prefix}_cv_pct"],
+                    "status": _normative_status_label(
+                        primary[f"{prefix}_cv_conforming"], t
+                    ),
+                }
+                for direction, prefix in (("+", "plus"), ("-", "minus"))
+            ]
+            st.dataframe(
+                pd.DataFrame(direction_rows),
+                column_config={
+                    "direction": st.column_config.TextColumn(
+                        t("split_direction"), width="small", pinned=True
+                    ),
+                    "candidate": st.column_config.TextColumn(
+                        t("split_statistical_candidate_id")
+                    ),
+                    "runs": st.column_config.TextColumn(
+                        t("split_statistical_runs"), width="large"
+                    ),
+                    "size": st.column_config.NumberColumn("n", format="%d"),
+                    "mean_s": st.column_config.NumberColumn(
+                        t("split_deviation_mean_time"), format="%.3f"
+                    ),
+                    "cv_pct": st.column_config.NumberColumn(
+                        "C.V. Δt [%]", format="%.2f"
+                    ),
+                    "status": st.column_config.TextColumn(
+                        t("split_deviation_status"), width="medium"
+                    ),
+                },
+                **table_options,
+            )
+            with st.container(
+                horizontal=True,
+                horizontal_alignment="distribute",
+                gap="small",
+            ):
+                st.metric(
+                    t("split_deviation_difference_pct"),
+                    f"{primary['opposite_difference_pct']:.2f}%",
+                    border=True,
+                )
+                st.metric(
+                    t("split_deviation_limit"),
+                    f"{primary['opposite_limit_pct']:.2f}%",
+                    border=True,
+                )
+                st.metric(
+                    t("split_statistical_usable_runs"),
+                    str(primary["usable_run_count"]),
+                    border=True,
+                )
+                st.metric(
+                    t("split_statistical_cohesion"),
+                    f"{primary['cohesion_distance']:.3f}",
+                    help=t("split_statistical_cohesion_help"),
+                    border=True,
+                )
+            if (
+                primary["both_directional_cvs_conforming"]
+                and primary["opposite_conforming"] is False
+            ):
+                st.warning(
+                    t(
+                        "split_statistical_directional_pass_opposite_fail",
+                        limit=primary["opposite_limit_pct"],
+                    ),
+                    icon=":material/warning:",
+                )
+
+            secondary = combinations[1:]
+            if secondary:
+                with st.expander(
+                    t(
+                        "split_statistical_secondary_combinations",
+                        count=len(secondary),
+                    ),
+                    expanded=False,
+                    icon=":material/unfold_more:",
+                ):
+                    rows = [
+                        {
+                            "rank": combination["rank"],
+                            "plus_candidate": candidate_labels[
+                                f"{interval}_plus"
+                            ].get(combination["plus_candidate_id"], "—"),
+                            "plus_runs": ", ".join(
+                                map(str, combination["plus_run_ids"])
+                            ),
+                            "plus_mean_s": combination["plus_mean_delta_t_s"],
+                            "plus_cv_pct": combination["plus_cv_pct"],
+                            "plus_status": _normative_status_label(
+                                combination["plus_cv_conforming"], t
+                            ),
+                            "minus_candidate": candidate_labels[
+                                f"{interval}_minus"
+                            ].get(combination["minus_candidate_id"], "—"),
+                            "minus_runs": ", ".join(
+                                map(str, combination["minus_run_ids"])
+                            ),
+                            "minus_mean_s": combination["minus_mean_delta_t_s"],
+                            "minus_cv_pct": combination["minus_cv_pct"],
+                            "minus_status": _normative_status_label(
+                                combination["minus_cv_conforming"], t
+                            ),
+                            "difference_pct": combination[
+                                "opposite_difference_pct"
+                            ],
+                            "limit_pct": combination["opposite_limit_pct"],
+                            "status": _normative_status_label(
+                                combination["opposite_conforming"], t
+                            ),
+                            "usable_runs": combination["usable_run_count"],
+                            "cohesion": combination["cohesion_distance"],
+                        }
+                        for combination in secondary
+                    ]
+                    st.dataframe(
+                        pd.DataFrame(rows),
+                        column_config={
+                            "rank": st.column_config.NumberColumn(
+                                t("split_statistical_rank"), format="#%d", pinned=True
+                            ),
+                            "plus_candidate": st.column_config.TextColumn(
+                                t("split_statistical_plus_candidate")
+                            ),
+                            "plus_runs": st.column_config.TextColumn(
+                                t("split_statistical_plus_runs"), width="large"
+                            ),
+                            "plus_mean_s": st.column_config.NumberColumn(
+                                t("split_deviation_mean_plus"), format="%.3f"
+                            ),
+                            "plus_cv_pct": st.column_config.NumberColumn(
+                                "C.V. [+] [%]", format="%.2f"
+                            ),
+                            "plus_status": st.column_config.TextColumn(
+                                t("split_statistical_plus_status")
+                            ),
+                            "minus_candidate": st.column_config.TextColumn(
+                                t("split_statistical_minus_candidate")
+                            ),
+                            "minus_runs": st.column_config.TextColumn(
+                                t("split_statistical_minus_runs"), width="large"
+                            ),
+                            "minus_mean_s": st.column_config.NumberColumn(
+                                t("split_deviation_mean_minus"), format="%.3f"
+                            ),
+                            "minus_cv_pct": st.column_config.NumberColumn(
+                                "C.V. [-] [%]", format="%.2f"
+                            ),
+                            "minus_status": st.column_config.TextColumn(
+                                t("split_statistical_minus_status")
+                            ),
+                            "difference_pct": st.column_config.NumberColumn(
+                                t("split_deviation_difference_pct"), format="%.2f"
+                            ),
+                            "limit_pct": st.column_config.NumberColumn(
+                                t("split_deviation_limit"), format="%.2f"
+                            ),
+                            "status": st.column_config.TextColumn(
+                                t("split_deviation_status"), width="medium"
+                            ),
+                            "usable_runs": st.column_config.NumberColumn(
+                                t("split_statistical_usable_runs"), format="%d"
+                            ),
+                            "cohesion": st.column_config.NumberColumn(
+                                t("split_statistical_cohesion"),
+                                help=t("split_statistical_cohesion_help"),
+                                format="%.3f",
+                            ),
+                        },
+                        **table_options,
+                    )
+
+
+def _render_statistical_candidate_analysis(parsed: dict, t, table_options) -> None:
+    """Run candidate grouping explicitly and retain its current parsed result."""
+    st.space("small")
+    st.subheader(
+        f":material/account_tree: {t('split_statistical_candidate_groups_title')}"
+    )
+    st.caption(t("split_statistical_candidate_groups_caption"))
+
+    signature = (
+        st.session_state.get("active_test_id"),
+        st.session_state.get("split_input_version"),
+        st.session_state.get("split_processed_at"),
+    )
+    cache_key = "split_statistical_candidate_analysis_cache"
+    cache = st.session_state.get(cache_key)
+    analysis = (
+        cache.get("analysis")
+        if isinstance(cache, dict) and cache.get("signature") == signature
+        else None
+    )
+    if st.button(
+        t("split_statistical_run_grouping"),
+        type="primary",
+        icon=":material/play_arrow:",
+        key="split_statistical_run_grouping",
+    ):
+        with st.spinner(t("split_statistical_grouping_running"), show_time=True):
+            analysis = analyze_split_statistical_candidates(parsed)
+        st.session_state[cache_key] = {
+            "signature": signature,
+            "analysis": analysis,
+        }
+
+    if analysis is None:
+        st.info(
+            t("split_statistical_grouping_idle"),
+            icon=":material/info:",
+        )
+        return
+
+    st.success(
+        t("split_statistical_grouping_completed"),
+        icon=":material/check_circle:",
+    )
+    candidate_labels = _render_statistical_candidate_groups(
+        analysis,
+        parsed,
+        t,
+        table_options,
+    )
+    _render_statistical_direction_compatibility(
+        analysis,
+        candidate_labels,
+        t,
+        table_options,
+    )
 
 
 def _render_statistical_analysis(t):
@@ -1569,29 +2096,17 @@ def _render_statistical_analysis(t):
         if not records:
             continue
         labels, matrix_rows, statistics_rows = _parsed_interval_matrix(records)
-        matrix_columns = {
-            "run": st.column_config.TextColumn(
-                t("split_run"), width="small", pinned=True
-            ),
-            "direction": st.column_config.TextColumn(
-                t("split_direction"), width="small"
-            ),
-            **{
-                label: st.column_config.NumberColumn(
-                    f"{label} [s]", format="%.3f", width="small"
-                )
-                for label in labels
-            },
-            "total_delta_t_s": st.column_config.NumberColumn(
-                t("split_statistical_total_time"),
-                format="%.3f",
-                width="small",
-            ),
-        }
+        matrix_columns = _interval_matrix_columns(
+            labels,
+            t,
+            include_direction=True,
+        )
 
-        st.space("small")
-        with st.container(border=True):
-            st.subheader(f":material/table_rows: {t(title_key)}")
+        with st.expander(
+            t(title_key),
+            expanded=False,
+            icon=":material/table_rows:",
+        ):
             st.markdown(
                 f"**{t('split_statistical_dispersion_title')}**",
                 help=t("split_statistical_dispersion_help"),
@@ -1631,6 +2146,8 @@ def _render_statistical_analysis(t):
                 },
                 **table_options,
             )
+
+    _render_statistical_candidate_analysis(parsed, t, table_options)
 
 
 def render_manual(t):

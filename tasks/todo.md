@@ -833,5 +833,79 @@ Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
   with the formula and MAD definition in native help.
 - [x] Keep parsed-run data, calculations, workflow and widget state unchanged.
 - [x] Pass focused, full-suite, compile and diff-hygiene validation.
-- [ ] Add clustering, candidate grouping or explicit outlier detection only
-  after their contracts are explicitly defined.
+- [x] Add backend clustering and candidate grouping after their contracts were
+  explicitly defined; keep explicit outlier detection deferred.
+
+## Statistical candidate grouping backend - 2026-09-04
+
+- [x] Build label-aligned feature vectors from canonical parsed
+  `subinterval_times_s` values.
+- [x] Normalize High+, High-, Low+ and Low- independently and use Euclidean
+  distance divided by the square root of each population's feature count.
+- [x] Enumerate unique complete-linkage hierarchy groups containing at least
+  five runs without a fixed discovery threshold.
+- [x] Return run IDs, size, total-time statistics, normative CV status and
+  cohesion distance without creating pairs or changing selection state.
+- [x] Cover separated groups, homogeneous data, isolated runs, populations
+  below five runs, identical runs and feature-count normalization.
+- [x] Characterize the real combined Split sample: High+/High-/Low+/Low-
+  expose 2/2/4/3 unique hierarchical candidates respectively.
+- [x] Pass 7 focused tests, the 477-test full suite, compile, scoped Ruff and
+  diff-hygiene checks.
+- [x] Combine High+/High- and Low+/Low- candidate groups as read-only
+  opposite-direction diagnostics without creating Split pairs.
+- [x] Reuse `validate_split_selected_times` for directional CV and the 10%
+  opposite-mean criterion, with no duplicated normative formula.
+- [x] Rank every combination by opposite conformity, joint CV conformity,
+  difference, combined usable size and worst-direction cohesion.
+- [x] Characterize the real combined sample: 4 High and 12 Low combinations;
+  none passes the 10% opposite-direction criterion.
+- [x] Pass 9 focused tests, the 479-test full suite, compile, scoped Ruff and
+  diff-hygiene checks.
+- [x] Render the existing candidate groups and opposite-direction combinations
+  below the Statistical Analysis matrices as read-only diagnostics.
+- [x] Prioritize CV-conforming population candidates, emphasize each top-ranked
+  High/Low combination and collapse secondary results without selection controls.
+- [x] Keep the backend hierarchy, normative validation, automatic selection and
+  pair-selection logic unchanged while adding PT/EN labels and focused UI coverage.
+
+## Statistical Analysis UI refinement - 2026-09-04
+
+- [x] Clarify the PT/EN title of the High+/High-/Low+/Low- normative summary.
+- [x] Collapse the High and Low dispersion matrices into separate bordered
+  expanders to reduce the default page height.
+- [x] Replace raw candidate-group keys and mixed Portuguese labels with complete
+  user-facing PT/EN text.
+- [x] Make candidate grouping an explicit primary-button action with idle,
+  running and completed feedback.
+- [x] Reuse the completed result across unrelated reruns while the active test
+  and processed parser version remain current.
+- [x] Keep candidate results read-only and leave the statistical backend,
+  validation, calculations and automatic selection unchanged.
+- [x] Pass 25 focused tests, the 482-test full suite, compile, Ruff and
+  diff-hygiene checks.
+
+## Statistical candidate-card refinement - 2026-09-04
+
+- [x] Replace internal grouping IDs with per-population Candidate 1, 2, ...
+  presentation labels without changing backend identity or ranking.
+- [x] Move group size into the candidate heading and compact mean, CV and
+  diagnostic cohesion metrics.
+- [x] Label directional-CV status explicitly with the measured value and
+  normative limit.
+- [x] Show the top-ranked candidate's canonical dynamic subinterval matrix and
+  keep secondary candidates collapsed.
+- [x] Remove internal candidate IDs from opposite-direction compatibility views.
+- [x] Pass 25 focused tests, the 482-test full suite, compile, scoped Ruff and
+  diff-hygiene checks.
+
+## Statistical candidate-layout refinement - 2026-09-04
+
+- [x] Put High+, High-, Low+ and Low- in separate bordered, collapsed native
+  expanders.
+- [x] Use a plural PT/EN section title and move each priority run count to a
+  compact metadata badge.
+- [x] Center equal-width compact diagnostic metrics without custom CSS.
+- [x] Remove the nested secondary-candidate expander and keep its read-only
+  dataframe content-height with native horizontal scrolling.
+- [x] Re-run focused tests, full suite, compile, Ruff and diff-hygiene checks.
