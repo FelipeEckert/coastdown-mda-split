@@ -24,7 +24,7 @@ def build_report_styles() -> StyleSheet1:
     ))
     styles.add(ParagraphStyle(
         "Title", parent=styles["Body"], fontName="Helvetica-Bold",
-        fontSize=20, leading=24, textColor=HEADING_COLOR, spaceAfter=12,
+        fontSize=20, leading=24, textColor=HEADING_COLOR, spaceAfter=6,
         keepWithNext=True,
     ))
     styles.add(ParagraphStyle(
@@ -38,5 +38,16 @@ def build_report_styles() -> StyleSheet1:
     styles.add(ParagraphStyle(
         "TableHeader", parent=styles["Table"], fontName="Helvetica-Bold",
         textColor=HEADING_COLOR,
+    ))
+    styles.add(ParagraphStyle(
+        "Metric", parent=styles["Body"], fontName="Helvetica-Bold",
+        fontSize=18, leading=22, textColor=HEADING_COLOR, spaceAfter=0,
+    ))
+    styles.add(ParagraphStyle(
+        "Status", parent=styles["Body"], fontName="Helvetica-Bold",
+        textColor=HEADING_COLOR,
+    ))
+    styles.add(ParagraphStyle(
+        "Footer", parent=styles["Table"], fontSize=8, leading=10,
     ))
     return styles

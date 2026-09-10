@@ -937,7 +937,28 @@ Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
 - [x] Add `reportlab>=5.0.1` and install ReportLab 5.0.1 in the existing `.venv`.
 - [x] Pass 3 scaffold tests and 60 results/export/graph/deviation/cache regressions,
   ReportLab/module imports, pip check and Python compilation.
-- [ ] Implement full rendering and structural contract checks in a later task;
-  verify canonical-value preservation and visually inspect all rendered pages.
+- [x] Implement Page 1 rendering and structural contract checks (see below).
+- [ ] Implement Pages 2-4 in a later task; verify detailed tables/graphs and pagination.
 - [ ] Integrate PDF generation/download and snapshot caching on Results later.
   Current scaffold changes no UI, calculations, selection or Excel behavior.
+
+## Split PDF Page 1 - 2026-09-10
+
+- [x] Render one A4 landscape page as BytesIO PDF bytes from canonical supplied
+  results, test metadata, vehicle/mass fields and method/configuration.
+- [x] Display the supplied time-validation status and six time checks separately
+  from diagnostic coefficient CVs; preserve signs, counts and supplied limits.
+- [x] Include a numbered footer, supplied generation timestamp and neutral
+  software/version identity; keep missing optional values as N/A.
+- [x] Reject malformed required structures and one-page overflow without
+  recalculation, clipping, inferred defaults or extra pages.
+- [x] Pass 7 focused PDF tests and 78 relevant results/export regressions,
+  Python compilation, scoped Ruff and pip check.
+- [x] Visually inspect the synthetic sample and EN/missing-data variants:
+  one landscape page, aligned tables, readable accents/units and no clipping.
+- [x] Pass final diff checks; stage only the renderer, styles, tests, reporting
+  documentation/tracking and `output/pdf/split_page_1_sample.pdf`, without a commit.
+- [x] Mark `output/pdf/*.pdf` as binary in `.gitattributes` to protect the sample
+  from Windows Git line-ending conversion.
+- [ ] Pages 2-4 and Results UI integration remain deferred. Calculation,
+  selection and Excel export behavior remain unchanged.

@@ -3668,3 +3668,28 @@ contract plus fresh ReportLab print styles, not a placeholder or partial report.
 No assets or chart-export dependency are needed. Tests enforce the import
 boundary and absence of input mutation; visual PDF QA belongs to the later
 renderer implementation, since this scaffold generates no PDF.
+
+## 2026-09-10 - Page 1 renders supplied status, not inferred conformity
+
+The Page 1 renderer reads normative conformity only from time_summary.passed,
+and renders each supplied check/limit without comparing numbers. High coefficient
+CVs never override that status. Tests intentionally supply contradictory values
+to prove the PDF preserves canonical outputs, including the supplied pair count.
+Vehicle masses and metadata are likewise formatted, never derived. Software
+identity can safely come from the neutral version.py constants, without app imports.
+
+Page 1 is a bounded deliverable: overflow raises a readable error instead of
+silently clipping evidence, shrinking type or generating deferred pages. Platypus
+uses a zero-padding Frame so body tables and header/footer align. Keep normal
+flowable splitting enabled for ReportLab's heading keep-with-next handling;
+disabling it can postpone even a small title group to the next page.
+
+Read generated PDFs with pypdf for content/page checks and rasterize with
+pypdfium2 when Poppler is unavailable; inspection tools are not runtime imports.
+Visual review complements tests for layout and PT accents/unit glyphs. Optional
+test metadata remains separate, escaped as literal text, and missing values
+remain N/A. Report generation time never substitutes for the test date.
+
+ReportLab PDFs may be ASCII-encoded and classified as text by Git. Mark generated
+`output/pdf/*.pdf` as binary so Windows line-ending conversion cannot invalidate
+PDF offsets and diff checks do not interpret required PDF whitespace as code.
