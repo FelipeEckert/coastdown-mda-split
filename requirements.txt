@@ -4,3 +4,4 @@ numpy>=1.23.0
 openpyxl>=3.0.0
 chardet>=5.0.0
 plotly>=5.0.0
+reportlab>=5.0.1

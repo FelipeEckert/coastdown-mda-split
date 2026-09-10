@@ -925,3 +925,19 @@ Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
 - [ ] Browser verification: blocked because CUA lists no available browsers;
   creating an in-app browser returns "Browser is not available: iab".
   Verify collapsed/open populations and secondary-table wrapping when connected.
+
+## Split PDF reporting scaffold - 2026-09-10
+
+- [x] Document the canonical input contract, four report sections, rendering
+  architecture and implementation phases in `docs/split_pdf_report_plan.md`.
+- [x] Add the isolated `reports` package, explicit unimplemented export entry
+  point and fresh A4 landscape ReportLab print styles; create no report assets.
+- [x] Keep optional `test_metadata` separate from vehicle data, without invented
+  dates, operator/equipment details or other unavailable identification fields.
+- [x] Add `reportlab>=5.0.1` and install ReportLab 5.0.1 in the existing `.venv`.
+- [x] Pass 3 scaffold tests and 60 results/export/graph/deviation/cache regressions,
+  ReportLab/module imports, pip check and Python compilation.
+- [ ] Implement full rendering and structural contract checks in a later task;
+  verify canonical-value preservation and visually inspect all rendered pages.
+- [ ] Integrate PDF generation/download and snapshot caching on Results later.
+  Current scaffold changes no UI, calculations, selection or Excel behavior.

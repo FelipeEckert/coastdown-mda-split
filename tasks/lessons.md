@@ -3645,3 +3645,26 @@ without a nested dataframe viewport. This supersedes the September 4 choice
 of native horizontal dataframe scrolling for these small candidate tables.
 Source assertions do not establish visual correctness: keep browser QA pending
 when no browser surface is available, even after automated checks pass.
+
+---
+
+## 2026-09-10 - PDF reporting consumes canonical snapshots
+
+The Split PDF boundary takes already consolidated final results (including the
+sole selected-pair list), normalized vehicle masses, deviation analysis and
+prepared graph series. Reporting must not invoke consolidation, energy, CV,
+weather correction, normative validation, parsing or selection. Existing Excel
+and Results helpers are not automatically safe to reuse: some calculate values.
+Normative status comes from the supplied time summary; coefficient CVs remain
+diagnostic. Missing directional energy must not trigger a calculation fallback.
+
+Optional test-level identification belongs in `test_metadata`, separately from
+vehicle identification/masses. Preserve unavailable metadata as unavailable;
+the generation timestamp is never a fallback test date. The future caller must
+project any historical test metadata into this separate input.
+
+The approved first delivery is deliberately an explicit `NotImplementedError`
+contract plus fresh ReportLab print styles, not a placeholder or partial report.
+No assets or chart-export dependency are needed. Tests enforce the import
+boundary and absence of input mutation; visual PDF QA belongs to the later
+renderer implementation, since this scaffold generates no PDF.
