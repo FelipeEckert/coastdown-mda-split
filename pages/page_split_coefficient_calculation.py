@@ -1577,28 +1577,23 @@ def _render_statistical_candidate_groups(
                     color=cv_status["color"],
                     icon=cv_status["icon"],
                 )
-            with st.container(
-                horizontal=True,
-                horizontal_alignment="center",
-                vertical_alignment="center",
-                gap="small",
-            ):
-                st.metric(
-                    t("split_deviation_mean_time"),
-                    f"{primary['mean_delta_t_s']:.3f} s",
-                    width="stretch",
-                )
-                st.metric(
-                    "C.V. Δt [%]",
-                    f"{primary['cv_pct']:.2f}%",
-                    width="stretch",
-                )
-                st.metric(
-                    t("split_statistical_cohesion"),
-                    f"{primary['cohesion_distance']:.3f}",
-                    help=t("split_statistical_cohesion_help"),
-                    width="stretch",
-                )
+            with st.container(horizontal=True, gap="small"):
+                for label, value, help_text in (
+                    (
+                        t("split_deviation_mean_time"),
+                        f"{primary['mean_delta_t_s']:.3f} s",
+                        None,
+                    ),
+                    ("C.V. Δt [%]", f"{primary['cv_pct']:.2f}%", None),
+                    (
+                        t("split_statistical_cohesion"),
+                        f"{primary['cohesion_distance']:.3f}",
+                        t("split_statistical_cohesion_help"),
+                    ),
+                ):
+                    with st.container(width="stretch", gap=None):
+                        st.markdown(label, text_alignment="center", help=help_text)
+                        st.markdown(f"**{value}**", text_alignment="center")
 
             member_records = [
                 grouped_records[component][run["source_index"]]
@@ -1640,36 +1635,22 @@ def _render_statistical_candidate_groups(
                     }
                     for candidate in secondary
                 ]
-                st.dataframe(
-                    pd.DataFrame(rows),
-                    column_config={
-                        "candidate": st.column_config.TextColumn(
-                            t("split_statistical_candidate_id"),
-                            width="medium",
-                            pinned=True,
-                        ),
-                        "runs": st.column_config.TextColumn(
-                            t("split_statistical_runs"), width="large"
-                        ),
-                        "size": st.column_config.NumberColumn(
-                            "n", format="%d", width="small"
-                        ),
-                        "mean_s": st.column_config.NumberColumn(
-                            t("split_deviation_mean_time"),
-                            format="%.3f",
-                            width="small",
-                        ),
-                        "cv_status": st.column_config.TextColumn(
-                            t("split_statistical_cv_status"), width="large"
-                        ),
-                        "cohesion": st.column_config.NumberColumn(
-                            t("split_statistical_cohesion"),
-                            help=t("split_statistical_cohesion_help"),
-                            format="%.3f",
-                            width="small",
-                        ),
-                    },
-                    **table_options,
+                st.table(
+                    pd.DataFrame(rows).rename(
+                        columns={
+                            "candidate": t("split_statistical_candidate_id"),
+                            "runs": t("split_statistical_runs"),
+                            "size": "n",
+                            "mean_s": t("split_deviation_mean_time"),
+                            "cv_status": t("split_statistical_cv_status"),
+                            "cohesion": t("split_statistical_cohesion"),
+                        }
+                    ).style.format({
+                        t("split_deviation_mean_time"): "{:.3f}",
+                        t("split_statistical_cohesion"): "{:.3f}",
+                    }),
+                    hide_index=True,
+                    border="horizontal",
                 )
     return candidate_labels
 

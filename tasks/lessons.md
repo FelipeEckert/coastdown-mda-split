@@ -3634,3 +3634,14 @@ desnecessarias; uma unica fronteira recolhivel e colunas com larguras explicitas
 mantem a leitura previsivel.
 
 ---
+
+## 2026-09-10 - Center text, not just its widget
+
+Horizontal container alignment positions widgets but does not center the text
+inside st.metric. Candidate summaries use native centered Markdown labels and
+values in equal-width containers, avoiding metric boxes and custom CSS.
+Secondary candidates use st.table so long run lists and status text can wrap
+without a nested dataframe viewport. This supersedes the September 4 choice
+of native horizontal dataframe scrolling for these small candidate tables.
+Source assertions do not establish visual correctness: keep browser QA pending
+when no browser surface is available, even after automated checks pass.

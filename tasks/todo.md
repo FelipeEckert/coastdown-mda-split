@@ -909,3 +909,19 @@ Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
 - [x] Remove the nested secondary-candidate expander and keep its read-only
   dataframe content-height with native horizontal scrolling.
 - [x] Re-run focused tests, full suite, compile, Ruff and diff-hygiene checks.
+
+## Candidate-group UI correction - 2026-09-10
+
+- [x] Preserve the four native bordered, collapsed population expanders and
+  separate run-count badge; replace metric widgets with centered native text
+  in equal-width containers.
+- [x] Keep the priority run matrix and render secondary candidates as a static
+  wrapping table without a nested dataframe viewport or internal IDs.
+- [x] Preserve backend ranking, calculations, cache and read-only state.
+- [x] Pass 25 focused tests, all 482 tests (with Windows temp access),
+  Python compilation, changed-file Ruff and git diff --check.
+- [ ] Repository-wide Ruff: 11 pre-existing findings in bundled UI/UX skill
+  scripts remain outside this UI-only change.
+- [ ] Browser verification: blocked because CUA lists no available browsers;
+  creating an in-app browser returns "Browser is not available: iab".
+  Verify collapsed/open populations and secondary-table wrapping when connected.

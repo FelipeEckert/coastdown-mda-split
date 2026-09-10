@@ -673,7 +673,8 @@ class SplitTabRoutingTests(unittest.TestCase):
             )
             for method in ("subheader", "space"):
                 stack.enter_context(patch.object(streamlit, method))
-            metric = stack.enter_context(patch.object(streamlit, "metric"))
+            stack.enter_context(patch.object(streamlit, "metric"))
+            table = stack.enter_context(patch.object(streamlit, "table"))
             markdown = stack.enter_context(patch.object(streamlit, "markdown"))
             stack.enter_context(patch.object(streamlit, "caption"))
             badge = stack.enter_context(patch.object(streamlit, "badge"))
@@ -745,35 +746,23 @@ class SplitTabRoutingTests(unittest.TestCase):
                 for call in directional_badges
             )
         )
-        candidate_metrics = metric.call_args_list[:12]
-        self.assertEqual(len(candidate_metrics), 12)
-        self.assertNotIn("n", [call.args[0] for call in candidate_metrics])
-        self.assertTrue(
-            all(call.kwargs["width"] == "stretch" for call in candidate_metrics)
+        centered_text = [
+            call for call in markdown.call_args_list
+            if call.kwargs.get("text_alignment") == "center"
+        ]
+        self.assertEqual(len(centered_text), 24)
+        self.assertEqual(
+            [call.args[0] for call in centered_text[:6]],
+            ["Mean Δt [s]", "**20.000 s**", "C.V. Δt [%]", "**1.00%**",
+             "Cohesion distance", "**0.800**"],
         )
-        centered_rows = [
-            call
+        self.assertTrue(centered_text[4].kwargs["help"].startswith(
+            "Largest normalized distance"
+        ))
+        self.assertTrue(any(
+            call.kwargs == {"width": "stretch", "gap": None}
             for call in container.call_args_list
-            if call.kwargs.get("horizontal_alignment") == "center"
-        ]
-        self.assertEqual(len(centered_rows), 8)
-        self.assertTrue(
-            all(
-                call.kwargs.get("vertical_alignment") == "center"
-                for call in centered_rows
-            )
-        )
-        cohesion_metrics = [
-            call
-            for call in candidate_metrics
-            if call.args[0] == "Cohesion distance"
-        ]
-        self.assertTrue(
-            all(
-                call.kwargs["help"].startswith("Largest normalized distance")
-                for call in cohesion_metrics
-            )
-        )
+        ))
         self.assertEqual(
             page_split_coefficient_calculation._normative_status_badge(
                 None,
@@ -807,30 +796,22 @@ class SplitTabRoutingTests(unittest.TestCase):
             priority_matrices[0]["run"].tolist(),
             ["1", "2", "3", "4", "5"],
         )
-        secondary_candidate_rows = next(
-            call.args[0].to_dict("records")
-            for call in dataframe.call_args_list
-            if "candidate" in call.args[0].columns
-            and "direction" not in call.args[0].columns
-            and "rank" not in call.args[0].columns
-        )
+        secondary_frame = table.call_args_list[0].args[0].data
         self.assertEqual(
-            [row["candidate"] for row in secondary_candidate_rows],
+            secondary_frame[t("split_statistical_candidate_id")].tolist(),
             ["Candidate 2"],
         )
         self.assertEqual(
-            secondary_candidate_rows[0]["cv_status"],
+            secondary_frame[t("split_statistical_cv_status")].iloc[0],
             "✕ Directional CV nonconforming (3.00% > 2.5%)",
         )
-        secondary_candidate_table = next(
-            call
-            for call in dataframe.call_args_list
-            if "candidate" in call.args[0].columns
-            and "direction" not in call.args[0].columns
-            and "rank" not in call.args[0].columns
+        self.assertEqual(
+            table.call_args_list[0].kwargs,
+            {"hide_index": True, "border": "horizontal"},
         )
-        self.assertEqual(secondary_candidate_table.kwargs["width"], "stretch")
-        self.assertEqual(secondary_candidate_table.kwargs["height"], "content")
+        self.assertNotRegex(
+            secondary_frame.to_string(), r"(high|low)_(plus|minus)_\d+"
+        )
         secondary_combination_rows = next(
             call.args[0].to_dict("records")
             for call in dataframe.call_args_list
