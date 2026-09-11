@@ -4,9 +4,10 @@
 
 1. **Scaffold (completed):** canonical export contract, reusable ReportLab print
    styles, `reportlab>=5.0.1`, focused tests and project tracking.
-2. **Rendering (Page 1 implemented):** one A4 landscape summary page with
-   structural checks, canonical values, PT/EN labels and visual verification.
-   Sections/Pages 2-4 remain deferred; no assets or existing export changes.
+2. **Rendering (Pages 1-2 implemented):** an A4 landscape summary followed by
+   measured High/Low runs, with structural checks, canonical values, PT/EN labels
+   and visual verification. Page 2 now includes compact tables and run curves.
+   Selected-pair details/coefficient sections 3-4 remain deferred; no existing export changes.
 3. **Results integration (later):** explicit PDF generation/download alongside
    Excel, PT/EN labels and cache invalidation from the complete report snapshot.
 
@@ -20,7 +21,7 @@ def export_split_final_results_to_pdf(
     graph_series: list[dict], test_name: str, generated_at: datetime,
     test_metadata: dict | None = None, language: str = "pt",
 ) -> bytes:
-    ...  # Returns a one-page PDF as bytes from BytesIO.
+    ...  # Returns summary + measured-run PDF bytes from BytesIO.
 ```
 
 The caller supplies one consistent snapshot, prepared outside `reports`:
@@ -65,12 +66,25 @@ hardcoded thresholds. Missing directional energy stays unavailable.
 
 ## Report sections
 
-Only section 1 is currently rendered. Sections 2-4 describe future work.
+Sections 1-2 are rendered. Sections 3-4 describe future work.
 Page 1 contains final metrics, test/vehicle tables, masses, method/configuration,
 equipment, the supplied time status and six supplied time checks, then a distinct
 coefficient-CV diagnostic section. The footer shows page number, explicit
 generation timestamp (including offset if supplied), and software identity.
 It uses `num_pairs` directly; it does not recount or select pairs.
+
+The approved visual guide is `docs/report-reference/split_report_layout.png`.
+Page 1 follows its four rounded KPI cards, two side-by-side framed information
+panels, three equal-height Method/Configuration/Equipment cards, and separate
+boxed normative and diagnostic sections. Light blue title bands, navy hierarchy
+and text-bearing status badges separate the sections without relying on color.
+Badge colors follow the supplied pass flags only. Method-card semicolon-separated
+metadata wraps onto separate lines without changing its values.
+
+The header uses the existing `assets/hyundai_logo.png` unchanged, on a small navy
+backing for its white artwork, with the original aspect ratio preserved. If the
+file is absent the header is text-only. No new or recreated logo is required.
+The footer additionally repeats the supplied service/report identifiers.
 
 Required structures are dictionaries for final results, vehicle data and
 deviation analysis, a `selected_pairs` list and a `time_summary` dictionary.
@@ -81,21 +95,69 @@ energy to 4 decimals, F2 to 6, masses/CVs/time percentages/limits to 2.
 Optional method/configuration/equipment values come only from test metadata;
 missing configuration is not inferred from a selected pair or normative defaults.
 
-Page 1 fails with a readable ValueError when content exceeds the page or reserved
-footer area. It never silently truncates, shrinks text or emits a second page.
-Future detailed sections may paginate independently once implemented.
+Page 1 fails with a readable ValueError when its summary content exceeds the
+page. Page 2 begins with an explicit page break and stays on one landscape page.
+No rows or curves are silently clipped, omitted or shrunk. Excessive table width,
+row height or legend content raises a readable layout error. Footers use the actual current page number,
+without an inaccurate fixed total or a second rendering pass.
+
+### Measured-run contract (section 2)
+
+- Read only `final_results.selected_pairs` and its four canonical `high_plus`,
+  `high_minus`, `low_plus`, `low_minus` records; direction comes from that saved
+  component identity. Do not reselect pairs or reparse the source files.
+- One run snapshot per row, ordered by first occurrence within High or Low.
+  Identified records repeated with identical full record/weather snapshots are
+  collapsed. Different files, times or weather snapshots remain separate rows;
+  unidentifiable records are not deduplicated. No conflicting values are averaged.
+- Subinterval columns are the stable union of supplied `subintervals` labels
+  and stored time-mapping keys. Read `subinterval_times_s` as an aligned list or
+  label-keyed dictionary and read total `delta_t_s` directly. Missing values are
+  N/A, never a recomputed sum or a graph-derived time. Reject duplicate labels,
+  unlabeled extra times and malformed shapes rather than silently losing data.
+- Weather comes from that component's `ambient_by_component`, then
+  `weather_components`, then the record's `weather_sync` when the earlier
+  snapshot is absent/empty. Read saved temperature, pressure, wind and their
+  established aliases only. Never substitute pair averages, fixed correction
+  inputs, another run's weather or a new synchronization calculation.
+- Source/synchronization/warning details remain in the supplied snapshot but are
+  omitted from Page 2, as requested in the approved visual refinement. Page 1
+  normative/diagnostic warnings are unchanged.
+- Follow `docs/report-reference/split_report_layout_page2.png`: four equal-width
+  tables in one row (High times, High climate, Low times, Low climate), then a
+  pale heading band and two full-width charts stacked High above Low. Run labels
+  include the saved +/- direction. White background, light borders, 8 pt cells;
+  times show 3 decimals, temperature 1, pressure/wind 2.
+- Column labels remain dynamic. A minimum 30 pt column width accommodates four
+  subinterval columns; wider sets raise a layout error. Charts share the remaining
+  height with a 130 pt minimum each. Excessive rows or legends also raise errors;
+  this fixed-page layout supersedes the earlier continuation/column-band design.
+- Empty tables show N/A. Legacy aggregate records keep their stored total;
+  missing subinterval values stay N/A without reconstructing them from curves.
+
+### Supplied graph contract (Page 2)
+
+- The caller supplies consistent, selected-run `graph_series` snapshots with
+  public run IDs and +/- direction, partitioned by `interval_name` high/low.
+  Each entry requires a record dictionary and aligned finite numeric `times_s`
+  and `speeds_kmh` lists/tuples containing at least two points. Invalid structures
+  raise ValueError; an empty series list displays unavailable chart panels.
+- ReportLab LinePlot renders vector polylines through the exact supplied points.
+  Do not call graph preparation helpers, sum subintervals, fit/smooth curves,
+  resample, convert units or reconstruct endpoints. Axis tick/range selection is
+  presentation only. The caller remains responsible for snapshot consistency.
+- Legends use the supplied run ID and direction, with dashed lines for minus
+  runs. `data_mode=aggregate` gets an explicit endpoints label (PT/EN). Missing
+  curves are never fabricated from the run tables. No plotting dependency added.
 
 1. **Test, vehicle and final summary:** available test metadata, vehicle and mass
    chain, configured intervals, selected-pair count, final F0/F2 and energy,
    canonical normative time status and warnings.
 2. **Run times and environment:** High/Low +/- runs, dynamic subinterval columns,
-   total times, conditions actually used, synchronization information and
-   file/run/column/interval traceability. Never assume separate input files.
-3. **Deceleration graphs and selected pairs:** speed (km/h) against elapsed time
-   (s), High/Low sections, public run labels, directional distinction and selected
-   pair composition. Plot supplied points only; explicitly label aggregate
-   endpoints and do not imply a measured continuous curve. Missing series get
-   an unavailable-data note. Paginate dense charts rather than crowding legends.
+   total times, conditions associated with each run and supplied deceleration
+   curves. Never assume separate input files; verbose trace details are omitted.
+3. **Selected pairs (future):** detailed selected-pair composition and analysis.
+   Basic supplied High/Low run curves are already on Page 2; no Page 3 is rendered.
 4. **Coefficients and normative results:** uncorrected and corrected directional
    and pair coefficients, stored energy, final values, diagnostic coefficient CVs,
    normative time metrics with supplied limits/statuses, and warnings.
@@ -106,16 +168,18 @@ Future detailed sections may paginate independently once implemented.
 - `reports/split_pdf_report.py`: public entry point; Platypus story of paragraphs
   and tables in a BaseDocTemplate with a zero-padding Frame, written into
   `BytesIO` and returned as PDF bytes. A PageTemplate callback draws the header
-  and footer and prevents additional pages.
-- `reports/report_styles.py`: landscape A4, 15 mm margins, white background,
+  and footer. Separate summary/run PageTemplates enforce both page boundaries.
+- `reports/report_styles.py`: landscape A4, 8 mm side margins matching the visual
+  reference, white background,
   navy headings, dark text, restrained table shading; Helvetica/Helvetica-Bold,
   10 pt body and 9 pt tables. Fresh styles per report prevent shared mutation.
-- Future charts use ReportLab vector drawings from supplied series; no Plotly
-  image-export dependency. Repeat table headers, wrap long text, escape external
-  text before Paragraph markup, and paginate instead of shrinking unreadably.
+  The title is 24 pt, KPIs 22 pt, section headings 12 pt and footer text 7 pt.
+- Charts use ReportLab vector drawings from supplied series; no Plotly
+  image-export dependency. Wrap table text and escape external Paragraph markup;
+  fail explicitly when the approved fixed-page layout cannot fit legibly.
 - Status text and direction/line labels must work without color. PT accents,
   coefficient notation and unit glyphs require visual checks before rendering
-  ships. No custom fonts or report assets are required for this scaffold.
+  ships. No custom fonts or newly created report assets are required.
 
 ## Validation
 
@@ -131,7 +195,12 @@ Page 1 checks read actual PDF bytes with pypdf: one landscape page, canonical
 values/signs/count/limits/statuses even for inconsistent sentinel inputs, missing
 data, PT/EN text, literal escaped metadata, software identity, unchanged inputs,
 structural errors, overflow and imports without application calculation modules.
-The explicitly synthetic sample is `output/pdf/split_page_1_sample.pdf`, generated
-from `tests.test_split_pdf_report.sample_inputs()` by calling the public exporter.
-Inspect a rasterized sample, plus EN and missing-data variants, before delivery.
-Future checks remain for graphs, detailed coefficient/run tables and pagination.
+The updated two-page synthetic sample is `output/pdf/split_report_sample.pdf`,
+generated from `tests.test_split_pdf_report.sample_run_inputs()` through the public
+exporter. The earlier Page 1 sample remains a visual baseline. Run tests cover
+stored totals differing from interval sums, run-specific weather, list/mapping
+times, missing data, duplicates/distinct sources, shape errors, wide custom
+intervals, PT/EN, graph shape errors, exact point preservation, endpoint labels,
+unavailable curves, layout overflow and unchanged Page 1 content. Inspect both
+sample pages plus EN and missing-data variants before delivery. Compare Page 1
+pixels to the previous sample. Future checks remain for detailed pair/coefficient sections.

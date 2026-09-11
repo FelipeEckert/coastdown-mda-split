@@ -962,3 +962,54 @@ Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
   from Windows Git line-ending conversion.
 - [ ] Pages 2-4 and Results UI integration remain deferred. Calculation,
   selection and Excel export behavior remain unchanged.
+
+## Split PDF Page 1 reference styling - 2026-09-11
+
+- [x] Inspect `docs/report-reference/split_report_layout.png` before editing;
+  align Page 1 with its rounded KPI, information, method, normative and
+  diagnostic boxes, navy hierarchy and light title bands.
+- [x] Use the existing white Hyundai logo unchanged on a balanced navy header
+  badge, preserving aspect ratio and a text-only fallback when the asset is absent.
+- [x] Separate Method, Configuration and Equipment into three equal-height
+  horizontal cards; include supplied service/report identification in the footer.
+- [x] Preserve the PDF contract, canonical values/statuses, PT/EN behavior,
+  N/A display and explicit single-page overflow errors.
+- [x] Pass 9 PDF tests and 78 relevant results/export regressions, compilation,
+  scoped Ruff and diff checks; visually compare the refreshed sample with the
+  reference and inspect EN, missing-data and absent-logo variants.
+- [ ] Pages 2-4 and Results integration remain deferred; no calculation,
+  selection or Excel changes and no commit.
+
+## Split PDF Page 2 measured runs - 2026-09-11
+
+- [x] Add separate High/Low tables from canonical selected-pair run snapshots,
+  with direction, dynamic list/mapping subinterval times and stored total times.
+- [x] Read run-specific ambient/weather snapshots, source traceability and sync
+  warnings; preserve N/A and never use pair averages or recalculate values.
+- [x] Collapse identical identified run/weather snapshots without merging
+  different sources or weather contexts; keep unidentifiable rows separate.
+- [x] Paginate the run section with repeated title/column headers and current
+  page numbers; group wide interval sets into readable six-column bands.
+- [x] Preserve the Page 1 design and overflow boundary, contract and PT/EN behavior.
+- [x] Pass 16 PDF tests and 78 results/export regressions, Python compilation,
+  scoped Ruff and diff checks.
+- [x] Generate and visually inspect the two-page `output/pdf/split_report_sample.pdf`,
+  English run tables and all run-data pages of a four-page continuation case.
+- [ ] Graph/coefficient sections 3-4 and Results integration remain deferred.
+  Calculation, selection and Excel export modules remain unchanged; no commit.
+
+## Split PDF Page 2 visual refinement - 2026-09-11
+
+- [x] Inspect the approved Page 2 reference; arrange High times/climate and Low
+  times/climate as four compact tables in one horizontal row.
+- [x] Remove verbose source/synchronization/warning text from Page 2 only.
+- [x] Render two stacked ReportLab vector charts using supplied graph_series
+  points, with PT/EN axes, directional legends and explicit aggregate endpoints.
+- [x] Preserve canonical values and N/A; reject malformed chart shapes and
+  layouts that cannot fit legibly. Fixed Page 2 supersedes prior pagination.
+- [x] Generate and inspect both sample pages, EN and missing-data variants;
+  Page 1 pixels match the staged pre-refinement sample exactly.
+- [x] Pass 18 PDF tests and 78 relevant regressions, module imports, pip check,
+  Python compilation, scoped Ruff and diff checks; stage intended files individually.
+- [ ] Pages 3-4 and Results integration remain deferred. No scientific logic,
+  selection, validation or Excel behavior changes; no added dependencies.

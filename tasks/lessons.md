@@ -3693,3 +3693,68 @@ remain N/A. Report generation time never substitutes for the test date.
 ReportLab PDFs may be ASCII-encoded and classified as text by Git. Mark generated
 `output/pdf/*.pdf` as binary so Windows line-ending conversion cannot invalidate
 PDF offsets and diff checks do not interpret required PDF whitespace as code.
+
+## 2026-09-11 - Match the PDF reference with native ReportLab boxes
+
+The approved reference owns Page 1's hierarchy: rounded KPI cards, paired
+information panels, three method cards and separate normative/diagnostic boxes.
+Native Table cornerRadii, backgrounds and minimum row heights provide this
+structure without rasterizing the report or adding a custom drawing framework.
+The reference's 8 mm side margins supersede the initial 15 mm print default.
+
+Use the repository's Hyundai PNG without recoloring or recreating it. Its white
+transparent artwork needs a small navy backing in the white report header;
+resolve the asset relative to the renderer file and retain a text-only fallback.
+Status badges only map supplied true/false/unknown flags to colors and text;
+never compare measurements or limits to decide the badge. Footer report IDs
+come from test_metadata, not vehicle data or the generation timestamp.
+
+PDF text tests preserve the data boundary but cannot prove layout similarity.
+Inspect the supplied reference first and compare the final rendered sample,
+including English, missing-data and no-logo variants, before delivery.
+
+## 2026-09-11 - Measured-run PDF tables must preserve run-level provenance
+
+Section 2 reads the selected pairs' four saved run records and their own ambient
+snapshots. Pair-mean weather and fixed correction inputs are not measured run
+conditions. Use the existing ambient_by_component, weather_components and
+record.weather_sync precedence, without invoking weather helpers that average
+or synchronize. A stored total may intentionally differ from listed subintervals
+in a regression fixture: the PDF must render both unchanged, never repair them.
+
+Deduplicate only identified records with identical complete record/weather
+snapshots. Different source files or environmental contexts must stay visible;
+unknown identity is not evidence that two records are the same run. Dynamic
+labels and stored times are projected rather than regenerated from speed bounds.
+Six time columns per band is a layout limit, not a scientific interval default.
+
+Use separate PageTemplates: summary overflow remains an error, while the run
+section uses native table pagination with both its High/Low title and column
+headers repeated. Print the actual current page number rather than retaining
+the original '1 of 1' footer. Longer section-2 continuations do not implement
+the still-deferred graph or coefficient sections.
+
+ReportLab's standard Symbol font may extract the Delta glyph as U+2206 rather
+than U+0394. Normalize that equivalent glyph only in PDF text assertions; inspect
+the rendered sample to verify the actual labels and units remain readable.
+
+## Page 2 approved compact layout and vector curves - 2026-09-11
+
+The latest Page 2 reference supersedes the earlier verbose traceability tables
+and pagination design: four tables share one row; High/Low charts stack below.
+Source and synchronization details still belong to the canonical snapshot but
+are intentionally not printed here. Do not remove Page 1 diagnostic warnings.
+Keep type readable and raise a layout error for excessive columns, rows or
+legends instead of truncating data, selecting fewer runs or silently adding pages.
+
+The PDF consumes prepared graph_series points directly. Connecting supplied
+points and choosing chart axis ticks are presentation; reconstructing cumulative
+times, fitting curves or preparing series inside the report would violate data
+ownership. Missing series stay unavailable; aggregate endpoints must be labeled.
+Validate array shape and finite numbers without revalidating scientific results.
+ReportLab LinePlot supplies native vector charts without another dependency.
+
+Use distinct explicit synthetic curves for visual QA, verify PT/EN and empty
+panels, and compare prior Page 1 raster pixels to prove its design is unchanged.
+Use UTF-8-safe patches for accented labels; Windows shell pipelines can replace
+Unicode characters with question marks even when the destination writes UTF-8.
