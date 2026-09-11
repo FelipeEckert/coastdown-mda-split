@@ -4,10 +4,11 @@
 
 1. **Scaffold (completed):** canonical export contract, reusable ReportLab print
    styles, `reportlab>=5.0.1`, focused tests and project tracking.
-2. **Rendering (Pages 1-2 implemented):** an A4 landscape summary followed by
+2. **Rendering (Pages 1-3 implemented):** an A4 landscape summary followed by
    measured High/Low runs, with structural checks, canonical values, PT/EN labels
    and visual verification. Page 2 now includes compact tables and run curves.
-   Selected-pair details/coefficient sections 3-4 remain deferred; no existing export changes.
+   Page 3 presents pair composition and stored corrected coefficients. Page 4
+   remains deferred; no existing export changes.
 3. **Results integration (later):** explicit PDF generation/download alongside
    Excel, PT/EN labels and cache invalidation from the complete report snapshot.
 
@@ -66,7 +67,7 @@ hardcoded thresholds. Missing directional energy stays unavailable.
 
 ## Report sections
 
-Sections 1-2 are rendered. Sections 3-4 describe future work.
+Sections 1-3 are rendered. Section 4 describes future work.
 Page 1 contains final metrics, test/vehicle tables, masses, method/configuration,
 equipment, the supplied time status and six supplied time checks, then a distinct
 coefficient-CV diagnostic section. The footer shows page number, explicit
@@ -156,13 +157,35 @@ without an inaccurate fixed total or a second rendering pass.
 2. **Run times and environment:** High/Low +/- runs, dynamic subinterval columns,
    total times, conditions associated with each run and supplied deceleration
    curves. Never assume separate input files; verbose trace details are omitted.
-3. **Selected pairs (future):** detailed selected-pair composition and analysis.
-   Basic supplied High/Low run curves are already on Page 2; no Page 3 is rendered.
+3. **Selected pairs and corrected coefficients:** two-column pair blocks with
+   High+, Low+, High-, Low- run IDs, vertically merged corrected directional
+   values and a highlighted stored pair mean. No uncorrected coefficients.
 4. **Coefficients and normative results:** uncorrected and corrected directional
    and pair coefficients, stored energy, final values, diagnostic coefficient CVs,
    normative time metrics with supplied limits/statuses, and warnings.
 
 ## Rendering architecture and print defaults
+
+### Page 3 corrected-pair contract
+
+Read `final_results.selected_pairs` in supplied order without reselecting or
+deduplicating pairs. Each block uses the stored `id` and four canonical run
+records. Plus/minus corrected coefficients come only from `F0_plus`, `F2_plus`,
+`F0_minus`, `F2_minus`. The mean row reads `F0_mean`, `F2_mean`, and `energy`.
+Optional stored `energy_plus` / `energy_minus` supply directional energy; absent
+values are N/A. The existing Results UI computes directional energy on demand,
+so those values are not guaranteed to be present in canonical pair snapshots.
+Do not call that helper, calculate energy, average directions, or fall back to
+uncorrected coefficients. These optional fields stay within the existing dict
+contract; no new top-level input or upstream behavior is introduced.
+
+The page title is `Pares e coeficientes | Split` (PT) / `Pairs and coefficients |
+Split` (EN). Native Table spans merge columns F0/F2/Energy separately across
+High+/Low+ and High-/Low-. Preserve units N, N/(km/h)², MJ/km and existing display
+precision (4/6/4 decimals). Empty selection gets an unavailable note. Blocks
+flow left-to-right in two columns, with an empty right cell for an odd count.
+A dedicated PageTemplate starts on page 3; oversized content raises a readable
+error instead of clipping pairs or adding Page 4. Pages 1-2 retain their layout.
 
 - `reports/__init__.py`: package identity only, no eager application imports.
 - `reports/split_pdf_report.py`: public entry point; Platypus story of paragraphs
@@ -195,12 +218,14 @@ Page 1 checks read actual PDF bytes with pypdf: one landscape page, canonical
 values/signs/count/limits/statuses even for inconsistent sentinel inputs, missing
 data, PT/EN text, literal escaped metadata, software identity, unchanged inputs,
 structural errors, overflow and imports without application calculation modules.
-The updated two-page synthetic sample is `output/pdf/split_report_sample.pdf`,
+The updated three-page synthetic sample is `output/pdf/split_report_sample.pdf`,
 generated from `tests.test_split_pdf_report.sample_run_inputs()` through the public
 exporter. The earlier Page 1 sample remains a visual baseline. Run tests cover
 stored totals differing from interval sums, run-specific weather, list/mapping
 times, missing data, duplicates/distinct sources, shape errors, wide custom
 intervals, PT/EN, graph shape errors, exact point preservation, endpoint labels,
 unavailable curves, layout overflow and unchanged Page 1 content. Inspect both
-sample pages plus EN and missing-data variants before delivery. Compare Page 1
-pixels to the previous sample. Future checks remain for detailed pair/coefficient sections.
+sample pages plus EN and missing-data variants before delivery. Compare Pages 1-2
+pixels to the previous sample. Pair checks cover exact corrected values, supplied
+means differing from directional averages, unavailable directional energy, merged
+cells, odd block counts, empty selection and overflow. Page 4 remains deferred.

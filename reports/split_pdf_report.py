@@ -273,6 +273,68 @@ def _run_tables(pairs, graph_series, width, paragraph, tr):
     return story
 
 
+def _pair_tables(pairs, width, paragraph, tr):
+    """Render stored corrected directional values and means, with shared cells."""
+    story = [
+        paragraph(tr("Pares e coeficientes | Split", "Pairs and coefficients | Split"), "Title"),
+        paragraph(tr("Composição dos pares selecionados e resultados corrigidos por direção.",
+                     "Selected-pair composition and corrected results by direction."), "Body"),
+    ]
+    if not pairs:
+        story.append(paragraph(tr("Pares indisponíveis (N/A).", "Pairs unavailable (N/A).")))
+        return story
+    block_width = (width - 12) / 2
+    blocks = []
+    for pair in pairs:
+        data = [[paragraph(tr("Par | ", "Pair | ") + _text(pair.get("id")), "TableHeader"), "", "", ""],
+                [paragraph(label, "RunHeader") for label in (
+                    "Run", tr("F0 corrigido [N]", "Corrected F0 [N]"),
+                    tr("F2 corrigido [N/(km/h)²]", "Corrected F2 [N/(km/h)²]"),
+                    tr("Energia [MJ/km]", "Energy [MJ/km]"),
+                )]]
+        for suffix, direction in (("plus", "+"), ("minus", "-")):
+            for interval in ("high", "low"):
+                record = _mapping(pair.get(f"{interval}_{suffix}"), f"{interval}_{suffix}")
+                values = [f"{interval.title()}{direction} | {_text(record.get('run_id'))}"]
+                values += ([_number(pair.get(f"F0_{suffix}"), 4),
+                            _number(pair.get(f"F2_{suffix}"), 6),
+                            _number(pair.get(f"energy_{suffix}"), 4)]
+                           if interval == "high" else ["", "", ""])
+                data.append([paragraph(value, "Table") if value != "" else "" for value in values])
+        data.append([paragraph(value, "TableHeader") for value in (
+            tr("Média", "Mean"), _number(pair.get("F0_mean"), 4),
+            _number(pair.get("F2_mean"), 6), _number(pair.get("energy"), 4),
+        )])
+        block = Table(data, colWidths=[block_width * fraction for fraction in (.34, .22, .23, .21)])
+        block.setStyle(TableStyle([
+            ("SPAN", (0, 0), (-1, 0)),
+            *[("SPAN", (column, row), (column, row + 1)) for column in (1, 2, 3) for row in (2, 4)],
+            ("BACKGROUND", (0, 0), (-1, 1), TABLE_BACKGROUND_COLOR),
+            ("BACKGROUND", (0, -1), (-1, -1), TABLE_BACKGROUND_COLOR),
+            ("GRID", (0, 0), (-1, -1), .4, BORDER_COLOR),
+            ("LINEABOVE", (0, -1), (-1, -1), .7, HEADING_COLOR),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 6),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        blocks.append(block)
+    for index in range(0, len(blocks), 2):
+        row = Table([[blocks[index], "", blocks[index + 1] if index + 1 < len(blocks) else ""]],
+                    colWidths=[block_width, 12, block_width])
+        row.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+            ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ]))
+        story.extend([row, Spacer(1, 12)])
+    if sum(item.wrap(width, PAGE_SIZE[1])[1] + item.getSpaceBefore() + item.getSpaceAfter()
+           for item in story) > PAGE_SIZE[1] - 25 * mm:
+        raise ValueError("Page 3 content exceeds one page; too many or oversized pair blocks.")
+    return story
+
+
 def export_split_final_results_to_pdf(
     *,
     final_results: dict,
@@ -284,7 +346,7 @@ def export_split_final_results_to_pdf(
     test_metadata: dict | None = None,
     language: str = "pt",
 ) -> bytes:
-    """Return the A4 landscape summary and measured-run sections as PDF bytes.
+    """Return the A4 landscape summary, runs and corrected-pair pages as PDF bytes.
 
     Inputs are a consistent caller-prepared snapshot, never mutated. Final
     results supply num_pairs, means and diagnostic CVs; time_summary supplies
@@ -295,7 +357,7 @@ def export_split_final_results_to_pdf(
     graph_series supplies the exact High/Low points rendered on Page 2.
 
     Raises ValueError for malformed required sections, unsupported language or
-    content exceeding the two-page layout. No clipped or partial PDF returns.
+    content exceeding the three-page layout. No clipped or partial PDF returns.
     """
     for name, value in (
         ("final_results", final_results), ("vehicle_data", vehicle_data),
@@ -499,12 +561,16 @@ def export_split_final_results_to_pdf(
     software = f"{_text(metadata.get('software_name', APP_NAME))} / {_text(metadata.get('software_version', APP_VERSION))}"
     story.extend([NextPageTemplate("runs"), PageBreak(),
                   *_run_tables(final_results["selected_pairs"], graph_series, width, paragraph, tr)])
+    story.extend([NextPageTemplate("pairs"), PageBreak(),
+                  *_pair_tables(final_results["selected_pairs"], width, paragraph, tr)])
 
     def decorate(canvas, doc):
         if doc.pageTemplate.id == "summary" and doc.page != 1:
             raise ValueError("Page 1 content exceeds one page; shorten metadata or warnings.")
-        if doc.page > 2:
+        if doc.pageTemplate.id == "runs" and doc.page != 2:
             raise ValueError("Page 2 content exceeds one page.")
+        if doc.pageTemplate.id == "pairs" and doc.page != 3:
+            raise ValueError("Page 3 content exceeds one page.")
         canvas.saveState()
         canvas.setFillColor(BACKGROUND_COLOR)
         canvas.rect(0, 0, *PAGE_SIZE, fill=1, stroke=0)
@@ -550,7 +616,7 @@ def export_split_final_results_to_pdf(
         id=section, onPage=decorate,
         frames=Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height,
                      leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0),
-    ) for section in ("summary", "runs")])
+    ) for section in ("summary", "runs", "pairs")])
     try:
         doc.build(story)
     except LayoutError as exc:

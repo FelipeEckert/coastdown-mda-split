@@ -3758,3 +3758,20 @@ Use distinct explicit synthetic curves for visual QA, verify PT/EN and empty
 panels, and compare prior Page 1 raster pixels to prove its design is unchanged.
 Use UTF-8-safe patches for accented labels; Windows shell pipelines can replace
 Unicode characters with question marks even when the destination writes UTF-8.
+
+## Page 3 corrected directional results - 2026-09-11
+
+One corrected directional result belongs to a High/Low combination, not to
+either run independently. Use native vertical table spans across each direction's
+two run rows, then render the stored pair mean in a highlighted final row.
+Never derive that mean in reporting or substitute uncorrected f0/f2 fields.
+
+The Results page calculates directional energy on demand; its helper must not
+be reused by the PDF. Read optional stored energy_plus/energy_minus only when
+supplied, otherwise N/A. Read pair energy directly. The synthetic PDF fixture
+includes explicit directional energies to exercise the supported display, not
+to suggest that current upstream pair construction always supplies them.
+
+Keep earlier page boundaries independent when adding a PageTemplate. Compare
+both earlier raster pages against the prior sample, and reject oversized pair
+content rather than creating the still-unimplemented Page 4.

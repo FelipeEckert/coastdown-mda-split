@@ -109,6 +109,12 @@ def sample_run_inputs():
                 "speeds_kmh": [101.0, 94.0, 87.0] if high else [63.0, 56.0, 49.0],
                 "data_mode": "interval_curve", "interval_rows": [],
             })
+    for pair, values in zip(pairs, (
+        (138.2345, .049123, .1721, 140.5879, .050595, .1743, 139.4112, .049859, .1732),
+        (141.2345, .051123, .1761, 143.5879, .052595, .1783, 142.4112, .051859, .1772),
+    )):
+        pair.update(zip(("F0_plus", "F2_plus", "energy_plus", "F0_minus", "F2_minus",
+                         "energy_minus", "F0_mean", "F2_mean", "energy"), values))
     return inputs
 
 
@@ -118,7 +124,7 @@ class SplitPdfReportTests(unittest.TestCase):
         self.assertIsInstance(payload, bytes)
         self.assertTrue(payload.startswith(b"%PDF-"))
         reader = PdfReader(BytesIO(payload))
-        self.assertGreaterEqual(len(reader.pages), 2)
+        self.assertEqual(len(reader.pages), 3)
         self.assertAlmostEqual(float(reader.pages[0].mediabox.width), PAGE_SIZE[0], places=3)
         self.assertAlmostEqual(float(reader.pages[0].mediabox.height), PAGE_SIZE[1], places=3)
         return reader, reader.pages[0].extract_text()
@@ -223,7 +229,7 @@ class SplitPdfReportTests(unittest.TestCase):
         before = deepcopy(inputs)
         reader, _ = self.render(inputs)
         self.assertEqual(inputs, before)
-        self.assertEqual(len(reader.pages), 2)
+        self.assertEqual(len(reader.pages), 3)
         text = reader.pages[1].extract_text()
         for expected in ("Alta velocidade", "Baixa velocidade", "101-94", "94-87",
                          "63-56", "56-49", "7.431", "123.456", "25.6", "101.32", "1.42",
@@ -245,7 +251,7 @@ class SplitPdfReportTests(unittest.TestCase):
         self.assertEqual(text.count("1H+"), 2)
         inputs["final_results"]["selected_pairs"][1]["ambient_by_component"]["high_plus"]["temperature_c"] = 27.8
         reader, _ = self.render(inputs)
-        text = "\n".join(page.extract_text() for page in reader.pages[1:])
+        text = reader.pages[1].extract_text()
         self.assertEqual(text.count("1H+"), 4)
         self.assertIn("27.8", text)
         inputs["final_results"]["selected_pairs"][1]["high_plus"]["filename"] = "another.csv"
@@ -300,7 +306,7 @@ class SplitPdfReportTests(unittest.TestCase):
             for component in ("high_plus", "high_minus"):
                 pair[component]["subintervals"] = record["subintervals"]
         reader, _ = self.render(inputs)
-        self.assertEqual(len(reader.pages), 2)
+        self.assertEqual(len(reader.pages), 3)
         for value in (*record["subintervals"], "1.111", "2.222", "3.333", "4.444"):
             self.assertIn(value, reader.pages[1].extract_text())
 
@@ -317,7 +323,7 @@ class SplitPdfReportTests(unittest.TestCase):
         with patch("reports.split_pdf_report._run_chart", wraps=_run_chart) as draw:
             reader, _ = self.render(inputs)
         self.assertEqual(inputs, before)
-        self.assertEqual(len(reader.pages), 2)
+        self.assertEqual(len(reader.pages), 3)
         self.assertEqual(reader.pages[0].get_contents().get_data(),
                          baseline.pages[0].get_contents().get_data())
         self.assertEqual(draw.call_count, 2)
@@ -342,6 +348,65 @@ class SplitPdfReportTests(unittest.TestCase):
         reader, _ = self.render(inputs)
         self.assertEqual(reader.pages[1].extract_text().count("Curvas indisponíveis (N/A)."), 2)
 
+    def test_pair_page_uses_only_stored_corrected_values_and_preserves_earlier_pages(self):
+        inputs = sample_run_inputs()
+        baseline, _ = self.render(inputs)
+        pair = inputs["final_results"]["selected_pairs"][0]
+        pair.update(F0_plus=-123.4567, F2_plus=.012345, energy_plus=.1234,
+                    F0_minus=234.5678, F2_minus=.067891, energy_minus=.2345,
+                    F0_mean=345.6789, F2_mean=.078912, energy=.3456,
+                    f0_prime_plus=9999.0, f2_prime_mean=8888.0)
+        before = deepcopy(inputs)
+        reader, _ = self.render(inputs)
+        self.assertEqual(inputs, before)
+        for index in (0, 1):
+            self.assertEqual(reader.pages[index].get_contents().get_data(),
+                             baseline.pages[index].get_contents().get_data())
+        text = reader.pages[2].extract_text()
+        for value in ("-123.4567", "0.012345", "0.1234", "234.5678", "0.067891",
+                      "0.2345", "345.6789", "0.078912", "0.3456"):
+            self.assertEqual(text.count(value), 1)
+        for label in ("Pares e coeficientes | Split", "High+ | 1H+", "Low+ | 1L+",
+                      "High- | 1H-", "Low- | 1L-", "Média", "Página 3", "N/(km/h)²"):
+            self.assertIn(label, text)
+        self.assertNotIn("9999", text)
+        self.assertNotIn("8888", text)
+
+    def test_pair_page_merges_directional_cells_and_keeps_missing_energy_unavailable(self):
+        from reportlab.platypus import Paragraph
+        from reports.split_pdf_report import _pair_tables
+        inputs = sample_run_inputs()
+        inputs["language"] = "en"
+        pairs = inputs["final_results"]["selected_pairs"]
+        pairs[0].pop("energy_plus")
+        pairs[0].pop("energy_minus")
+        reader, _ = self.render(inputs)
+        text = reader.pages[2].extract_text()
+        for label in ("Pairs and coefficients", "Corrected F0", "Corrected F2", "Mean", "N/A"):
+            self.assertIn(label, text)
+        self.assertNotIn("0.1721", text)
+        self.assertNotIn("0.1743", text)
+        styles = build_report_styles()
+        story = _pair_tables(pairs, PAGE_SIZE[0] - 2 * PAGE_MARGIN,
+                             lambda text, style="Table": Paragraph(str(text), styles[style]),
+                             lambda pt, en: en)
+        block = story[2]._cellvalues[0][0][0]
+        for column in (1, 2, 3):
+            for row in (2, 4):
+                self.assertIn(("SPAN", (column, row), (column, row + 1)), block._spanCmds)
+        inputs["final_results"]["selected_pairs"] = []
+        reader, _ = self.render(inputs)
+        self.assertIn("Pairs unavailable (N/A).", reader.pages[2].extract_text())
+
+    def test_pair_page_supports_odd_blocks_and_rejects_overflow(self):
+        inputs = sample_inputs()
+        inputs["final_results"]["selected_pairs"] = [{"id": f"pair-{i}"} for i in range(5)]
+        reader, _ = self.render(inputs)
+        self.assertIn("pair-4", reader.pages[2].extract_text())
+        inputs["final_results"]["selected_pairs"] = [{"id": f"pair-{i}"} for i in range(20)]
+        with self.assertRaisesRegex(ValueError, "Page 3"):
+            export_split_final_results_to_pdf(**inputs)
+
     def test_run_shape_errors_are_explicit(self):
         for labels, stored in ((["a", "a"], [1, 2]), (["a"], [1, 2]), ([1], [1])):
             with self.subTest(labels=labels, stored=stored):
@@ -361,7 +426,7 @@ class SplitPdfReportTests(unittest.TestCase):
             self.assertIn(label, text)
         inputs["final_results"]["selected_pairs"] = []
         reader, _ = self.render(inputs)
-        self.assertEqual(len(reader.pages), 2)
+        self.assertEqual(len(reader.pages), 3)
         self.assertIn("N/A", reader.pages[1].extract_text())
 
     def test_invalid_structure_and_overflow_raise_readable_errors(self):

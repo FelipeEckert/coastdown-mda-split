@@ -1013,3 +1013,16 @@ Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
   Python compilation, scoped Ruff and diff checks; stage intended files individually.
 - [ ] Pages 3-4 and Results integration remain deferred. No scientific logic,
   selection, validation or Excel behavior changes; no added dependencies.
+
+## Split PDF Page 3 selected pairs - 2026-09-11
+
+- [x] Add two-column selected-pair blocks with canonical High+/Low+/High-/Low-
+  runs, merged corrected directional F0/F2/energy cells and highlighted means.
+- [x] Read stored values only; missing directional energy remains N/A. Preserve
+  PT/EN, units and precision, and fail explicitly on Page 3 overflow.
+- [x] Generate the three-page sample and verify Pages 1-2 are pixel-identical
+  to the prior sample. Inspect Page 3, English/missing-energy and odd-block cases.
+- [x] Pass 21 focused PDF tests and 78 relevant regressions, compilation,
+  scoped Ruff, pip check and diff checks; stage intended files individually.
+- [ ] Page 4 and Results integration remain deferred. No changes to calculations,
+  selection, validation or Excel export.
