@@ -273,8 +273,9 @@ def _run_tables(pairs, graph_series, width, paragraph, tr):
     return story
 
 
-def _pair_tables(pairs, width, paragraph, tr):
+def _pair_tables(final_results, width, paragraph, tr):
     """Render stored corrected directional values and means, with shared cells."""
+    pairs = final_results["selected_pairs"]
     story = [
         paragraph(tr("Pares e coeficientes | Split", "Pairs and coefficients | Split"), "Title"),
         paragraph(tr("Composição dos pares selecionados e resultados corrigidos por direção.",
@@ -282,7 +283,6 @@ def _pair_tables(pairs, width, paragraph, tr):
     ]
     if not pairs:
         story.append(paragraph(tr("Pares indisponíveis (N/A).", "Pairs unavailable (N/A).")))
-        return story
     block_width = (width - 12) / 2
     blocks = []
     for pair in pairs:
@@ -300,8 +300,8 @@ def _pair_tables(pairs, width, paragraph, tr):
                             _number(pair.get(f"F2_{suffix}"), 6),
                             _number(pair.get(f"energy_{suffix}"), 4)]
                            if interval == "high" else ["", "", ""])
-                data.append([paragraph(value, "Table") if value != "" else "" for value in values])
-        data.append([paragraph(value, "TableHeader") for value in (
+                data.append([paragraph(value, "RunCell") if value != "" else "" for value in values])
+        data.append([paragraph(value, "RunHeader") for value in (
             tr("Média", "Mean"), _number(pair.get("F0_mean"), 4),
             _number(pair.get("F2_mean"), 6), _number(pair.get("energy"), 4),
         )])
@@ -316,8 +316,8 @@ def _pair_tables(pairs, width, paragraph, tr):
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("LEFTPADDING", (0, 0), (-1, -1), 6),
             ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-            ("TOPPADDING", (0, 0), (-1, -1), 3),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("TOPPADDING", (0, 0), (-1, -1), 1),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
         ]))
         blocks.append(block)
     for index in range(0, len(blocks), 2):
@@ -328,10 +328,41 @@ def _pair_tables(pairs, width, paragraph, tr):
             ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
             ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
         ]))
-        story.extend([row, Spacer(1, 12)])
-    if sum(item.wrap(width, PAGE_SIZE[1])[1] + item.getSpaceBefore() + item.getSpaceAfter()
-           for item in story) > PAGE_SIZE[1] - 25 * mm:
+        story.extend([row, Spacer(1, 6)])
+    rows = [[paragraph(tr("Resultados finais", "Final results"), "Heading"), "", "", ""],
+            [paragraph(label, "RunHeader") for label in (
+                tr("Par", "Pair"), tr("F0 corrigido [N]", "Corrected F0 [N]"),
+                tr("F2 corrigido [N/(km/h)²]", "Corrected F2 [N/(km/h)²]"),
+                tr("Energia [MJ/km]", "Energy [MJ/km]"),
+            )]]
+    rows.extend([[paragraph(value, "RunCell") for value in (
+        pair.get("id"), _number(pair.get("F0_mean"), 4),
+        _number(pair.get("F2_mean"), 6), _number(pair.get("energy"), 4),
+    )] for pair in pairs])
+    rows.append([paragraph(value, "TableHeader") for value in (
+        tr("Consolidado", "Consolidated"),
+        tr("F0 final", "Final F0") + "\n" + _number(final_results.get("mean_f0"), 4),
+        tr("F2 final", "Final F2") + "\n" + _number(final_results.get("mean_f2"), 6),
+        tr("Energia final", "Final energy") + "\n" + _number(final_results.get("mean_energy"), 4),
+    )])
+    results = Table(rows, colWidths=[width * fraction for fraction in (.34, .22, .23, .21)])
+    results.setStyle(TableStyle([
+        ("SPAN", (0, 0), (-1, 0)),
+        ("BACKGROUND", (0, 0), (-1, 1), TABLE_BACKGROUND_COLOR),
+        ("BACKGROUND", (0, -1), (-1, -1), TABLE_BACKGROUND_COLOR),
+        ("GRID", (0, 0), (-1, -1), .4, BORDER_COLOR),
+        ("LINEABOVE", (0, -1), (-1, -1), 1, HEADING_COLOR),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+    ]))
+    remaining = PAGE_SIZE[1] - 25 * mm - sum(
+        item.wrap(width, PAGE_SIZE[1])[1] + item.getSpaceBefore() + item.getSpaceAfter()
+        for item in [*story, results]
+    )
+    if remaining < 0:
         raise ValueError("Page 3 content exceeds one page; too many or oversized pair blocks.")
+    story.extend([Spacer(1, remaining), results])
     return story
 
 
@@ -373,7 +404,19 @@ def export_split_final_results_to_pdf(
         raise ValueError("generated_at must be a datetime.")
     if language not in ("pt", "en"):
         raise ValueError("language must be 'pt' or 'en'.")
-    metadata = _mapping(test_metadata, "test_metadata")
+    def metadata_text(value):
+        if isinstance(value, dict):
+            return {key: metadata_text(item) for key, item in value.items()} if value else missing
+        if value is None or (isinstance(value, str) and not value.strip()):
+            return missing
+        return value
+
+    missing = "Não informado" if language == "pt" else "Not provided"
+    metadata = {key: metadata_text(value) for key, value in _mapping(test_metadata, "test_metadata").items()}
+    for key in ("test_date", "responsible_engineer", "operator", "driver", "location",
+                "service_identifier", "report_identifier", "start_time", "end_time",
+                "method", "configuration", "equipment"):
+        metadata.setdefault(key, missing)
     times = deviation_analysis["time_summary"]
     groups = _mapping(times.get("groups"), "time_summary.groups")
     opposite = _mapping(times.get("opposite_direction"), "time_summary.opposite_direction")
@@ -540,7 +583,10 @@ def export_split_final_results_to_pdf(
 
     story = [
         paragraph(tr("Resumo de resultados | Split", "Results summary | Split"), "Title"),
-        paragraph(test_name, "Body"), metrics, Spacer(1, 6),
+        paragraph(_text(test_name) + (
+            " | " + tr("Comentários: ", "Comments: ") + _text(metadata["comments"])
+            if "comments" in (test_metadata or {}) else ""
+        ), "Body"), metrics, Spacer(1, 6),
         columns([
             box(fields(test_rows), column_width, tr("Identificação do teste", "Test identification")),
             box(fields(vehicle_rows), column_width, tr("Veículo e massas [kg]", "Vehicle and masses [kg]")),
@@ -562,7 +608,7 @@ def export_split_final_results_to_pdf(
     story.extend([NextPageTemplate("runs"), PageBreak(),
                   *_run_tables(final_results["selected_pairs"], graph_series, width, paragraph, tr)])
     story.extend([NextPageTemplate("pairs"), PageBreak(),
-                  *_pair_tables(final_results["selected_pairs"], width, paragraph, tr)])
+                  *_pair_tables(final_results, width, paragraph, tr)])
 
     def decorate(canvas, doc):
         if doc.pageTemplate.id == "summary" and doc.page != 1:

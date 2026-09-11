@@ -3775,3 +3775,38 @@ to suggest that current upstream pair construction always supplies them.
 Keep earlier page boundaries independent when adding a PageTemplate. Compare
 both earlier raster pages against the prior sample, and reject oversized pair
 content rather than creating the still-unimplemented Page 4.
+
+## Per-test report metadata dialog - 2026-09-11
+
+Keep report edits directly in the active test's test_metadata dictionary;
+widget keys also include its ID. These edits survive test switching without
+adding canonical results/configuration copies to report state. Project current
+configuration only when exporting. Dialog state must be explicitly cleared on
+dismissal or a test switch, including full-script reruns.
+
+Persist raw blanks, not translated placeholders. Missing optional report
+metadata uses Não informado / Not provided; explicit N/A means not applicable.
+Numerical missing-result semantics are unaffected. Never require optional
+metadata before generating. A metadata edit invalidates the visible PDF download
+by requiring a new explicit generation; no cross-test PDF cache is needed.
+
+The metadata workflow reuses the Results summary/analysis/normalized vehicle
+snapshot. Saved graph_series may be consumed, but missing series and directional
+energy must not trigger graph reconstruction or scientific calculations.
+Streamlit AppTest covers the actual dialog, field edits, active-test isolation,
+language switches and the final generation handoff; its temporary directories
+require normal filesystem access outside the restricted workspace sandbox.
+
+Short comments fit alongside the test name in the existing PDF subtitle.
+Appending them to the configuration card can increase its height enough to
+overflow Page 1. Include canonical configuration plus missing metadata in
+render tests and inspect PT/EN output, not just metadata-only fixtures.
+
+## Page 3 final results summary - 2026-09-11
+
+The bottom summary repeats stored corrected pair means but its final row must
+read mean_f0/mean_f2/mean_energy from final_results. Deliberately inconsistent
+sentinels verify the renderer never substitutes an average of displayed rows.
+The QA sample supplies coherent pair/consolidated values without production
+arithmetic. Reserve room for the final table through Page 3 spacing and compact
+cells; keep earlier page geometry and canonical snapshots unchanged.

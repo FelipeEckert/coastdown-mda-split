@@ -1026,3 +1026,33 @@ Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
   scoped Ruff, pip check and diff checks; stage intended files individually.
 - [ ] Page 4 and Results integration remain deferred. No changes to calculations,
   selection, validation or Excel export.
+
+## Results PDF report metadata workflow - 2026-09-11
+
+- [x] Add localized Report information dialog with optional per-test fields,
+  prefills, read-only available test date, equipment and optional comments.
+- [x] Reuse the existing Results snapshot and PDF contract; keep canonical
+  configuration out of saved metadata and leave Excel/scientific logic unchanged.
+- [x] Generate/download only on explicit action, clear stale downloads on edits,
+  and isolate metadata/dialog state when switching tests.
+- [x] Render missing report metadata as Não informado / Not provided while
+  preserving explicit N/A, and show a subtle optional-fields notice.
+- [x] Validate dialog interaction, switching, prefills, PT/EN, missing metadata
+  and exact canonical handoff with focused tests. Initial full suite: 506 passed.
+- [x] Final full suite: 506 passed; focused PDF/dialog checks, py_compile,
+  scoped Ruff and diff checks passed. Inspect PT/EN metadata output, including
+  canonical configuration and comments. Stage intended files individually; no commit.
+- [ ] Page 4 remains deferred. Graphs require caller-supplied saved graph_series;
+  absent graphs/directional energy are not reconstructed in this workflow.
+
+## PDF Page 3 final results summary - 2026-09-11
+
+- [x] Add a bottom-aligned pair summary and highlighted final F0/F2/energy row,
+  reading canonical pair and consolidated values without averaging.
+- [x] Keep Page 3's navy/pale-blue table style with compact pair blocks; retain
+  explicit overflow protection, PT/EN, units and missing-value handling.
+- [x] Update the synthetic sample and tests for deliberately inconsistent
+  consolidated sentinels and unavailable final values. Pages 1-2 stay pixel-identical.
+- [x] Inspect the updated sample and dense EN layout; pass 22 PDF tests and
+  78 relevant regressions, py_compile, scoped Ruff and diff checks. Stage intended
+  files individually without committing. Page 4 remains deferred.

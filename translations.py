@@ -6,6 +6,29 @@ Suporta Português (pt) e Inglês (en).
 """
 
 TRANSLATIONS = {
+    "split_pdf_title": {"pt": "Informações do relatório", "en": "Report information"},
+    "split_pdf_not_provided": {"pt": "Não informado", "en": "Not provided"},
+    "split_pdf_step": {"pt": "Passo", "en": "Step"},
+    "split_pdf_open": {"pt": "Preparar relatório PDF", "en": "Prepare PDF report"},
+    "split_pdf_generate": {"pt": "Gerar PDF", "en": "Generate PDF"},
+    "split_pdf_download": {"pt": "Baixar PDF", "en": "Download PDF"},
+    "split_pdf_metadata_note": {"pt": "Complete os dados opcionais. Veículo, massas, resultados e configuração Split serão incluídos automaticamente. Use N/A apenas quando não aplicável.", "en": "Complete optional details. Vehicle, masses, results and Split configuration are included automatically. Use N/A only when not applicable."},
+    "split_pdf_missing_notice": {"pt": "O PDF incluirá campos como “Não informado”. Você pode gerar o relatório mesmo assim.", "en": "The PDF will include fields marked “Not provided”. You can still generate the report."},
+    "split_pdf_test_changed": {"pt": "Abra o relatório novamente para o teste ativo.", "en": "Reopen the report for the active test."},
+    "split_pdf_layout_error": {"pt": "Não foi possível acomodar os dados nas três páginas. Revise textos longos ou a quantidade de dados do relatório.", "en": "The data could not fit the three report pages. Review long text or the amount of report data."},
+    "split_pdf_test_date": {"pt": "Data do teste", "en": "Test date"},
+    "split_pdf_responsible_engineer": {"pt": "Engenheiro responsável", "en": "Responsible engineer"},
+    "split_pdf_operator": {"pt": "Operador", "en": "Operator"},
+    "split_pdf_driver": {"pt": "Condutor", "en": "Driver"},
+    "split_pdf_location": {"pt": "Local", "en": "Location"},
+    "split_pdf_service_identifier": {"pt": "Identificador do serviço", "en": "Service identifier"},
+    "split_pdf_report_identifier": {"pt": "Identificador do relatório", "en": "Report identifier"},
+    "split_pdf_start_time": {"pt": "Horário de início", "en": "Start time"},
+    "split_pdf_end_time": {"pt": "Horário de término", "en": "End time"},
+    "split_pdf_logger": {"pt": "Aquisição / logger", "en": "Acquisition / logger"},
+    "split_pdf_vbox": {"pt": "VBOX / modelo", "en": "VBOX / model"},
+    "split_pdf_weather_station": {"pt": "Estação meteorológica / modelo", "en": "Weather station / model"},
+    "split_pdf_comments": {"pt": "Comentários (opcional)", "en": "Comments (optional)"},
     # ===== NAVEGAÇÃO =====
     "page_vehicle_data": {
         "pt": "Dados do Veículo",

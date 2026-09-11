@@ -9,8 +9,9 @@
    and visual verification. Page 2 now includes compact tables and run curves.
    Page 3 presents pair composition and stored corrected coefficients. Page 4
    remains deferred; no existing export changes.
-3. **Results integration (later):** explicit PDF generation/download alongside
-   Excel, PT/EN labels and cache invalidation from the complete report snapshot.
+3. **Results integration (implemented):** explicit PDF metadata dialog and
+   generation/download alongside Excel, with PT/EN labels and per-test metadata.
+   PDF bytes are generated only on the final action and are not cached across edits.
 
 ## Data contract and ownership
 
@@ -44,6 +45,26 @@ may retain structured caller data. Omitted metadata is unavailable, never
 inferred. Do not move these fields into `vehicle_data`; historical test dates
 stored there must be projected by the future caller into `test_metadata`.
 The report-generation timestamp is not a fallback test date.
+Results stores report edits in `tests[active_test_id]["test_metadata"]` and
+prefills from saved edits, test fields and current vehicle/test-date fields.
+Equipment uses logger/vbox/weather_station keys; the existing meteo alias is
+accepted. Current Split configuration is projected at export time and not
+duplicated into saved report metadata. Comments are optional and, when supplied,
+appear beside the test name in the existing Page 1 subtitle.
+
+Blank optional report metadata now prints `Não informado` / `Not provided`;
+literal `N/A` is reserved for metadata explicitly marked not applicable. This
+supersedes earlier metadata N/A defaults below, while numerical missing-data
+behavior remains unchanged. Raw blanks are saved without localized placeholders.
+The dialog shows a subtle missing-metadata notice and never requires optional
+fields. Existing page geometry and calculation ownership remain unchanged.
+
+The Results handoff uses its existing summary, normalized vehicle snapshot and
+deviation analysis. It consumes saved per-test `graph_series` when present;
+otherwise chart panels remain unavailable. It does not reconstruct cumulative
+times, prepare graph series or calculate missing directional energy. Dialog
+state is dismissed/reset on test switches; PDF generation uses a fresh captured
+snapshot and no download remains after a metadata edit without regeneration.
 Optional `software_name` and `software_version` override the neutral identity
 from `version.py` in the footer and PDF creator metadata. Explicit missing
 software values print as N/A. Vehicle `model` and optional `vin` are displayed
@@ -186,6 +207,13 @@ precision (4/6/4 decimals). Empty selection gets an unavailable note. Blocks
 flow left-to-right in two columns, with an empty right cell for an odd count.
 A dedicated PageTemplate starts on page 3; oversized content raises a readable
 error instead of clipping pairs or adding Page 4. Pages 1-2 retain their layout.
+
+At the bottom of Page 3, `Resultados finais` / `Final results` lists each
+selected pair's stored `F0_mean`, `F2_mean` and `energy`. A highlighted consolidated
+row reads `final_results.mean_f0`, `mean_f2` and `mean_energy` directly, using
+4/6/4 display decimals. Never average pair rows in reporting, even when supplied
+consolidated values differ. Missing numerical values remain N/A. Compact pair
+blocks leave space for the summary; all content must still fit Page 3.
 
 - `reports/__init__.py`: package identity only, no eager application imports.
 - `reports/split_pdf_report.py`: public entry point; Platypus story of paragraphs

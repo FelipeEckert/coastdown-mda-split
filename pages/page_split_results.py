@@ -26,6 +26,7 @@ from data.split_exporters import (
     export_split_final_results_to_excel,
     get_cached_split_export,
 )
+from utils.split_pdf_workflow import render_pdf_export
 
 
 TIME_GROUP_COMPONENTS = ("high_plus", "high_minus", "low_plus", "low_minus")
@@ -779,6 +780,7 @@ def render(t):
             vehicle_data=vehicle_data,
             deviation_analysis=analysis,
         )
+        render_pdf_export(summary, {**vehicle_data, "vin": vehicle_info.get("vin")}, analysis, t)
         export_cache = st.session_state.get("split_results_excel_cache")
         if st.button(
             t("split_results_generate_excel"),

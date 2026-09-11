@@ -111,7 +111,7 @@ def sample_run_inputs():
             })
     for pair, values in zip(pairs, (
         (138.2345, .049123, .1721, 140.5879, .050595, .1743, 139.4112, .049859, .1732),
-        (141.2345, .051123, .1761, 143.5879, .052595, .1783, 142.4112, .051859, .1772),
+        (136.2345, .048123, .1711, 142.5879, .051595, .1753, 139.4112, .049859, .1732),
     )):
         pair.update(zip(("F0_plus", "F2_plus", "energy_plus", "F0_minus", "F2_minus",
                          "energy_minus", "F0_mean", "F2_mean", "energy"), values))
@@ -365,7 +365,7 @@ class SplitPdfReportTests(unittest.TestCase):
         text = reader.pages[2].extract_text()
         for value in ("-123.4567", "0.012345", "0.1234", "234.5678", "0.067891",
                       "0.2345", "345.6789", "0.078912", "0.3456"):
-            self.assertEqual(text.count(value), 1)
+            self.assertEqual(text.count(value), 2 if value in ("345.6789", "0.078912", "0.3456") else 1)
         for label in ("Pares e coeficientes | Split", "High+ | 1H+", "Low+ | 1L+",
                       "High- | 1H-", "Low- | 1L-", "Média", "Página 3", "N/(km/h)²"):
             self.assertIn(label, text)
@@ -387,7 +387,7 @@ class SplitPdfReportTests(unittest.TestCase):
         self.assertNotIn("0.1721", text)
         self.assertNotIn("0.1743", text)
         styles = build_report_styles()
-        story = _pair_tables(pairs, PAGE_SIZE[0] - 2 * PAGE_MARGIN,
+        story = _pair_tables(inputs["final_results"], PAGE_SIZE[0] - 2 * PAGE_MARGIN,
                              lambda text, style="Table": Paragraph(str(text), styles[style]),
                              lambda pt, en: en)
         block = story[2]._cellvalues[0][0][0]
@@ -406,6 +406,29 @@ class SplitPdfReportTests(unittest.TestCase):
         inputs["final_results"]["selected_pairs"] = [{"id": f"pair-{i}"} for i in range(20)]
         with self.assertRaisesRegex(ValueError, "Page 3"):
             export_split_final_results_to_pdf(**inputs)
+
+    def test_final_results_section_uses_supplied_consolidation_without_averaging(self):
+        for language, title in (("pt", "Resultados finais"), ("en", "Final results")):
+            inputs = sample_run_inputs()
+            inputs["language"] = language
+            inputs["final_results"].update(mean_f0=-765.4321, mean_f2=.123456, mean_energy=9.8765)
+            inputs["final_results"]["selected_pairs"][1].update(
+                F0_mean=142.4112, F2_mean=.051859, energy=.1772,
+            )
+            before = deepcopy(inputs)
+            reader, _ = self.render(inputs)
+            self.assertEqual(inputs, before)
+            text = reader.pages[2].extract_text().split(title, 1)[1]
+            for value in ("demo-1", "demo-2", "139.4112", "142.4112", "0.049859", "0.051859",
+                          "0.1732", "0.1772", "-765.4321", "0.123456", "9.8765"):
+                self.assertIn(value, text)
+            self.assertIn("F0 final" if language == "pt" else "Final F0", text)
+            self.assertIn("Energia final" if language == "pt" else "Final energy", text)
+        inputs = sample_inputs()
+        inputs["final_results"] = {"selected_pairs": []}
+        reader, _ = self.render(inputs)
+        text = reader.pages[2].extract_text().split("Resultados finais", 1)[1]
+        self.assertEqual(text.count("N/A"), 3)
 
     def test_run_shape_errors_are_explicit(self):
         for labels, stored in ((["a", "a"], [1, 2]), (["a"], [1, 2]), ([1], [1])):
