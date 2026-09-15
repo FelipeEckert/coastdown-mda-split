@@ -3810,3 +3810,34 @@ sentinels verify the renderer never substitutes an average of displayed rows.
 The QA sample supplies coherent pair/consolidated values without production
 arithmetic. Reserve room for the final table through Page 3 spacing and compact
 cells; keep earlier page geometry and canonical snapshots unchanged.
+
+## 2026-09-15 - Complete PDF integration at canonical producer boundaries
+
+Directional energy belongs to apply_split_pair_correction, using the existing
+Split energy adapter. Preserve the two values in comparison pairs and clear them
+when weather-dependent corrections are invalidated. Results and PDF only read
+them; old pairs lacking the fields need upstream recalculation, not export-time
+engineering fallbacks. Excel semantics and the existing energy formula stay intact.
+
+Prepare selected-run chart series only on explicit PDF generation, using the
+current canonical records and input sources through build_split_run_plot_series.
+Do not save an unmanaged graph_series list in test/session state. Deduplicate full
+record snapshots so equal run numbers from different sources remain distinct.
+
+ambient_by_component is not inherently measured weather: fixed correction inputs
+also live there. Page 2 prefers component/record synchronization snapshots, rejects
+fixed and unmatched data, and only falls back to ambient snapshots for nonfixed
+pairs. This is report provenance selection, not a change to correction or sync.
+
+VIN belongs to vehicle_info with per-test widget identity, not report metadata.
+Merge known nested equipment fields before applying saved report edits, including
+intentional blanks/N/A. Split identity/current configuration cannot come from stale
+report edits; no canonical report start/end definition exists, so keep those manual.
+
+The real Eliezer CSV/meteo pipeline exposed two layout issues hidden by synthetic
+fixtures: six-column High tables wrapped total-time digits, and genuine warnings
+overflowed Page 1. Reduce dense-cell padding and, only when needed, existing vertical
+gaps; retain text, fonts, section order, warnings and explicit overflow errors.
+Regression checks compare the real pipeline's Results display, Excel cells and PDF
+text, while PT/EN raster inspection checks all three pages. Sample identification
+and mass decomposition absent from that fixture must remain unavailable.

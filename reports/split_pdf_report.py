@@ -72,16 +72,24 @@ def _measured_runs(pairs):
             raise ValueError("Each selected pair must be a dictionary.")
         ambient = _mapping(pair.get("ambient_by_component"), "ambient_by_component")
         components = _mapping(pair.get("weather_components"), "weather_components")
+        synchronized = _mapping(pair.get("weather_sync"), "weather_sync")
         for interval in rows:
             for suffix, direction in (("plus", "+"), ("minus", "-")):
                 component = f"{interval}_{suffix}"
                 record = _mapping(pair.get(component), component)
                 if not record:
                     continue
-                weather = _mapping(
-                    ambient.get(component) or components.get(component) or record.get("weather_sync"),
-                    f"{component} weather",
-                )
+                weather = {}
+                candidates = [components.get(component), record.get("weather_sync"),
+                              synchronized.get(component)]
+                if pair.get("ambient_mode") != "fixed":
+                    candidates.append(ambient.get(component))
+                for candidate in candidates:
+                    snapshot = _mapping(candidate, f"{component} weather")
+                    if (snapshot and snapshot.get("sync_method") != "fixed"
+                            and snapshot.get("matched") is not False):
+                        weather = snapshot
+                        break
                 labels = record.get("subintervals") or []
                 if not isinstance(labels, (list, tuple)) or not all(isinstance(x, str) for x in labels):
                     raise ValueError(f"{component}.subintervals must be a list of labels.")
@@ -239,8 +247,8 @@ def _run_tables(pairs, graph_series, width, paragraph, tr):
                 ("BACKGROUND", (0, 0), (-1, 1), TABLE_BACKGROUND_COLOR),
                 ("GRID", (0, 0), (-1, -1), .4, BORDER_COLOR),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 5),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+                ("LEFTPADDING", (0, 0), (-1, -1), 3 if len(headers) > 4 else 5),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 3 if len(headers) > 4 else 5),
                 ("TOPPADDING", (0, 0), (-1, -1), 3),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
             ]))
@@ -604,6 +612,13 @@ def export_split_final_results_to_pdf(
         ], width - 12), width, tr("Método Split e configuração", "Split method and configuration")),
         Spacer(1, 6), normative, Spacer(1, 6), box(diagnostics, width, diagnostic_title),
     ]
+    # Preserve approved spacing when it fits; compact gaps for real supplied warnings.
+    overflow = sum(item.wrap(width, PAGE_SIZE[1])[1] + item.getSpaceBefore()
+                   + item.getSpaceAfter() for item in story) - (PAGE_SIZE[1] - 25 * mm)
+    if overflow > 0:
+        spacers = [item for item in story if isinstance(item, Spacer)]
+        for item in spacers:
+            item.height -= min(4, overflow / len(spacers) + .1)
     software = f"{_text(metadata.get('software_name', APP_NAME))} / {_text(metadata.get('software_version', APP_VERSION))}"
     story.extend([NextPageTemplate("runs"), PageBreak(),
                   *_run_tables(final_results["selected_pairs"], graph_series, width, paragraph, tr)])

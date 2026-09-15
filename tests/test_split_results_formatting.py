@@ -193,6 +193,7 @@ class SplitResultsFormattingTest(unittest.TestCase):
             "high_minus_run": "HM", "high_minus_delta_t_s": 13.0,
             "low_minus_run": "LM", "low_minus_delta_t_s": 14.0,
             "F0_plus": 100.12345, "F2_plus": 0.0043219,
+            "energy_plus": 0.11119, "energy_minus": 0.22229,
             "temp_plus_used": 20.0, "press_plus_used": 101.325,
             "wind_plus_ms": 0.0,
             "F0_minus": 200.0, "F2_minus": 0.005,
@@ -211,8 +212,8 @@ class SplitResultsFormattingTest(unittest.TestCase):
         t = get_translator("pt")
 
         with patch("pages.page_split_results.st", fake_st), patch(
-            "pages.page_split_results.calculate_split_energy",
-            side_effect=[{"energy": 0.11119}, {"energy": 0.22229}],
+            "core.split_energy.calculate_split_energy",
+            side_effect=AssertionError("Results must read stored energy"),
         ) as calculate_energy:
             _render_selected_pairs([pair], t)
 
@@ -222,13 +223,7 @@ class SplitResultsFormattingTest(unittest.TestCase):
             icon=":material/compare_arrows:",
         )
         fake_st.columns.assert_not_called()
-        self.assertEqual(
-            calculate_energy.call_args_list,
-            [
-                call(100.12345, 0.0043219),
-                call(200.0, 0.005),
-            ],
-        )
+        calculate_energy.assert_not_called()
         rendered_titles = [call.args[0] for call in layout.markdown.call_args_list]
         self.assertIn("**[+] Run HP / Run LP**", rendered_titles)
         self.assertIn("**[-] Run HM / Run LM**", rendered_titles)
@@ -244,7 +239,6 @@ class SplitResultsFormattingTest(unittest.TestCase):
         self.assertTrue(
             all(call.kwargs.get("border") is True for call in layout.metric.call_args_list)
         )
-        self.assertEqual(calculate_energy.call_count, 2)
         self.assertEqual(pair, original)
 
     def test_display_does_not_add_unit_unless_explicitly_requested(self):

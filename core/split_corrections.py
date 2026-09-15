@@ -318,8 +318,10 @@ def apply_split_pair_correction(
             "corrected_pair_mean": None,
             "F0_plus": None,
             "F2_plus": None,
+            "energy_plus": None,
             "F0_minus": None,
             "F2_minus": None,
+            "energy_minus": None,
             "F0_mean": None,
             "F2_mean": None,
             "energy": None,
@@ -345,6 +347,7 @@ def apply_split_pair_correction(
                 "corrected_result_plus": corrected_plus,
                 "F0_plus": corrected_plus["F0"],
                 "F2_plus": corrected_plus["F2"],
+                "energy_plus": calculate_split_energy(corrected_plus["F0"], corrected_plus["F2"])["energy"],
             }
         )
 
@@ -361,6 +364,7 @@ def apply_split_pair_correction(
                 "corrected_result_minus": corrected_minus,
                 "F0_minus": corrected_minus["F0"],
                 "F2_minus": corrected_minus["F2"],
+                "energy_minus": calculate_split_energy(corrected_minus["F0"], corrected_minus["F2"])["energy"],
             }
         )
 

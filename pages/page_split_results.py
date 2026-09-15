@@ -16,7 +16,6 @@ from core.split_display import (
     format_split_time_group_label,
     get_split_reference_speeds,
 )
-from core.split_energy import calculate_split_energy
 from core.split_results import consolidate_split_final_results
 from core.split_state import split_final_results_status
 from core.split_weather_context import split_environmental_values
@@ -327,11 +326,7 @@ def _card_display(value, precision):
 def _directional_pair_values(pair, suffix):
     f0 = _number(pair.get(f"F0_{suffix}"))
     f2 = _number(pair.get(f"F2_{suffix}"))
-    energy = (
-        calculate_split_energy(f0, f2)["energy"]
-        if f0 is not None and f2 is not None
-        else None
-    )
+    energy = pair.get(f"energy_{suffix}")
     return {
         "F0 [N]": _card_display(f0, 4),
         "F2 [N/(km/h)²]": _card_display(f2, 6),

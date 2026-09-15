@@ -440,6 +440,27 @@ class SplitPdfReportTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     export_split_final_results_to_pdf(**inputs)
 
+    def test_measured_weather_rejects_fixed_and_unmatched_snapshots(self):
+        from core.split_corrections import fixed_ambient_conditions
+        from reports.split_pdf_report import _measured_runs
+        inputs = sample_run_inputs()
+        pair = inputs["final_results"]["selected_pairs"][0]
+        measured = deepcopy(pair["ambient_by_component"])
+        pair.update(fixed_ambient_conditions(99.8, 77.7))
+        pair["weather_components"] = {"high_plus": measured["high_plus"]}
+        pair["low_plus"]["weather_sync"] = measured["low_plus"]
+        pair["weather_components"]["high_minus"] = {**measured["high_minus"], "matched": False}
+        rows = _measured_runs([pair])
+        self.assertEqual(rows["high"][0]["weather"], measured["high_plus"])
+        self.assertEqual(rows["low"][0]["weather"], measured["low_plus"])
+        self.assertEqual(rows["high"][1]["weather"], {})
+        self.assertEqual(rows["low"][1]["weather"], {})
+        reader, _ = self.render(inputs)
+        text = reader.pages[1].extract_text()
+        self.assertNotIn("99.8", text)
+        self.assertNotIn("77.70", text)
+        self.assertIn("N/A", text)
+
     def test_run_page_translation_and_empty_sections(self):
         inputs = sample_run_inputs()
         inputs["language"] = "en"

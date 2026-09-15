@@ -1045,6 +1045,33 @@ Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
 - [ ] Page 4 remains deferred. Graphs require caller-supplied saved graph_series;
   absent graphs/directional energy are not reconstructed in this workflow.
 
+## Split PDF production integration - 2026-09-15
+
+- [x] Prepare selected High/Low graph snapshots at explicit export through the existing
+  run-series builder; ignore old test-level graph_series and keep no graph cache.
+- [x] Store directional energy in the shared corrected-pair producer, preserve it in
+  comparison pairs, clear it with invalid corrections, and read it in Results/PDF.
+- [x] Project only measured/synchronized per-run weather into Page 2; reject fixed
+  correction inputs and unmatched snapshots without changing correction precedence.
+- [x] Add optional VIN to canonical per-test vehicle_info and verify save/load,
+  switching, editing and blank input. No mass/default behavior changes.
+- [x] Merge known equipment prefills with saved metadata edits, retain blanks and
+  explicit N/A, use current Split identity/configuration, and leave start/end manual.
+- [x] Exercise the Eliezer CSV/meteo pipeline across Results, Excel and PDF, including
+  selected order, count, directional values, corrected pair means/energy and final values.
+- [x] Preserve the three-page design; narrow dense time-cell padding to avoid split
+  digits and compact Page 1 gaps only when real warnings require the extra room.
+- [x] Generate output/pdf/split_report_real_pipeline.pdf and inspect all three pages
+  plus an English variant. Missing model/VIN/mass decomposition remain unavailable;
+  the sample uses the existing import test's 1545 kg effective-mass reference.
+- [x] Repeat production placeholder audit: no injected demo/sample report values.
+- [x] Pass focused PDF/Results/correction checks (51), dialog/test-state checks (19),
+  and the final full suite (514), including VIN interaction, Excel, weather and persistence.
+  py_compile, scoped Ruff and pip check pass; review/stage only intended files, no commit.
+- Remaining compatibility limit: previously calculated pairs without stored directional
+  energy need normal upstream recalculation; reporting does not invent/backfill it.
+- Existing readable three-page capacity limits remain; oversized content fails explicitly.
+
 ## PDF Page 3 final results summary - 2026-09-11
 
 - [x] Add a bottom-aligned pair summary and highlighted final F0/F2/energy row,

@@ -54,6 +54,10 @@ def render(t):
         st.subheader(f":material/directions_car: {t('vehicle_information')}")
         with st.container(horizontal=True, gap="medium"):
             st.text_input(t("vehicle_model"), key="vehicle_model_input")
+            st.session_state.vehicle_info["vin"] = st.text_input(
+                "VIN", value=st.session_state.vehicle_info.get("vin") or "",
+                key=f"vehicle_vin_{st.session_state.get('active_test_id')}",
+            ).strip()
             st.date_input(t("test_date"), key="test_date_input")
         st.session_state.vehicle_info["model"] = st.session_state.vehicle_model_input
         st.session_state.vehicle_info["test_date"] = (

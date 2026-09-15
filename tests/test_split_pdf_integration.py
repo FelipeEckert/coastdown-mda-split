@@ -1,0 +1,156 @@
+"""Results/Excel/PDF contract exercised through the existing real Split CSV pipeline."""
+
+from copy import deepcopy
+from datetime import datetime
+from io import BytesIO
+from pathlib import Path
+import unittest
+from unittest.mock import Mock, patch
+
+from openpyxl import load_workbook
+from pypdf import PdfReader
+
+from core.split_comparison import build_split_comparison_pair, calculate_complete_split_pair
+from core.split_corrections import apply_split_pair_correction, weather_sync_ambient_conditions
+from core.split_deviation_analysis import analyze_split_selected_deviations
+from core.split_display import format_split_pair_label
+from core.split_energy import calculate_split_energy
+from core.split_results import consolidate_split_final_results
+from core.split_vehicle_mass import normalize_split_vehicle_mass_data
+from core.split_weather_context import synchronize_weather_for_split_runs
+from data.loaders import carregar_dados_csv_robusto
+from data.split_exporters import export_split_final_results_to_excel
+from data.split_parser import default_split_interval_config, parse_split_sources
+from data.weather_loader import read_weather_file
+from pages.page_split_results import _directional_pair_values, _pair_rows, _render_summary
+from reports.split_pdf_report import _measured_runs, export_split_final_results_to_pdf
+from translations import get_translator
+from utils.split_graphs import build_split_selected_plot_series
+from utils.split_pdf_workflow import pdf_metadata, prefill_report_metadata
+
+
+def real_pipeline_inputs():
+    """Use the Eliezer CSVs/meteo and the 1545 kg reference used by import tests."""
+    root = Path(__file__).resolve().parents[1] / "sample_data" / "Split"
+    config = default_split_interval_config()
+    sources = []
+    for interval in ("high", "low"):
+        path = root / "coastdown" / f"split eliezer {interval}.csv"
+        _, runs, _ = carregar_dados_csv_robusto(
+            str(path), using_split_method=True, is_alta=interval == "high",
+        )
+        sources.append({"filename": path.name, "role": interval, "all_run_data": runs})
+    parsed = parse_split_sources(sources, config)
+    weather = read_weather_file(root / "meteo" / "AGRICULTR_SPLIT.csv")
+    parsed, _ = synchronize_weather_for_split_runs(parsed, weather)
+    vehicle = normalize_split_vehicle_mass_data({"effective_mass": 1545.0})
+    pairs = []
+    for plus, minus in ((1, 2), (3, 4), (5, 6)):
+        records = {
+            f"{interval}_{suffix}": next(r for r in parsed[interval] if r["run_id"] == run_id)
+            for interval in ("high", "low") for suffix, run_id in (("plus", plus), ("minus", minus))
+        }
+        raw = calculate_complete_split_pair(**records, effective_mass=vehicle["effective_mass_kg"], config=config)
+        corrected = apply_split_pair_correction(raw, weather_sync_ambient_conditions({
+            key: record["weather_sync"] for key, record in records.items()
+        }))
+        pair = build_split_comparison_pair(corrected, pair_id=f"eliezer-{plus}-{minus}")
+        # Keep a nonselected real pair in the source and reverse the selected order.
+        pair["selected"] = plus != 3
+        pairs.insert(0, pair)
+    summary = consolidate_split_final_results(pairs)
+    analysis = analyze_split_selected_deviations(summary["selected_pairs"])
+    state = {"split_interval_config": config, "split_input_sources": sources,
+             "vehicle_info": {**vehicle, "test_date": parsed["high"][0]["start_timestamp"].date()}}
+    inputs = dict(
+        final_results=summary, vehicle_data=state["vehicle_info"], deviation_analysis=analysis,
+        graph_series=build_split_selected_plot_series(summary["selected_pairs"], sources),
+        test_name="Split Eliezer | CSV pipeline", generated_at=datetime.now().astimezone(),
+        test_metadata=pdf_metadata(prefill_report_metadata({}, state), get_translator("pt")),
+    )
+    return inputs, state, pairs
+
+
+class SplitPdfIntegrationTests(unittest.TestCase):
+    def test_real_pipeline_results_excel_pdf_agree(self):
+        inputs, _, pairs = real_pipeline_inputs()
+        before = deepcopy(inputs)
+        summary = inputs["final_results"]
+        selected = summary["selected_pairs"]
+        self.assertEqual([p["id"] for p in selected], [pairs[0]["id"], pairs[2]["id"]])
+        ui_rows = _pair_rows(selected, get_translator("pt"))
+        self.assertEqual([row["Par"] for row in ui_rows], [format_split_pair_label(p) for p in selected])
+        ui = Mock()
+        ui.container.return_value = ui
+        with patch("pages.page_split_results.st", ui):
+            _render_summary(summary, inputs["deviation_analysis"]["time_summary"], get_translator("pt"))
+        values = [call.args[1] for call in ui.metric.call_args_list]
+        self.assertEqual(values, [str(len(selected)), f"{summary['mean_f0']:.4f}",
+                                  f"{summary['mean_f2']:.6f}", f"{summary['mean_energy']:.4f}"])
+        workbook = load_workbook(BytesIO(export_split_final_results_to_excel(
+            final_results=summary, selected_pairs=selected, vehicle_data=inputs["vehicle_data"],
+            deviation_analysis=inputs["deviation_analysis"],
+        )), data_only=True)
+        excel_summary = {row[0]: row[1] for row in workbook["Resumo Final"].iter_rows(values_only=True)}
+        self.assertEqual(excel_summary["Quantidade de pares selecionados"], summary["num_pairs"])
+        for label, key in (("F0 final [N]", "mean_f0"), ("F2 final [N/(km/h)²]", "mean_f2"),
+                           ("Energia média [MJ/km]", "mean_energy")):
+            self.assertAlmostEqual(excel_summary[label], summary[key])
+        # The renderer must not import or call any application engineering path.
+        with patch("core.split_corrections.calculate_split_energy", side_effect=AssertionError("PDF calculation")):
+            pdf = PdfReader(BytesIO(export_split_final_results_to_pdf(**inputs)))
+        self.assertEqual(len(pdf.pages), 3)
+        first, measured, last = [page.extract_text() for page in pdf.pages]
+        self.assertIn(f"\n{summary['num_pairs']}\n", first)
+        self.assertNotIn("indisponíveis", measured)
+        self.assertNotIn(pairs[1]["id"], last)
+        self.assertLess(last.index(selected[0]["id"]), last.index(selected[1]["id"]))
+        for key, precision in (("mean_f0", 4), ("mean_f2", 6), ("mean_energy", 4)):
+            self.assertIn(f"{summary[key]:.{precision}f}", first)
+            self.assertIn(f"{summary[key]:.{precision}f}", last.split("Consolidado", 1)[1])
+        deviations = list(workbook["Análise de Desvios e Tempos"].iter_rows(values_only=True))
+        for pair, row in zip(selected, ui_rows):
+            excel_row = next(r for r in deviations if r[0] == format_split_pair_label(pair))
+            for key, label, precision, column in (("F0_mean", "F0 (N)", 4, 1),
+                    ("F2_mean", "F2 (N/(km/h)²)", 6, 3), ("energy", "Energia (MJ/km)", 4, 5)):
+                self.assertEqual(row[label], f"{pair[key]:.{precision}f}")
+                self.assertAlmostEqual(excel_row[column], pair[key])
+                self.assertIn(row[label], last)
+            for suffix in ("plus", "minus"):
+                expected = calculate_split_energy(pair[f"F0_{suffix}"], pair[f"F2_{suffix}"])["energy"]
+                self.assertEqual(pair[f"energy_{suffix}"], expected)
+                self.assertIn(f"{expected:.4f}", _directional_pair_values(pair, suffix).values())
+                self.assertIn(f"{expected:.4f}", last)
+        for interval, rows in _measured_runs(selected).items():
+            self.assertEqual(len(rows), 4)
+            for row in rows:
+                self.assertTrue(row["weather"]["matched"])
+                self.assertIn(f"{row['record']['delta_t_s']:.3f}", measured)
+        self.assertEqual(inputs, before)
+
+    def test_graphs_follow_selection_and_preserve_sources(self):
+        inputs, state, _ = real_pipeline_inputs()
+        selected = inputs["final_results"]["selected_pairs"]
+        curves = build_split_selected_plot_series(selected + selected, state["split_input_sources"])
+        self.assertEqual(curves, inputs["graph_series"])
+        self.assertEqual(len(curves), 8)
+        for curve in curves:
+            self.assertEqual(curve["data_mode"], "interval_curve")
+            self.assertAlmostEqual(curve["times_s"][-1], curve["record"]["delta_t_s"])
+            self.assertEqual(curve["speeds_kmh"][0], curve["record"]["start_kmh"])
+        self.assertEqual(build_split_selected_plot_series([], state["split_input_sources"]), [])
+        other = deepcopy(selected[0])
+        other["high_plus"]["filename"] = "different-source.csv"
+        self.assertEqual(len(build_split_selected_plot_series([selected[0], other], [])), 5)
+
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) == 2 and sys.argv[1] == "--sample":
+        inputs, _, _ = real_pipeline_inputs()
+        output = Path("output/pdf/split_report_real_pipeline.pdf")
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_bytes(export_split_final_results_to_pdf(**inputs))
+        print(output)
+    else:
+        unittest.main()

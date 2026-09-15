@@ -6,6 +6,7 @@ from datetime import datetime
 import streamlit as st
 
 from reports.split_pdf_report import export_split_final_results_to_pdf
+from utils.split_graphs import build_split_selected_plot_series
 
 
 METADATA_FIELDS = (
@@ -20,10 +21,15 @@ def prefill_report_metadata(test, state):
     """Prefer saved report edits, then available active-test metadata."""
     metadata = deepcopy(test.get("test_metadata") or {})
     vehicle = state.get("vehicle_info") or test.get("vehicle_info") or {}
-    equipment = metadata.get("equipment", test.get("equipment", {}))
-    equipment = deepcopy(equipment) if isinstance(equipment, dict) else {"logger": equipment}
-    if "meteo" in equipment and "weather_station" not in equipment:
-        equipment["weather_station"] = equipment.pop("meteo")
+    equipment = {}
+    for source in (vehicle, test, metadata):
+        saved = source.get("equipment")
+        if saved is None:
+            continue
+        known = deepcopy(saved) if isinstance(saved, dict) else {"logger": saved}
+        if "meteo" in known and "weather_station" not in known:
+            known["weather_station"] = known.pop("meteo")
+        equipment.update(known)
     for key in METADATA_FIELDS:
         if key in EQUIPMENT_FIELDS:
             equipment.setdefault(key, test.get(key, vehicle.get(key, "")))
@@ -33,7 +39,7 @@ def prefill_report_metadata(test, state):
     metadata["equipment"] = equipment
     # Current configuration is canonical; never replace it with an old report edit.
     metadata["configuration"] = deepcopy(state.get("split_interval_config", test.get("split_interval_config")))
-    metadata["method"] = test.get("method") or metadata.get("method") or "Split"
+    metadata["method"] = "Split"
     return metadata
 
 
@@ -94,7 +100,9 @@ def _report_dialog(test_id, summary, vehicle_data, analysis, t):
                 payload = export_split_final_results_to_pdf(
                     final_results=summary, vehicle_data=vehicle_data,
                     deviation_analysis=analysis,
-                    graph_series=deepcopy(test.get("graph_series") or []),
+                    graph_series=build_split_selected_plot_series(
+                        summary["selected_pairs"], st.session_state.get("split_input_sources") or [],
+                    ),
                     test_name=test.get("name", ""), generated_at=datetime.now().astimezone(),
                     test_metadata=supplied, language=language,
                 )

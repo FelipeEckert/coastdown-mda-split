@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import math
 
 from core.split_comparison import COMPLETE_PAIR_COMPONENTS, normalized_record_direction
@@ -189,6 +190,22 @@ def build_split_run_plot_series(
             "data_mode": "aggregate",
         }
     return None
+
+
+def build_split_selected_plot_series(selected_pairs: list[dict], input_sources: list[dict]) -> list[dict]:
+    """Prepare current selected-run curves once, preserving complete run identities."""
+    series, seen = [], set()
+    for pair in selected_pairs:
+        for item in split_pair_component_records(pair):
+            record = item["record"]
+            identity = json.dumps(record, sort_keys=True, default=str)
+            if identity in seen:
+                continue
+            seen.add(identity)
+            curve = build_split_run_plot_series(record, input_sources)
+            if curve is not None:
+                series.append(curve)
+    return series
 
 
 def apply_split_plotly_theme(

@@ -262,6 +262,8 @@ def clear_split_final_state(test_data: dict) -> dict:
                 result["F0_mean"] = None
                 result["F2_mean"] = None
                 result["energy"] = None
+                result["energy_plus"] = None
+                result["energy_minus"] = None
                 result["energy_unit"] = None
                 result["energy_profile"] = None
                 result["energy_origin"] = None

@@ -73,6 +73,10 @@ class SplitCorrectionsTest(unittest.TestCase):
         self.assertEqual(corrected["ambient_source"], "manual_fixed")
         self.assertEqual(corrected["temp_plus_used"], 20.0)
         self.assertEqual(corrected["press_minus_used"], 101.325)
+        for suffix in ("plus", "minus"):
+            self.assertEqual(corrected[f"energy_{suffix}"], calculate_split_energy(
+                corrected[f"F0_{suffix}"], corrected[f"F2_{suffix}"],
+            )["energy"])
         self.assertEqual(
             corrected["f0_prime_plus"],
             corrected["result_plus"]["f0_prime"],

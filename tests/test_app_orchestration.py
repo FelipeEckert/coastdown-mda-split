@@ -50,6 +50,19 @@ class AppStateOrchestrationTests(unittest.TestCase):
         snapshot.update({"name": name, **changes})
         return snapshot
 
+    def test_vehicle_vin_survives_save_load_and_switching(self):
+        self.state.tests = {
+            "A": self._snapshot("A", vehicle_info={"vin": "VIN-A"}),
+            "B": self._snapshot("B", vehicle_info={"vin": "VIN-B"}),
+        }
+        app.load_test_state("A")
+        self.state.active_test_id = "A"
+        self.state.vehicle_info["vin"] = "VIN-A-edited"
+        app.activate_test("B")
+        self.assertEqual(self.state.vehicle_info["vin"], "VIN-B")
+        app.activate_test("A")
+        self.assertEqual(self.state.vehicle_info["vin"], "VIN-A-edited")
+
     def test_new_split_test_uses_canonical_fixed_defaults_and_becomes_active(self):
         coastdown_state = {
             "coastdown_csv_path": "combined.csv",
