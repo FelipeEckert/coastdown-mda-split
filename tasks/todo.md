@@ -1072,6 +1072,14 @@ Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
   energy need normal upstream recalculation; reporting does not invent/backfill it.
 - Existing readable three-page capacity limits remain; oversized content fails explicitly.
 
+## Release 1.0.3 promotion - 2026-09-24
+
+- [x] Confirm the release-only combined-file parser work is already present in
+  `feature/ui-refresh`, including the identical parser, loader, fixture and focused tests.
+- [x] Revalidate the combined/single-file workflow with 70 focused passing tests.
+- [x] Promote the validated feature tree as version 1.0.3 to `main` and `release`
+  while preserving the existing release history.
+
 ## PDF Page 3 final results summary - 2026-09-11
 
 - [x] Add a bottom-aligned pair summary and highlighted final F0/F2/energy row,

@@ -3841,3 +3841,12 @@ gaps; retain text, fonts, section order, warnings and explicit overflow errors.
 Regression checks compare the real pipeline's Results display, Excel cells and PDF
 text, while PT/EN raster inspection checks all three pages. Sample identification
 and mass decomposition absent from that fixture must remain unavailable.
+
+## 2026-09-24 - Release promotion must compare behavior before branch history
+
+The release-only commits for combined-file parsing were already represented in
+the feature branch: the parser, loader, real single-file fixture and focused test
+files had identical blobs, while the newer UI retained explicit combined-mode
+creation and editing. Preserve the divergent release commits as merge ancestry,
+but keep the validated feature tree as the promoted product state. A new release
+must advance the visible version instead of regressing from the prior release.
