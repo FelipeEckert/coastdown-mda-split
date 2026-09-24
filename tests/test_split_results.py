@@ -7,6 +7,22 @@ from core.split_results import consolidate_split_final_results
 
 
 class SplitResultsTest(unittest.TestCase):
+    def test_raw_cvs_use_selected_pair_means_and_require_complete_data(self):
+        pairs = [
+            {"selected": True, "f0_prime_mean": 100, "f2_prime_mean": .4, "F0_mean": 5, "F2_mean": 5},
+            {"selected": True, "f0_prime_mean": 110, "f2_prime_mean": .6, "F0_mean": 5, "F2_mean": 5},
+            {"selected": False, "f0_prime_mean": 999, "f2_prime_mean": 999},
+        ]
+        summary = consolidate_split_final_results(pairs)
+        self.assertAlmostEqual(summary["cv_f0_prime"], 6.734350297014738)
+        self.assertAlmostEqual(summary["cv_f2_prime"], 28.284271247461902)
+        self.assertEqual(summary["cv_f0"], 0)
+        self.assertEqual(summary["cv_f2"], 0)
+        for selected in ([], pairs[:1], [pairs[0], {"selected": True}]):
+            summary = consolidate_split_final_results(selected)
+            self.assertIsNone(summary["cv_f0_prime"])
+            self.assertIsNone(summary["cv_f2_prime"])
+
     def test_requires_explicit_selected_true(self):
         summary = consolidate_split_final_results(
             [{"id": "implicit", "F0_mean": 100.0, "F2_mean": 0.004}]

@@ -107,10 +107,10 @@ class SplitPdfIntegrationTests(unittest.TestCase):
         self.assertIn(f"\n{summary['num_pairs']}\n", first)
         self.assertNotIn("indisponíveis", measured)
         self.assertNotIn(pairs[1]["id"], last)
-        self.assertLess(last.index(selected[0]["id"]), last.index(selected[1]["id"]))
+        self.assertLess(last.index("Par 1"), last.index("Par 2"))
         for key, precision in (("mean_f0", 4), ("mean_f2", 6), ("mean_energy", 4)):
             self.assertIn(f"{summary[key]:.{precision}f}", first)
-            self.assertIn(f"{summary[key]:.{precision}f}", last.split("Consolidado", 1)[1])
+            self.assertIn(f"{summary[key]:.{3 if key == 'mean_f0' else precision}f}", last.split("Resultado final", 1)[1])
         deviations = list(workbook["Análise de Desvios e Tempos"].iter_rows(values_only=True))
         for pair, row in zip(selected, ui_rows):
             excel_row = next(r for r in deviations if r[0] == format_split_pair_label(pair))
@@ -118,12 +118,12 @@ class SplitPdfIntegrationTests(unittest.TestCase):
                     ("F2_mean", "F2 (N/(km/h)²)", 6, 3), ("energy", "Energia (MJ/km)", 4, 5)):
                 self.assertEqual(row[label], f"{pair[key]:.{precision}f}")
                 self.assertAlmostEqual(excel_row[column], pair[key])
-                self.assertIn(row[label], last)
+                self.assertIn(f"{pair[key]:.{3 if key == 'F0_mean' else precision}f}", last)
             for suffix in ("plus", "minus"):
                 expected = calculate_split_energy(pair[f"F0_{suffix}"], pair[f"F2_{suffix}"])["energy"]
                 self.assertEqual(pair[f"energy_{suffix}"], expected)
                 self.assertIn(f"{expected:.4f}", _directional_pair_values(pair, suffix).values())
-                self.assertIn(f"{expected:.4f}", last)
+                self.assertNotIn("Energia bruta", last)  # Raw energy is omitted entirely.
         for interval, rows in _measured_runs(selected).items():
             self.assertEqual(len(rows), 4)
             for row in rows:
@@ -138,13 +138,18 @@ class SplitPdfIntegrationTests(unittest.TestCase):
         self.assertEqual(len(selected), 5)
         self.assertEqual(len(inputs["graph_series"]), 20)
         text = "\n".join(page.extract_text() for page in reader.pages[2:])
-        positions = [text.index("Par | " + pair["id"]) for pair in selected]
+        for key, label in (("cv_f0_prime", "CV F0"), ("cv_f2_prime", "CV F2")):
+            self.assertIn(f"{label} [%]: {inputs['final_results'][key]:.2f}", text)
+        positions = [text.index("Par " + str(index)) for index in range(1, 6)]
         self.assertEqual(positions, sorted(positions))
         for pair in selected:
+            for suffix in ("plus", "minus", "mean"):
+                self.assertIn(f"{pair[f'f0_prime_{suffix}']:.3f}", text)
+                self.assertIn(f"{pair[f'f2_prime_{suffix}']:.6f}", text)
             for key, precision in (("F0_mean", 4), ("F2_mean", 6), ("energy", 4)):
-                self.assertIn(f"{pair[key]:.{precision}f}", text)
+                self.assertIn(f"{pair[key]:.{3 if key == 'F0_mean' else precision}f}", text)
         for key, precision in (("mean_f0", 4), ("mean_f2", 6), ("mean_energy", 4)):
-            self.assertIn(f"{inputs['final_results'][key]:.{precision}f}", text.split("Consolidado")[1])
+            self.assertIn(f"{inputs['final_results'][key]:.{3 if key == 'mean_f0' else precision}f}", text.split("Resultado final")[1])
 
     def test_five_pair_cards_align_and_charts_share_pair_styles_in_both_languages(self):
         from html import escape

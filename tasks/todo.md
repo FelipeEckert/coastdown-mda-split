@@ -1132,3 +1132,65 @@ Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
   sample; canonical values, graph data and engineering paths are unchanged.
 - [x] Add a subtle vertical divider between direction run blocks; regenerate
   and visually inspect Page 2, with compilation and scoped Ruff passing.
+
+## Page 3 raw/corrected presentation - 2026-09-24
+
+- [x] Present numbered raw pair tables with Ida/Volta, High/Low run identities,
+  and emphasized mean rows; center values and use F0/F2/energy precision 3/6/4.
+- [x] Separate corrected pair means from raw coefficients, highlighting the
+  canonical final result after the corrected table. Preserve dynamic pagination.
+- [x] Regenerate the real five-pair sample and visually inspect PT/EN Page 3;
+  verify Pages 1-2 content streams are identical to the prior renderer.
+- Raw energy is not produced/stored by the canonical application pipeline. Show
+  N/A with an explicit note; no new calculation or corrected-energy substitution.
+- [x] Pass 35 focused PDF/workflow tests, py_compile, scoped Ruff and diff checks;
+  stage intended files without committing.
+
+## Page 3 correction conditions and result boxes - 2026-09-24
+
+- [x] Use the approved title/subtitle and separate raw/coefficient/result sections.
+  Remove raw energy entirely; retain compact centered raw pair cards with units.
+- [x] Show correction T/P from temp_plus/minus_used and press_plus/minus_used,
+  and associated wind from stored wind_plus/minus_ms, explicitly by Ida/Volta.
+  Do not average, synchronize or derive conditions in reporting.
+- [x] Replace the final table row with three KPI boxes, preserve supplied final
+  values and pagination, and remove excessive space between sections.
+- [x] Inspect PT/EN five-pair Page 3 and verify Pages 1-2 content streams unchanged.
+- [x] Pass 36 focused PDF/workflow tests, py_compile, scoped Ruff and diff checks;
+  retain only intended staged changes and the updated sample, without committing.
+
+## Page 3 directional coefficient presentation polish - 2026-09-24
+
+- [x] Update subtitle, center the unpaired raw card, and move the corrected
+  section heading outside its table. Preserve raw cards and final KPI boxes.
+- [x] Show canonical corrected F0/F2 by direction before corrected pair values
+  and directional correction conditions; use precision 3/6/4 for F0/F2/energy.
+- [x] Compact table padding/borders and label the small technical note.
+- [x] Fix layout-pass postponement state exposed by the 20-pair regression.
+- [x] Regenerate the real five-pair PDF; inspect PT/EN Page 3 and confirm Pages
+  1-2 content streams are unchanged. All 36 focused tests, py_compile, scoped
+  Ruff, pip check and diff checks pass. Stage intended files; no commit.
+
+## Page 3 unified uncorrected table - 2026-09-24
+
+- [x] Replace raw pair cards with one compact table, one row per selected pair;
+  use stored raw directional/mean F0/F2 with precision 3/6 and no energy column.
+- [x] Match corrected-table borders, centered multiline cells and padding.
+  Preserve corrected table/final boxes, contracts and canonical calculations.
+- [x] Regenerate and visually inspect PT/EN five-pair Page 3; Pages 1-2 content
+  streams and corrected/final text match the preceding renderer exactly.
+- [x] Pass all 36 focused PDF/workflow regressions, py_compile, scoped Ruff,
+  pip check and diff checks. Stage intended files without a commit.
+
+## Page 3 readability and raw diagnostics - 2026-09-24
+
+- [x] Increase local table text to 9 pt and rebalance column widths; keep final
+  boxes, corrected results and Pages 1-2 unchanged.
+- [x] Add cv_f0_prime/cv_f2_prime to shared final consolidation using the existing
+  sample-CV helper on selected raw pair means. Missing/incomplete data stays N/A;
+  these extra diagnostic fields do not affect corrected results or validation.
+- [x] Display supplied raw CVs in a compact diagnostic row beneath the raw table.
+- [x] Regenerate and inspect the real five-pair PDF in PT/EN. Pass 46 focused
+  consolidation/PDF/workflow tests; verify earlier-page content is unchanged.
+- [x] Pass all 521 tests, py_compile, scoped Ruff and diff checks; stage only
+  intended files without committing.

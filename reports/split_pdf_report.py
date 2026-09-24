@@ -1,6 +1,7 @@
 """Split summary and measured-run report, using supplied canonical values only."""
 
 from datetime import datetime
+from copy import copy
 from html import escape
 from io import BytesIO
 import json
@@ -14,7 +15,7 @@ from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.lib.units import mm
 from reportlab.platypus import (
     BaseDocTemplate, CondPageBreak, Frame, LayoutError, NextPageTemplate, PageBreak, PageTemplate,
-    Paragraph, Spacer, Table, TableStyle, TopPadder,
+    Paragraph, Spacer, Table, TableStyle, KeepTogether,
 )
 
 from reports.report_styles import (
@@ -328,100 +329,111 @@ def _run_tables(pairs, graph_series, width, paragraph, tr):
 
 
 def _pair_tables(final_results, width, paragraph, tr):
-    """Render stored corrected directional values and means, with shared cells."""
+    """Present canonical raw coefficients, corrected pairs and final consolidation."""
     pairs = final_results["selected_pairs"]
+    styles = build_report_styles()
+    for name in ("RunCell", "RunHeader", "TableHeader"):
+        styles[name].alignment = 1
+    for name in ("RunCell", "RunHeader"):
+        styles[name].fontSize = 9
+        styles[name].leading = 11
+    def cell(value, style="RunCell"):
+        return Paragraph(escape("" if value == "" else _text(value)).replace("\n", "<br/>"), styles[style])
+
     story = [
-        paragraph(tr("Pares e coeficientes | Split", "Pairs and coefficients | Split"), "Title"),
-        paragraph(tr("Composição dos pares selecionados e resultados corrigidos por direção.",
-                     "Selected-pair composition and corrected results by direction."), "Body"),
+        paragraph(tr("Coeficientes por par", "Pair coefficients"), "Title"),
+        paragraph(tr("Coeficientes por sentido, valores corrigidos e consolida\u00e7\u00e3o final.",
+                     "Directional coefficients, corrected values and final consolidation."), "Body"),
+        paragraph(tr("Coeficientes sem corre\u00e7\u00e3o", "Uncorrected coefficients"), "Heading"),
     ]
     if not pairs:
-        story.append(paragraph(tr("Pares indisponíveis (N/A).", "Pairs unavailable (N/A).")))
-    block_width = (width - 12) / 2
-    blocks = []
-    for pair in pairs:
-        data = [[paragraph(tr("Par | ", "Pair | ") + _text(pair.get("id")), "TableHeader"), "", "", ""],
-                [paragraph(label, "RunHeader") for label in (
-                    "Run", tr("F0 corrigido [N]", "Corrected F0 [N]"),
-                    tr("F2 corrigido [N/(km/h)²]", "Corrected F2 [N/(km/h)²]"),
-                    tr("Energia [MJ/km]", "Energy [MJ/km]"),
-                )]]
-        for suffix, direction in (("plus", "+"), ("minus", "-")):
-            for interval in ("high", "low"):
-                record = _mapping(pair.get(f"{interval}_{suffix}"), f"{interval}_{suffix}")
-                values = [f"{interval.title()}{direction} | {_text(record.get('run_id'))}"]
-                values += ([_number(pair.get(f"F0_{suffix}"), 4),
-                            _number(pair.get(f"F2_{suffix}"), 6),
-                            _number(pair.get(f"energy_{suffix}"), 4)]
-                           if interval == "high" else ["", "", ""])
-                data.append([paragraph(value, "RunCell") if value != "" else "" for value in values])
-        data.append([paragraph(value, "RunHeader") for value in (
-            tr("Média", "Mean"), _number(pair.get("F0_mean"), 4),
-            _number(pair.get("F2_mean"), 6), _number(pair.get("energy"), 4),
+        story.append(paragraph(tr("Pares indispon\u00edveis (N/A).", "Pairs unavailable (N/A).")))
+    rows = [[cell(label, "RunHeader") for label in (
+        tr("Par", "Pair"), tr("F0 por sentido", "Directional F0"), tr("F2 por sentido", "Directional F2"),
+        tr("F0 m\u00e9dio sem corre\u00e7\u00e3o [N]", "Mean uncorrected F0 [N]"),
+        tr("F2 m\u00e9dio sem corre\u00e7\u00e3o [N/(m/s)\u00b2]", "Mean uncorrected F2 [N/(m/s)\u00b2]"),
+    )]]
+    for index, pair in enumerate(pairs, 1):
+        directional = []
+        for key, precision in (("f0_prime", 3), ("f2_prime", 6)):
+            directional.append(tr("Ida: ", "Outbound: ") + _number(pair.get(f"{key}_plus"), precision) + "\n"
+                               + tr("Volta: ", "Return: ") + _number(pair.get(f"{key}_minus"), precision))
+        rows.append([cell(value) for value in (
+            tr("Par ", "Pair ") + str(index), *directional,
+            _number(pair.get("f0_prime_mean"), 3), _number(pair.get("f2_prime_mean"), 6),
         )])
-        block = Table(data, colWidths=[block_width * fraction for fraction in (.34, .22, .23, .21)])
-        block.setStyle(TableStyle([
-            ("SPAN", (0, 0), (-1, 0)),
-            *[("SPAN", (column, row), (column, row + 1)) for column in (1, 2, 3) for row in (2, 4)],
-            ("BACKGROUND", (0, 0), (-1, 1), TABLE_BACKGROUND_COLOR),
-            ("BACKGROUND", (0, -1), (-1, -1), TABLE_BACKGROUND_COLOR),
-            ("GRID", (0, 0), (-1, -1), .4, BORDER_COLOR),
-            ("LINEABOVE", (0, -1), (-1, -1), .7, HEADING_COLOR),
-            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 6),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-            ("TOPPADDING", (0, 0), (-1, -1), 1),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-        ]))
-        blocks.append(block)
-    pair_rows = [[item] for item in story]
-    for index in range(0, len(blocks), 2):
-        row = Table([[blocks[index], "", blocks[index + 1] if index + 1 < len(blocks) else ""]],
-                    colWidths=[block_width, 12, block_width])
-        row.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ]))
-        pair_rows.append([[row, Spacer(1, 6)]])
-    pair_table = Table(pair_rows, colWidths=[width], repeatRows=2)
+    pair_table = Table(rows, colWidths=[width * fraction for fraction in (.07, .19, .20, .25, .29)], repeatRows=1)
     pair_table.setStyle(TableStyle([
-        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-    ]))
-    rows = [[paragraph(tr("Resultados finais", "Final results"), "Heading"), "", "", ""],
-            [paragraph(label, "RunHeader") for label in (
-                tr("Par", "Pair"), tr("F0 corrigido [N]", "Corrected F0 [N]"),
-                tr("F2 corrigido [N/(km/h)²]", "Corrected F2 [N/(km/h)²]"),
-                tr("Energia [MJ/km]", "Energy [MJ/km]"),
-            )]]
-    rows.extend([[paragraph(value, "RunCell") for value in (
-        pair.get("id"), _number(pair.get("F0_mean"), 4),
-        _number(pair.get("F2_mean"), 6), _number(pair.get("energy"), 4),
-    )] for pair in pairs])
-    rows.append([paragraph(value, "TableHeader") for value in (
-        tr("Consolidado", "Consolidated"),
-        tr("F0 final", "Final F0") + "\n" + _number(final_results.get("mean_f0"), 4),
-        tr("F2 final", "Final F2") + "\n" + _number(final_results.get("mean_f2"), 6),
-        tr("Energia final", "Final energy") + "\n" + _number(final_results.get("mean_energy"), 4),
-    )])
-    results = Table(rows, colWidths=[width * fraction for fraction in (.34, .22, .23, .21)], repeatRows=2)
-    results.setStyle(TableStyle([
-        ("SPAN", (0, 0), (-1, 0)),
-        ("BACKGROUND", (0, 0), (-1, 1), TABLE_BACKGROUND_COLOR),
-        ("BACKGROUND", (0, -1), (-1, -1), TABLE_BACKGROUND_COLOR),
-        ("GRID", (0, 0), (-1, -1), .4, BORDER_COLOR),
-        ("LINEABOVE", (0, -1), (-1, -1), 1, HEADING_COLOR),
+        ("BACKGROUND", (0, 0), (-1, 0), TABLE_BACKGROUND_COLOR),
+        ("GRID", (0, 0), (-1, -1), .65, BORDER_COLOR),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ("NOSPLIT", (0, -2), (-1, -1)),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3), ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
     ]))
-    # Move a complete summary to the next page when it fits there. Larger summaries
-    # split between rows, with repeated headings and the final row kept with its pair.
-    return [pair_table, CondPageBreak(min(results.wrap(width, PAGE_SIZE[1])[1],
-                                        PAGE_SIZE[1] - 25 * mm)), TopPadder(results)]
+    raw_diagnostics = Table([[cell(value, "RunHeader") for value in (
+        tr("Diagnóstico sem correção - pares selecionados", "Uncorrected diagnostics - selected pairs"),
+        "CV F0 [%]: " + _number(final_results.get("cv_f0_prime")),
+        "CV F2 [%]: " + _number(final_results.get("cv_f2_prime")),
+    )]], colWidths=[width * .5, width * .25, width * .25])
+    raw_diagnostics.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), TABLE_BACKGROUND_COLOR),
+        ("GRID", (0, 0), (-1, -1), .65, BORDER_COLOR),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    corrected_heading = paragraph(tr("Coeficientes corrigidos", "Corrected coefficients"), "Heading")
+    rows = [[cell(label, "RunHeader") for label in (
+        tr("Par", "Pair"), tr("F0 por sentido", "Directional F0"), tr("F2 por sentido", "Directional F2"),
+        tr("F0 corrigido [N]", "Corrected F0 [N]"), tr("F2 corrigido [N/(km/h)\u00b2]", "Corrected F2 [N/(km/h)\u00b2]"),
+        tr("Energia [MJ/km]", "Energy [MJ/km]"), "T [\u00b0C]", "P [kPa]", tr("Vento [m/s]", "Wind [m/s]"),
+    )]]
+    for index, pair in enumerate(pairs, 1):
+        directional = []
+        for key, precision in (("F0", 3), ("F2", 6)):
+            directional.append(tr("Ida: ", "Outbound: ") + _number(pair.get(f"{key}_plus"), precision) + "\n"
+                               + tr("Volta: ", "Return: ") + _number(pair.get(f"{key}_minus"), precision))
+        conditions = []
+        for plus, minus in (("temp_plus_used", "temp_minus_used"),
+                            ("press_plus_used", "press_minus_used"), ("wind_plus_ms", "wind_minus_ms")):
+            conditions.append(tr("Ida: ", "Outbound: ") + _number(pair.get(plus)) + "\n"
+                              + tr("Volta: ", "Return: ") + _number(pair.get(minus)))
+        rows.append([cell(value) for value in (
+            tr("Par ", "Pair ") + str(index), *directional,
+            _number(pair.get("F0_mean"), 3), _number(pair.get("F2_mean"), 6), _number(pair.get("energy"), 4),
+            *conditions,
+        )])
+    results = Table(rows, colWidths=[width * fraction for fraction in (.055, .145, .15, .095, .115, .095, .115, .115, .115)], repeatRows=1)
+    results.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), TABLE_BACKGROUND_COLOR),
+        ("GRID", (0, 0), (-1, -1), .65, BORDER_COLOR),
+        ("LINEBEFORE", (6, 0), (6, -1), .9, HEADING_COLOR),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3), ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+        ("TOPPADDING", (0, 0), (-1, -1), 2), ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+    ]))
+    kpis = []
+    metric_style = styles["Metric"].clone("FinalMetric", alignment=1, fontSize=20, leading=23)
+    for label, key, precision in ((tr("F0 final [N]", "Final F0 [N]"), "mean_f0", 3),
+                                  (tr("F2 final [N/(km/h)\u00b2]", "Final F2 [N/(km/h)\u00b2]"), "mean_f2", 6),
+                                  (tr("Energia final [MJ/km]", "Final energy [MJ/km]"), "mean_energy", 4)):
+        box = Table([[cell(label, "TableHeader")], [Paragraph(_number(final_results.get(key), precision), metric_style)]],
+                    colWidths=[(width - 16) / 3], cornerRadii=[4] * 4)
+        box.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), TABLE_BACKGROUND_COLOR),
+            ("BOX", (0, 0), (-1, -1), .6, BORDER_COLOR),
+            ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        kpis.append(box)
+    summary = Table([[kpis[0], "", kpis[1], "", kpis[2]]], colWidths=[(width - 16) / 3, 8, (width - 16) / 3, 8, (width - 16) / 3])
+    summary.setStyle(TableStyle([(name, (0, 0), (-1, -1), 0) for name in (
+        "LEFTPADDING", "RIGHTPADDING", "TOPPADDING", "BOTTOMPADDING",
+    )]))
+    return [*story, pair_table, Spacer(1, 3), raw_diagnostics, Spacer(1, 6),
+            CondPageBreak(min(results.wrap(width, PAGE_SIZE[1])[1] + corrected_heading.wrap(width, PAGE_SIZE[1])[1], PAGE_SIZE[1] - 25 * mm)),
+            corrected_heading, results, Spacer(1, 3),
+            paragraph(tr("Nota t\u00e9cnica: vento associado ao sentido; n\u00e3o aplicado na corre\u00e7\u00e3o. T/P: valores utilizados.",
+                         "Technical note: wind associated with direction; not applied in correction. T/P: values used."), "Footer"),
+            KeepTogether([Spacer(1, 5), paragraph(tr("Resultado final", "Final result"), "Heading"), Spacer(1, 4), summary])]
 
 
 def export_split_final_results_to_pdf(
@@ -752,7 +764,8 @@ def export_split_final_results_to_pdf(
                          leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0),
         ) for section in ("summary", "runs", "pairs")])
         try:
-            doc.build(story[:])
+            # Keep ReportLab's per-pass postponement flags off the reusable story.
+            doc.build([copy(item) for item in story])
         except LayoutError as exc:
             raise ValueError("An indivisible report item cannot fit a page at the approved typography.") from exc
         total_pages = doc.page

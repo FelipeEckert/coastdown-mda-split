@@ -347,71 +347,101 @@ class SplitPdfReportTests(unittest.TestCase):
         reader, _ = self.render(inputs)
         self.assertEqual(reader.pages[1].extract_text().count("Curvas indisponíveis (N/A)."), 2)
 
-    def test_pair_page_uses_only_stored_corrected_values_and_preserves_earlier_pages(self):
+    def test_raw_and_corrected_values_are_separate_and_earlier_pages_unchanged(self):
         inputs = sample_run_inputs()
         baseline, _ = self.render(inputs)
         pair = inputs["final_results"]["selected_pairs"][0]
-        pair.update(F0_plus=-123.4567, F2_plus=.012345, energy_plus=.1234,
-                    F0_minus=234.5678, F2_minus=.067891, energy_minus=.2345,
-                    F0_mean=345.6789, F2_mean=.078912, energy=.3456,
-                    f0_prime_plus=9999.0, f2_prime_mean=8888.0)
+        pair.update(f0_prime_plus=-123.4567, f2_prime_plus=.123456,
+                    f0_prime_minus=234.5678, f2_prime_minus=.234567,
+                    f0_prime_mean=777.1234, f2_prime_mean=.345678,
+                    F0_mean=345.6789, F2_mean=.078912, energy=.3456)
         before = deepcopy(inputs)
         reader, _ = self.render(inputs)
         self.assertEqual(inputs, before)
         for index in (0, 1):
-            self.assertEqual(reader.pages[index].get_contents().get_data(),
-                             baseline.pages[index].get_contents().get_data())
-        text = reader.pages[2].extract_text()
-        for value in ("-123.4567", "0.012345", "0.1234", "234.5678", "0.067891",
-                      "0.2345", "345.6789", "0.078912", "0.3456"):
-            self.assertEqual(text.count(value), 2 if value in ("345.6789", "0.078912", "0.3456") else 1)
-        for label in ("Pares e coeficientes | Split", "High+ | 1H+", "Low+ | 1L+",
-                      "High- | 1H-", "Low- | 1L-", "Média", "Página 3", "N/(km/h)²"):
-            self.assertIn(label, text)
-        self.assertNotIn("9999", text)
-        self.assertNotIn("8888", text)
+            self.assertEqual(reader.pages[index].get_contents().get_data(), baseline.pages[index].get_contents().get_data())
+        raw, corrected = reader.pages[2].extract_text().split("Coeficientes corrigidos", 1)
+        for label in ("F0 por sentido", "F2 por sentido", "F0 médio sem correção", "F2 médio sem correção"):
+            self.assertIn(label, raw)
+        self.assertNotIn("Run ", raw)
+        self.assertNotIn("Energia", raw)
+        for value in ("-123.457", "0.123456", "234.568", "0.234567", "777.123", "0.345678", "Ida", "Volta"):
+            self.assertIn(value, raw)
+        for value in ("345.679", "0.078912", "0.3456"):
+            self.assertIn(value, corrected)
+            self.assertNotIn(value, raw.split())
+        self.assertNotIn("demo-1", raw + corrected)
+        self.assertIn("N/A", raw)
+        self.assertNotIn("0.1721", raw)  # Corrected energy cannot fill missing raw energy.
 
-    def test_pair_page_merges_directional_cells_and_keeps_missing_energy_unavailable(self):
-        from reportlab.platypus import Paragraph
-        from reports.split_pdf_report import _pair_tables
+    def test_missing_raw_values_stay_unavailable(self):
         inputs = sample_run_inputs()
         inputs["language"] = "en"
-        pairs = inputs["final_results"]["selected_pairs"]
-        pairs[0].pop("energy_plus")
-        pairs[0].pop("energy_minus")
         reader, _ = self.render(inputs)
-        text = reader.pages[2].extract_text()
-        for label in ("Pairs and coefficients", "Corrected F0", "Corrected F2", "Mean", "N/A"):
-            self.assertIn(label, text)
-        self.assertNotIn("0.1721", text)
-        self.assertNotIn("0.1743", text)
-        styles = build_report_styles()
-        story = _pair_tables(inputs["final_results"], PAGE_SIZE[0] - 2 * PAGE_MARGIN,
-                             lambda text, style="Table": Paragraph(str(text), styles[style]),
-                             lambda pt, en: en)
-        block = story[0]._cellvalues[2][0][0]._cellvalues[0][0]
-        for column in (1, 2, 3):
-            for row in (2, 4):
-                self.assertIn(("SPAN", (column, row), (column, row + 1)), block._spanCmds)
+        raw = reader.pages[2].extract_text().split("Corrected coefficients", 1)[0]
+        for label in ("Uncorrected", "Outbound", "Return", "Mean", "N/A", "N/(m/s)"):
+            self.assertIn(label, raw)
+        self.assertNotIn("138.2345", raw)
         inputs["final_results"]["selected_pairs"] = []
         reader, _ = self.render(inputs)
         self.assertIn("Pairs unavailable (N/A).", reader.pages[2].extract_text())
+
+    def test_uncorrected_cv_diagnostics_are_supplied_not_recalculated(self):
+        inputs = sample_run_inputs()
+        inputs["final_results"].update(cv_f0_prime=12.345, cv_f2_prime=67.891)
+        before = deepcopy(inputs)
+        reader, _ = self.render(inputs)
+        raw = reader.pages[2].extract_text().split("Coeficientes corrigidos")[0]
+        self.assertIn("CV F0 [%]: 12.35", raw)
+        self.assertIn("CV F2 [%]: 67.89", raw)
+        self.assertEqual(inputs, before)
+        del inputs["final_results"]["cv_f0_prime"]
+        reader, _ = self.render(inputs)
+        self.assertIn("CV F0 [%]: N/A", reader.pages[2].extract_text())
+
+    def test_correction_conditions_use_stored_directional_inputs_only(self):
+        inputs = sample_run_inputs()
+        pair = inputs["final_results"]["selected_pairs"][0]
+        pair.update(temp_plus_used=31.25, temp_minus_used=18.75,
+                    press_plus_used=98.12, press_minus_used=103.45,
+                    wind_plus_ms=1.23, wind_minus_ms=4.56, ambient_mode="fixed",
+                    F0_plus=321.1234, F0_minus=-123.4567,
+                    F2_plus=.0987654, F2_minus=.0123456)
+        before = deepcopy(inputs)
+        for language in ("pt", "en"):
+            reader, _ = self.render({**inputs, "language": language})
+            text = reader.pages[2].extract_text()
+            raw, corrected = text.split("Coeficientes corrigidos" if language == "pt" else "Corrected coefficients", 1)
+            self.assertNotIn("Energy", raw)
+            self.assertNotIn("Energia", raw)
+            for value in ("31.25", "18.75", "98.12", "103.45", "1.23", "4.56"):
+                self.assertIn(value, corrected)
+            for value in ("321.123", "-123.457", "0.098765", "0.012346"):
+                self.assertIn(value, corrected)
+                self.assertNotIn(value, raw)
+            directional_title = "F0 por sentido" if language == "pt" else "Directional F0"
+            self.assertLess(corrected.index(directional_title), corrected.index("T ["))
+            self.assertNotIn("25.6", corrected)  # Measured weather is not the correction input.
+            self.assertIn("Ida:" if language == "pt" else "Outbound:", corrected)
+            self.assertIn("Volta:" if language == "pt" else "Return:", corrected)
+            self.assertIn("N/A", corrected)  # Pair 2 lacks stored correction conditions.
+        self.assertEqual(inputs, before)
 
     def test_pair_page_supports_odd_blocks_and_continues_overflow(self):
         inputs = sample_inputs()
         inputs["final_results"]["selected_pairs"] = [{"id": f"pair-{i}"} for i in range(5)]
         reader, _ = self.render(inputs)
-        self.assertIn("pair-4", reader.pages[2].extract_text())
+        self.assertIn("Par 5", reader.pages[2].extract_text())
         inputs["final_results"]["selected_pairs"] = [{"id": f"pair-{i}"} for i in range(20)]
         from reports.split_pdf_report import _run_tables
         # Isolate unlimited coefficient pagination from the fixed measured-page capacity.
         with patch("reports.split_pdf_report._run_tables", side_effect=lambda pairs, *args: _run_tables(pairs[:2], *args)):
             reader, _ = self.render(inputs)
         self.assertGreater(len(reader.pages), 3)
-        self.assertIn("pair-19", reader.pages[-1].extract_text())
+        self.assertIn("Par 20", "\n".join(page.extract_text() for page in reader.pages[2:]))
 
     def test_final_results_section_uses_supplied_consolidation_without_averaging(self):
-        for language, title in (("pt", "Resultados finais"), ("en", "Final results")):
+        for language, title in (("pt", "Coeficientes corrigidos"), ("en", "Corrected coefficients")):
             inputs = sample_run_inputs()
             inputs["language"] = language
             inputs["final_results"].update(mean_f0=-765.4321, mean_f2=.123456, mean_energy=9.8765)
@@ -422,15 +452,15 @@ class SplitPdfReportTests(unittest.TestCase):
             reader, _ = self.render(inputs)
             self.assertEqual(inputs, before)
             text = reader.pages[2].extract_text().split(title, 1)[1]
-            for value in ("demo-1", "demo-2", "139.4112", "142.4112", "0.049859", "0.051859",
-                          "0.1732", "0.1772", "-765.4321", "0.123456", "9.8765"):
+            for value in ("1", "2", "139.411", "142.411", "0.049859", "0.051859",
+                          "0.1732", "0.1772", "-765.432", "0.123456", "9.8765"):
                 self.assertIn(value, text)
             self.assertIn("F0 final" if language == "pt" else "Final F0", text)
             self.assertIn("Energia final" if language == "pt" else "Final energy", text)
         inputs = sample_inputs()
         inputs["final_results"] = {"selected_pairs": []}
         reader, _ = self.render(inputs)
-        text = reader.pages[2].extract_text().split("Resultados finais", 1)[1]
+        text = reader.pages[2].extract_text().split("Resultado final", 1)[1]
         self.assertEqual(text.count("N/A"), 3)
 
     def test_run_shape_errors_are_explicit(self):
@@ -506,29 +536,31 @@ class SplitPdfReportTests(unittest.TestCase):
                         reader, _ = self.render(inputs)
                     self.assertEqual(inputs, before)
                     texts = [page.extract_text() for page in reader.pages]
-                    prefix = "Par | " if language == "pt" else "Pair | "
+                    final_title = "Coeficientes corrigidos" if language == "pt" else "Corrected coefficients"
+                    final_page = next(i for i, text in enumerate(texts) if final_title in text)
+                    prefix = "Par " if language == "pt" else "Pair "
                     positions = []
-                    for pair in pairs:
-                        matches = [i for i, text in enumerate(texts) if prefix + pair["id"] in text]
+                    for pair_index, pair in enumerate(pairs, 1):
+                        pair_label = prefix + str(pair_index) + "\n"
+                        matches = [i for i, text in enumerate(texts) if 2 <= i <= final_page and pair_label in text.split(final_title)[0]]
                         self.assertEqual(len(matches), 1)
                         positions.append(matches[0])
-                        block = texts[matches[0]].split(prefix + pair["id"], 1)[1].split(prefix, 1)[0]
-                        for value in ("High+", "Low+", "High-", "Low-", "0.1721", "0.1743"):
+                        block = texts[matches[0]].split(pair_label, 1)[1].split(prefix, 1)[0]
+                        for value in ("Ida:" if language == "pt" else "Outbound:",
+                                      "Volta:" if language == "pt" else "Return:", "N/A"):
                             self.assertIn(value, block)
                     self.assertEqual(positions, sorted(positions))
-                    final_title = "Resultados finais" if language == "pt" else "Final results"
-                    final_page = next(i for i, text in enumerate(texts) if final_title in text)
                     self.assertGreaterEqual(final_page, positions[-1])
-                    if count == 8:
+                    if count == 20:
                         self.assertGreater(final_page, positions[-1])
-                    if count >= 20:
+                    if count == 50:
                         self.assertGreater(len(set(positions)), 1)
                     for i, text in enumerate(texts, 1):
                         footer = f"Página {i} de {len(texts)}" if language == "pt" else f"Page {i} of {len(texts)}"
                         self.assertIn(footer, text)
                     final_text = "\n".join(texts[final_page:]).split(final_title, 1)[1]
-                    for pair in pairs:
-                        self.assertEqual(final_text.count(pair["id"]), 1)
+                    for pair_index in range(1, count + 1):
+                        self.assertEqual(final_text.count(prefix + str(pair_index) + "\n"), 1)
                     self.assertIn("0.1732", texts[-1])
 
     def test_long_optional_metadata_continues_without_loss(self):

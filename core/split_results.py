@@ -132,6 +132,13 @@ def consolidate_split_final_results(
     cv_f0 = _sample_cv_percent(f0_values)
     cv_f2 = _sample_cv_percent(f2_values)
     cv_energy = _sample_cv_percent(energy_values)
+    raw_cvs = {}
+    for key in ("f0", "f2"):
+        values = [pair[f"{key}_prime_mean"] for pair in selected_pairs
+                  if pair[f"{key}_prime_mean"] is not None]
+        raw_cvs[f"cv_{key}_prime"] = (
+            _sample_cv_percent(values) if len(values) == len(selected_pairs) else None
+        )
     missing_f0 = len(selected_pairs) - len(f0_values)
     missing_f2 = len(selected_pairs) - len(f2_values)
     missing_energy = len(selected_pairs) - len(energy_values)
@@ -164,6 +171,7 @@ def consolidate_split_final_results(
         "cv_f0": cv_f0,
         "cv_f2": cv_f2,
         "cv_energy": cv_energy,
+        **raw_cvs,
         "f0_value_count": len(f0_values),
         "f2_value_count": len(f2_values),
         "energy_value_count": len(energy_values),

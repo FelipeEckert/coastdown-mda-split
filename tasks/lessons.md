@@ -3882,3 +3882,40 @@ while preserving complete canonical times and graph points. Keep centered card
 styles local to the measured page so coefficient and summary typography is not
 affected. Side-by-side direction run blocks clarify identities without taking
 height away from the charts.
+
+## 2026-09-24 - Raw and corrected report values have different provenance
+
+Raw pair rows read f0_prime_plus/minus/mean and f2_prime_plus/minus/mean.
+Raw F2 is in N/(m/s)^2; corrected F2 is in N/(km/h)^2. Never relabel one
+as the other or convert inside reporting. The current pipeline stores corrected
+directional/pair energy only, so a raw energy column must say N/A. Introducing
+raw energy would require separately authorized upstream work, not a renderer
+formula or substitution of corrected values. Number pairs in canonical order
+and retain actual High/Low run IDs for traceability.
+
+The refined Page 3 omits raw energy entirely. Correction conditions must read the
+stored directional *_used temperature/pressure fields, never measured weather
+snapshots or averages computed by reporting. Show both directions explicitly.
+Stored wind_plus/minus_ms is associated directional weather, not a coefficient
+correction input; label this distinction beside the table. Final KPI boxes use
+the supplied consolidation and stay together when flowing onto another page.
+
+Page 3 corrected directional columns read F0_plus/minus and F2_plus/minus
+directly, separately from F0_mean/F2_mean. Keep their units/precision distinct
+from raw coefficients. Center a lone nested pair card with explicit equal side
+columns; nested Table.hAlign alone does not center within a flowable list.
+Use shallow copies of top-level flowables for each page-count layout pass:
+ReportLab sets _postponed on flowables moved to another page, and sharing that
+flag across passes can reject valid content. Do not deep-copy chart drawings.
+
+The unified raw table supersedes the mini-card layout: one selected pair per
+row, with f0_prime_plus/minus/mean and f2_prime_plus/minus/mean supplied directly.
+Repeat column headers when the table continues and keep each pair row intact.
+Pagination tests must check ordering and safe continuation rather than preserve
+the former mini-card capacity; the denser table legitimately fits more pairs.
+
+Uncorrected set diagnostics use CV across the selected raw pair means, not
+corrected coefficients, per-pair directional CVs or an average of CVs. Shared
+final consolidation supplies cv_f0_prime/cv_f2_prime via its existing sample-CV
+helper; reporting only formats them. Incomplete raw inputs or fewer than two
+pairs yield unavailable diagnostics. They never feed normative conformity.
