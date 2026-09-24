@@ -15,7 +15,7 @@ TRANSLATIONS = {
     "split_pdf_metadata_note": {"pt": "Complete os dados opcionais. Veículo, massas, resultados e configuração Split serão incluídos automaticamente. Use N/A apenas quando não aplicável.", "en": "Complete optional details. Vehicle, masses, results and Split configuration are included automatically. Use N/A only when not applicable."},
     "split_pdf_missing_notice": {"pt": "O PDF incluirá campos como “Não informado”. Você pode gerar o relatório mesmo assim.", "en": "The PDF will include fields marked “Not provided”. You can still generate the report."},
     "split_pdf_test_changed": {"pt": "Abra o relatório novamente para o teste ativo.", "en": "Reopen the report for the active test."},
-    "split_pdf_layout_error": {"pt": "Não foi possível acomodar os dados nas três páginas. Revise textos longos ou a quantidade de dados do relatório.", "en": "The data could not fit the three report pages. Review long text or the amount of report data."},
+    "split_pdf_layout_error": {"pt": "Não foi possível gerar o PDF. Verifique dados inválidos ou conteúdo incompatível com o formato das páginas fixas.", "en": "The PDF could not be generated. Check for invalid data or content unsupported by the fixed-page format."},
     "split_pdf_test_date": {"pt": "Data do teste", "en": "Test date"},
     "split_pdf_responsible_engineer": {"pt": "Engenheiro responsável", "en": "Responsible engineer"},
     "split_pdf_operator": {"pt": "Operador", "en": "Operator"},

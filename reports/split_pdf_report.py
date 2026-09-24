@@ -13,8 +13,8 @@ from reportlab.lib.colors import HexColor
 from reportlab.pdfbase.pdfmetrics import stringWidth
 from reportlab.lib.units import mm
 from reportlab.platypus import (
-    BaseDocTemplate, Frame, LayoutError, NextPageTemplate, PageBreak, PageTemplate,
-    Paragraph, Spacer, Table, TableStyle,
+    BaseDocTemplate, CondPageBreak, Frame, LayoutError, NextPageTemplate, PageBreak, PageTemplate,
+    Paragraph, Spacer, Table, TableStyle, TopPadder,
 )
 
 from reports.report_styles import (
@@ -56,11 +56,6 @@ def _mapping(value, name) -> dict:
     if not isinstance(value, dict):
         raise ValueError(f"{name} must be a dictionary.")
     return value
-
-
-def _first_available(source, *keys):
-    """Read saved canonical fields and their existing aliases, without deriving values."""
-    return next((source[key] for key in keys if source.get(key) is not None), None)
 
 
 def _measured_runs(pairs):
@@ -127,7 +122,7 @@ def _run_label(record, direction):
     return label if label.endswith(direction) else f"{label} {direction}"
 
 
-def _run_chart(series, interval, width, height, title, tr):
+def _run_chart(series, interval, width, height, title, tr, pairs=None):
     """Vector polylines through supplied points, without fitting or rebuilding times."""
     drawing = Drawing(width, height)
     drawing.add(Rect(0, 0, width, height, strokeColor=BORDER_COLOR, strokeWidth=.5,
@@ -137,17 +132,36 @@ def _run_chart(series, interval, width, height, title, tr):
     drawing.add(String(7, height - 14, title, fontName="Helvetica-Bold",
                        fontSize=10, fillColor=HEADING_COLOR))
     entries = [item for item in series if item["interval_name"] == interval]
+    if pairs is not None:
+        def identity(record):
+            return tuple(record.get(key) for key in (
+                "run_id", "filename", "content_sha256", "source_role", "interval_name",
+            ))
+        selected = []
+        for pair_index, pair in enumerate(pairs):
+            for suffix, direction in (("plus", "+"), ("minus", "-")):
+                record = pair.get(f"{interval}_{suffix}")
+                if not record:
+                    continue
+                match = next((item for item in entries if item["direction"] == direction
+                              and identity(item["record"]) == identity(record)), None)
+                if match is not None:
+                    selected.append({**match, "pair_index": pair_index})
+        entries = selected
     if not entries:
         drawing.add(String(15, height / 2, tr("Curvas indisponíveis (N/A).",
                                            "Curves unavailable (N/A)."),
                            fontName="Helvetica", fontSize=9, fillColor=HEADING_COLOR))
         return drawing
-    labels = [_run_label(item["record"], item["direction"]) + (
+    labels = [(tr("Par ", "Pair ") + str(item["pair_index"] + 1) + " | "
+               if "pair_index" in item else "") + _run_label(item["record"], item["direction"]) + (
         tr(" (extremos)", " (endpoints)") if item.get("data_mode") == "aggregate" else ""
     ) for item in entries]
-    legend_width = max(stringWidth(label, "Helvetica", 8) for label in labels) + 38
-    if legend_width > width * .3 or len(entries) * 13 > height - 40:
-        raise ValueError("Page 2 chart legend exceeds readable space; shorten labels or supply fewer runs.")
+    legend_rows = max(1, int((height - 40) // 13))
+    legend_column_width = max(stringWidth(label, "Helvetica", 8) for label in labels) + 38
+    legend_width = legend_column_width * math.ceil(len(entries) / legend_rows)
+    if legend_width > width * .3:
+        raise ValueError("The fixed measured-data page cannot accommodate these chart labels at readable size.")
     chart = LinePlot()
     chart.x, chart.y = 52, 28
     chart.width, chart.height = width - 62 - legend_width, height - 61
@@ -160,18 +174,19 @@ def _run_chart(series, interval, width, height, title, tr):
         axis.visibleGrid = True
         axis.gridStrokeColor = BORDER_COLOR
         axis.gridStrokeWidth = .4
-        axis.maximumTicks = 9
+        axis.maximumTicks = 9 if height >= 130 else 5
         axis.forceZero = False
         axis.rangeRound = "both"
-    colors = [HEADING_COLOR, HexColor("#2287C9"), HexColor("#39794B"), HexColor("#BF681C")]
+    colors = [HEADING_COLOR, HexColor("#2287C9"), HexColor("#39794B"),
+              HexColor("#BF681C"), HexColor("#8056A0")]
     for index, item in enumerate(entries):
-        color = colors[index % len(colors)]
+        color = colors[item.get("pair_index", index // 2) % len(colors)]
         dash = [4, 2] if item["direction"] == "-" else None
         chart.lines[index].strokeColor = color
         chart.lines[index].strokeWidth = 1.3
         chart.lines[index].strokeDashArray = dash
-        legend_y = height - 40 - index * 13
-        legend_x = width - legend_width + 8
+        legend_y = height - 40 - (index % legend_rows) * 13
+        legend_x = width - legend_width + 8 + (index // legend_rows) * legend_column_width
         drawing.add(Line(legend_x, legend_y, legend_x + 18, legend_y,
                          strokeColor=color, strokeWidth=1.3, strokeDashArray=dash))
         drawing.add(String(legend_x + 23, legend_y - 3, labels[index],
@@ -189,7 +204,7 @@ def _run_chart(series, interval, width, height, title, tr):
 
 
 def _run_tables(pairs, graph_series, width, paragraph, tr):
-    """Four compact tables above two charts, bounded to the approved Page 2."""
+    """Selected-pair cards above tall charts; weather stays in the supplied snapshot."""
     if not isinstance(graph_series, list):
         raise ValueError("graph_series must be a list.")
     for item in graph_series:
@@ -208,74 +223,105 @@ def _run_tables(pairs, graph_series, width, paragraph, tr):
         paragraph(tr("Corridas dos pares selecionados. Δt em segundos; intervalos em km/h.",
                      "Runs from selected pairs. Δt in seconds; intervals in km/h."), "Body"),
     ]
-    table_width = (width - 30) / 4
-    tables, titles = [], []
-    for interval, items in _measured_runs(pairs).items():
-        title = tr("Alta velocidade | High", "High-speed runs") if interval == "high" else tr(
-            "Baixa velocidade | Low", "Low-speed runs",
-        )
-        titles.append(title)
-        labels = list(dict.fromkeys(label for item in items for label in item["labels"]))
-        for climate in (False, True):
-            heading = tr("Condições climáticas", "Climate conditions") + " | " + interval.title() if climate else title
-            headers = ["Run", "T [°C]", "P [kPa]", tr("Vento [m/s]", "Wind [m/s]")] if climate else [
-                "Run", *labels, "Δt total [s]",
-            ]
-            if table_width / len(headers) < 30:
-                raise ValueError("Page 2 interval columns exceed readable width; supply a narrower report snapshot.")
-            data = [[paragraph(heading, "RunHeader"), *([""] * (len(headers) - 1))],
-                    [paragraph(label, "RunHeader") for label in headers]]
-            for item in items:
-                record, weather = item["record"], item["weather"]
-                values = [_run_label(record, item["direction"])]
-                if climate:
-                    values += [
-                        _number(_first_available(weather, "temperature_c", "temperature"), 1),
-                        _number(_first_available(weather, "pressure_kpa", "pressure")),
-                        _number(_first_available(weather, "wind_speed_mps", "wind_speed_ms", "wind_speed")),
-                    ]
-                else:
-                    values += [_number(item["times"].get(label), 3) for label in labels]
-                    values.append(_number(record.get("delta_t_s"), 3))
-                data.append([paragraph(value, "RunCell") for value in values])
-            if not items:
-                data.append([paragraph("N/A", "RunCell") for _ in headers])
-            result = Table(data, colWidths=[table_width / len(headers)] * len(headers),
-                           repeatRows=2, hAlign="LEFT")
-            result.setStyle(TableStyle([
-                ("SPAN", (0, 0), (-1, 0)),
-                ("BACKGROUND", (0, 0), (-1, 1), TABLE_BACKGROUND_COLOR),
-                ("GRID", (0, 0), (-1, -1), .4, BORDER_COLOR),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 3 if len(headers) > 4 else 5),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 3 if len(headers) > 4 else 5),
-                ("TOPPADDING", (0, 0), (-1, -1), 3),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+    # Interval rows keep all four direction/run columns aligned across pair cards.
+    card_styles = build_report_styles()
+    for name in ("RunCell", "RunHeader", "TableHeader"):
+        card_styles[name].alignment = 1
+        card_styles[name].fontSize = 9.5 if name == "TableHeader" else 8.5
+    def card_paragraph(value, style="RunCell"):
+        return Paragraph(escape(_text(value)).replace("\n", "<br/>"), card_styles[style])
+
+    components = (("high", "+"), ("low", "+"), ("high", "-"), ("low", "-"))
+    snapshots = []
+    labels = []
+    for pair in pairs:
+        measured = _measured_runs([pair])
+        runs = [next((item for item in measured[interval] if item["direction"] == direction), {})
+                for interval, direction in components]
+        snapshots.append(runs)
+        labels.extend(label for run in runs for label in run.get("labels", []))
+    labels = list(dict.fromkeys(labels))
+    label_width = max(stringWidth(label, "Helvetica-Bold", 8.5) for label in ["Δt total [s]", *labels]) + 4
+    value_width = max([stringWidth("High+", "Helvetica-Bold", 8.5), *[
+        stringWidth(_number(value, 2), "Helvetica", 8.5)
+        for runs in snapshots for run in runs
+        for value in [run.get("record", {}).get("delta_t_s"), *run.get("times", {}).values()]
+    ]]) + 2
+    columns = min(max(1, len(pairs)), max(1, int((width + 8) / (label_width + 4 * value_width + 8))))
+    card_width = (width - 8 * (columns - 1)) / columns
+    cards = []
+    for index, runs in enumerate(snapshots):
+        run_blocks = []
+        for sign in ("+", "-"):
+            lines = [tr("Direção ", "Direction ") + sign]
+            lines.extend(interval.title() + direction + ": Run "
+                         + _text(runs[i].get("record", {}).get("run_id"))
+                         for i, (interval, direction) in enumerate(components) if direction == sign)
+            run_blocks.append(card_paragraph("\n".join(lines)))
+        run_block = Table([run_blocks], colWidths=[card_width / 2] * 2)
+        run_block.setStyle(TableStyle([
+            ("LINEAFTER", (0, 0), (0, -1), .4, BORDER_COLOR),
+            ("LEFTPADDING", (0, 0), (-1, -1), 1), ("RIGHTPADDING", (0, 0), (-1, -1), 1),
+            ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ]))
+        data = [[card_paragraph(tr("Par ", "Pair ") + str(index + 1), "TableHeader"), "", "", "", ""],
+                [run_block, "", "", "", ""],
+                [card_paragraph("km/h", "RunHeader"), *[
+                    card_paragraph(interval.title() + direction, "RunHeader") for interval, direction in components]]]
+        for label in labels:
+            data.append([card_paragraph(label, "RunCell"), *[
+                card_paragraph(_number(run.get("times", {}).get(label), 2) if label in run.get("labels", []) else "-", "RunCell")
+                for run in runs
+            ]])
+        data.append([card_paragraph("Δt total [s]", "RunHeader"), *[
+            card_paragraph(_number(run.get("record", {}).get("delta_t_s"), 2), "RunHeader") for run in runs
+        ]])
+        cards.append(Table(data, colWidths=[label_width, *[(card_width - label_width) / 4] * 4]))
+    if cards:
+        for card in cards:
+            card.setStyle(TableStyle([
+                ("SPAN", (0, 0), (-1, 0)), ("SPAN", (0, 1), (-1, 1)),
+                ("BACKGROUND", (0, 0), (-1, 0), TABLE_BACKGROUND_COLOR),
+                ("BACKGROUND", (0, 2), (-1, 2), TABLE_BACKGROUND_COLOR),
+                ("BACKGROUND", (0, -1), (-1, -1), TABLE_BACKGROUND_COLOR),
+                ("GRID", (0, 2), (-1, -1), .65, HexColor("#9AADC3")),
+                ("BOX", (0, 0), (-1, -1), .5, BORDER_COLOR),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 1),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 1),
+                ("TOPPADDING", (0, 0), (-1, -1), 1),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+                ("LEFTPADDING", (0, 1), (-1, 1), 0), ("RIGHTPADDING", (0, 1), (-1, 1), 0),
+                ("TOPPADDING", (0, 1), (-1, 1), 0), ("BOTTOMPADDING", (0, 1), (-1, 1), 0),
             ]))
-            tables.append(result)
-    row = Table([[tables[0], "", tables[1], "", tables[2], "", tables[3]]],
-                colWidths=[table_width, 10, table_width, 10, table_width, 10, table_width])
-    row.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-    ]))
-    chart_heading = Table([[paragraph(tr("Curvas de desaceleração", "Deceleration curves"),
-                                      "Heading")]], colWidths=[width])
-    chart_heading.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, -1), TABLE_BACKGROUND_COLOR),
-        ("BOX", (0, 0), (-1, -1), .4, BORDER_COLOR),
-        ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-    ]))
-    story.extend([row, Spacer(1, 10), chart_heading, Spacer(1, 5)])
+            card.wrap(card_width, PAGE_SIZE[1])
+        # Shared measured heights prevent wrapping from shifting adjacent baselines.
+        heights = [max(card._rowHeights[i] for card in cards)
+                   for i in range(len(cards[0]._cellvalues))]
+        for card in cards:
+            card._argH = heights[:]
+            card._rowHeights = heights[:]
+        for offset in range(0, len(cards), columns):
+            row = []
+            for card in cards[offset:offset + columns]:
+                if row:
+                    row.append("")
+                row.append(card)
+            table = Table([row], colWidths=[card_width if i % 2 == 0 else 8 for i in range(len(row))], hAlign="LEFT")
+            table.setStyle(TableStyle([(name, (0, 0), (-1, -1), 0) for name in (
+                "LEFTPADDING", "RIGHTPADDING", "TOPPADDING", "BOTTOMPADDING",
+            )]))
+            story.extend([table, Spacer(1, 8)])
+    else:
+        story.append(card_paragraph("N/A", "RunCell"))
     used_height = sum(item.wrap(width, PAGE_SIZE[1])[1] + item.getSpaceBefore()
                       + item.getSpaceAfter() for item in story)
     chart_height = (PAGE_SIZE[1] - 25 * mm - used_height - 8) / 2
-    if chart_height < 130:
-        raise ValueError("Page 2 content exceeds readable space; too many or oversized run rows.")
-    for interval, title in zip(("high", "low"), titles):
-        story.append(_run_chart(graph_series, interval, width, chart_height, title, tr))
+    if chart_height < 140:
+        raise ValueError("Page 2 cannot accommodate these measured rows and charts at readable size.")
+    for interval in ("high", "low"):
+        story.append(_run_chart(graph_series, interval, width, chart_height, interval.title(), tr, pairs))
         if interval == "high":
             story.append(Spacer(1, 8))
     return story
@@ -328,6 +374,7 @@ def _pair_tables(final_results, width, paragraph, tr):
             ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
         ]))
         blocks.append(block)
+    pair_rows = [[item] for item in story]
     for index in range(0, len(blocks), 2):
         row = Table([[blocks[index], "", blocks[index + 1] if index + 1 < len(blocks) else ""]],
                     colWidths=[block_width, 12, block_width])
@@ -336,7 +383,13 @@ def _pair_tables(final_results, width, paragraph, tr):
             ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
             ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
         ]))
-        story.extend([row, Spacer(1, 6)])
+        pair_rows.append([[row, Spacer(1, 6)]])
+    pair_table = Table(pair_rows, colWidths=[width], repeatRows=2)
+    pair_table.setStyle(TableStyle([
+        ("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+        ("TOPPADDING", (0, 0), (-1, -1), 0), ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
     rows = [[paragraph(tr("Resultados finais", "Final results"), "Heading"), "", "", ""],
             [paragraph(label, "RunHeader") for label in (
                 tr("Par", "Pair"), tr("F0 corrigido [N]", "Corrected F0 [N]"),
@@ -353,7 +406,7 @@ def _pair_tables(final_results, width, paragraph, tr):
         tr("F2 final", "Final F2") + "\n" + _number(final_results.get("mean_f2"), 6),
         tr("Energia final", "Final energy") + "\n" + _number(final_results.get("mean_energy"), 4),
     )])
-    results = Table(rows, colWidths=[width * fraction for fraction in (.34, .22, .23, .21)])
+    results = Table(rows, colWidths=[width * fraction for fraction in (.34, .22, .23, .21)], repeatRows=2)
     results.setStyle(TableStyle([
         ("SPAN", (0, 0), (-1, 0)),
         ("BACKGROUND", (0, 0), (-1, 1), TABLE_BACKGROUND_COLOR),
@@ -363,15 +416,12 @@ def _pair_tables(final_results, width, paragraph, tr):
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("TOPPADDING", (0, 0), (-1, -1), 2),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+        ("NOSPLIT", (0, -2), (-1, -1)),
     ]))
-    remaining = PAGE_SIZE[1] - 25 * mm - sum(
-        item.wrap(width, PAGE_SIZE[1])[1] + item.getSpaceBefore() + item.getSpaceAfter()
-        for item in [*story, results]
-    )
-    if remaining < 0:
-        raise ValueError("Page 3 content exceeds one page; too many or oversized pair blocks.")
-    story.extend([Spacer(1, remaining), results])
-    return story
+    # Move a complete summary to the next page when it fits there. Larger summaries
+    # split between rows, with repeated headings and the final row kept with its pair.
+    return [pair_table, CondPageBreak(min(results.wrap(width, PAGE_SIZE[1])[1],
+                                        PAGE_SIZE[1] - 25 * mm)), TopPadder(results)]
 
 
 def export_split_final_results_to_pdf(
@@ -395,8 +445,8 @@ def export_split_final_results_to_pdf(
     may override version.py identity via software_name and software_version.
     graph_series supplies the exact High/Low points rendered on Page 2.
 
-    Raises ValueError for malformed required sections, unsupported language or
-    content exceeding the three-page layout. No clipped or partial PDF returns.
+    Pages 1-2 remain fixed; pair tables and optional report details continue as needed.
+    Raises ValueError for malformed inputs or unsupported fixed-page content.
     """
     for name, value in (
         ("final_results", final_results), ("vehicle_data", vehicle_data),
@@ -439,6 +489,15 @@ def export_split_final_results_to_pdf(
     def paragraph(value, style="Table"):
         return Paragraph(escape(_text(value)).replace("\n", "<br/>"), styles[style])
 
+    details = {}
+
+    def summary_text(value, label, available_width, height, style="Table"):
+        """Keep fixed-page text readable and preserve long values in a continuation."""
+        if paragraph(value, style).wrap(available_width, PAGE_SIZE[1])[1] <= height:
+            return value
+        details[label] = value
+        return tr("Ver detalhes do relatório", "See report details")
+
     def status(value):
         if value is True:
             return tr("Conforme", "Conforming")
@@ -461,7 +520,9 @@ def export_split_final_results_to_pdf(
 
     def fields(rows):
         return table([
-            [paragraph(label, "TableHeader"), paragraph(value)]
+            [paragraph(label, "TableHeader"), paragraph(summary_text(
+                value, label, (column_width - 12) * .61 - 14, 12,
+            ))]
             for label, value in rows
         ], [(column_width - 12) * 0.39, (column_width - 12) * 0.61])
 
@@ -586,15 +647,17 @@ def export_split_final_results_to_pdf(
         warnings = source.get("warnings")
         if warnings:
             diagnostics.extend([
-                paragraph(tr("Avisos fornecidos: ", "Supplied warnings: ") + _text(warnings)),
+                paragraph(tr("Avisos fornecidos: ", "Supplied warnings: ") + _text(summary_text(
+                    warnings, tr("Avisos", "Warnings") + f" {len(details) + 1}", width - 12, 24,
+                ))),
             ])
 
     story = [
         paragraph(tr("Resumo de resultados | Split", "Results summary | Split"), "Title"),
-        paragraph(_text(test_name) + (
+        paragraph(summary_text(_text(test_name) + (
             " | " + tr("Comentários: ", "Comments: ") + _text(metadata["comments"])
             if "comments" in (test_metadata or {}) else ""
-        ), "Body"), metrics, Spacer(1, 6),
+        ), tr("Teste / comentários", "Test / comments"), width, 14, "Body"), "Body"), metrics, Spacer(1, 6),
         columns([
             box(fields(test_rows), column_width, tr("Identificação do teste", "Test identification")),
             box(fields(vehicle_rows), column_width, tr("Veículo e massas [kg]", "Vehicle and masses [kg]")),
@@ -602,7 +665,8 @@ def export_split_final_results_to_pdf(
         Spacer(1, 6),
         box(columns([
             box([paragraph(label, "TableHeader"), Spacer(1, 4),
-                 paragraph(_text(value).replace("; ", "\n"))],
+                 paragraph(summary_text(_text(value).replace("; ", "\n"), label,
+                                        (width - 12 - 2 * gap) / 3 - 12, 36))],
                 (width - 12 - 2 * gap) / 3, min_height=62)
             for label, value in (
                 (tr("Método", "Method"), metadata.get("method")),
@@ -620,18 +684,24 @@ def export_split_final_results_to_pdf(
         for item in spacers:
             item.height -= min(4, overflow / len(spacers) + .1)
     software = f"{_text(metadata.get('software_name', APP_NAME))} / {_text(metadata.get('software_version', APP_VERSION))}"
+    footer_left = summary_text(software + "\n" + paired_metadata("service_identifier", "report_identifier"),
+                               tr("Identificação do relatório", "Report identification"), width * .55, 18, "Footer")
     story.extend([NextPageTemplate("runs"), PageBreak(),
                   *_run_tables(final_results["selected_pairs"], graph_series, width, paragraph, tr)])
     story.extend([NextPageTemplate("pairs"), PageBreak(),
                   *_pair_tables(final_results, width, paragraph, tr)])
+    if details:
+        story.extend([PageBreak(), paragraph(tr("Detalhes do relatório", "Report details"), "Title")])
+        for label, value in details.items():
+            story.extend([paragraph(label, "Heading"), paragraph(value, "Body"), Spacer(1, 6)])
+
+    total_pages = 0
 
     def decorate(canvas, doc):
         if doc.pageTemplate.id == "summary" and doc.page != 1:
             raise ValueError("Page 1 content exceeds one page; shorten metadata or warnings.")
         if doc.pageTemplate.id == "runs" and doc.page != 2:
             raise ValueError("Page 2 content exceeds one page.")
-        if doc.pageTemplate.id == "pairs" and doc.page != 3:
-            raise ValueError("Page 3 content exceeds one page.")
         canvas.saveState()
         canvas.setFillColor(BACKGROUND_COLOR)
         canvas.rect(0, 0, *PAGE_SIZE, fill=1, stroke=0)
@@ -651,9 +721,10 @@ def export_split_final_results_to_pdf(
         canvas.line(PAGE_MARGIN, PAGE_SIZE[1] - 9 * mm,
                     width + PAGE_MARGIN, PAGE_SIZE[1] - 9 * mm)
         footer = Table([[
-            paragraph(software + "\n" + paired_metadata("service_identifier", "report_identifier"), "Footer"),
+            paragraph(footer_left, "Footer"),
             paragraph(tr("Gerado: ", "Generated: ") + generated_at.isoformat(sep=" ", timespec="seconds")
-                      + "  |  " + tr("Página ", "Page ") + str(doc.page), "FooterRight"),
+                      + "  |  " + tr("Página ", "Page ") + str(doc.page)
+                      + tr(" de ", " of ") + str(total_pages), "FooterRight"),
         ]], colWidths=[width * .55, width * .45])
         footer.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -667,19 +738,22 @@ def export_split_final_results_to_pdf(
         footer.drawOn(canvas, PAGE_MARGIN, 3 * mm)
         canvas.restoreState()
 
-    output = BytesIO()
-    doc = BaseDocTemplate(
-        output, pagesize=PAGE_SIZE, leftMargin=PAGE_MARGIN, rightMargin=PAGE_MARGIN,
-        topMargin=12 * mm, bottomMargin=13 * mm,
-        title=_text(test_name), author=APP_NAME, creator=software,
-    )
-    doc.addPageTemplates([PageTemplate(
-        id=section, onPage=decorate,
-        frames=Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height,
-                     leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0),
-    ) for section in ("summary", "runs", "pairs")])
-    try:
-        doc.build(story)
-    except LayoutError as exc:
-        raise ValueError("Report content exceeds one page; shorten oversized metadata or run labels.") from exc
+    # A layout pass gives the real total without replaying canvas internals/images.
+    for _ in range(2):
+        output = BytesIO()
+        doc = BaseDocTemplate(
+            output, pagesize=PAGE_SIZE, leftMargin=PAGE_MARGIN, rightMargin=PAGE_MARGIN,
+            topMargin=12 * mm, bottomMargin=13 * mm,
+            title=_text(test_name), author=APP_NAME, creator=software,
+        )
+        doc.addPageTemplates([PageTemplate(
+            id=section, onPage=decorate,
+            frames=Frame(doc.leftMargin, doc.bottomMargin, doc.width, doc.height,
+                         leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0),
+        ) for section in ("summary", "runs", "pairs")])
+        try:
+            doc.build(story[:])
+        except LayoutError as exc:
+            raise ValueError("An indivisible report item cannot fit a page at the approved typography.") from exc
+        total_pages = doc.page
     return output.getvalue()

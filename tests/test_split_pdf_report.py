@@ -124,7 +124,7 @@ class SplitPdfReportTests(unittest.TestCase):
         self.assertIsInstance(payload, bytes)
         self.assertTrue(payload.startswith(b"%PDF-"))
         reader = PdfReader(BytesIO(payload))
-        self.assertEqual(len(reader.pages), 3)
+        self.assertGreaterEqual(len(reader.pages), 3)
         self.assertAlmostEqual(float(reader.pages[0].mediabox.width), PAGE_SIZE[0], places=3)
         self.assertAlmostEqual(float(reader.pages[0].mediabox.height), PAGE_SIZE[1], places=3)
         return reader, reader.pages[0].extract_text()
@@ -221,7 +221,7 @@ class SplitPdfReportTests(unittest.TestCase):
         self.assertIn("COASTDOWN MDA SPLIT", text)
         self.assertIn("RELATÓRIO TÉCNICO", text)
 
-    def test_measured_page_preserves_times_weather_and_omits_verbose_traceability(self):
+    def test_measured_page_preserves_times_and_hides_weather_traceability(self):
         inputs = sample_run_inputs()
         # Sentinels explicitly differ from interval sums and all pair-level values.
         inputs["final_results"]["selected_pairs"][0]["high_plus"]["delta_t_s"] = 123.456
@@ -231,9 +231,8 @@ class SplitPdfReportTests(unittest.TestCase):
         self.assertEqual(inputs, before)
         self.assertEqual(len(reader.pages), 3)
         text = reader.pages[1].extract_text()
-        for expected in ("Alta velocidade", "Baixa velocidade", "101-94", "94-87",
-                         "63-56", "56-49", "7.431", "123.456", "25.6", "101.32", "1.42",
-                         "Condições climáticas", "Curvas de desaceleração", "Página 2"):
+        for expected in ("Par 1", "Par 2", "High+", "Low+", "High-", "Low-",
+                         "101-94", "94-87", "63-56", "56-49", "7.43", "123.46"):
             self.assertIn(expected, text)
         for hidden in ("split_demo.csv", "meteo_demo.csv", "09:01:02", "nearest_datetime",
                        "Horário meteo sem fuso declarado.", "sincronização"):
@@ -252,11 +251,11 @@ class SplitPdfReportTests(unittest.TestCase):
         inputs["final_results"]["selected_pairs"][1]["ambient_by_component"]["high_plus"]["temperature_c"] = 27.8
         reader, _ = self.render(inputs)
         text = reader.pages[1].extract_text()
-        self.assertEqual(text.count("1H+"), 4)
-        self.assertIn("27.8", text)
+        self.assertEqual(text.count("1H+"), 2)
+        self.assertNotIn("27.8", text)
         inputs["final_results"]["selected_pairs"][1]["high_plus"]["filename"] = "another.csv"
         reader, _ = self.render(inputs)
-        self.assertEqual(reader.pages[1].extract_text().count("1H+"), 4)
+        self.assertEqual(reader.pages[1].extract_text().count("1H+"), 2)
 
     def test_mapping_times_and_missing_run_weather_do_not_use_pair_averages(self):
         inputs = sample_run_inputs()
@@ -274,7 +273,7 @@ class SplitPdfReportTests(unittest.TestCase):
         pair["low_plus"]["weather_sync"] = {"temperature": 22.6, "wind_speed": 0.77}
         reader, _ = self.render(inputs)
         text = reader.pages[1].extract_text()
-        for expected in ("8.123", "6.456", "21.5", "0.55", "22.6", "0.77", "N/A"):
+        for expected in ("8.12", "6.46", "N/A"):
             self.assertIn(expected, text)
         self.assertNotIn("888.8", text)
 
@@ -293,7 +292,7 @@ class SplitPdfReportTests(unittest.TestCase):
         record = inputs["final_results"]["selected_pairs"][0]["high_plus"]
         record["subintervals"] = [f"{113-i}-{112-i}" for i in range(9)]
         record["subinterval_times_s"] = [1.111] * 9
-        with self.assertRaisesRegex(ValueError, "interval columns"):
+        with self.assertRaisesRegex(ValueError, "Page 2"):
             export_split_final_results_to_pdf(**inputs)
 
     def test_four_dynamic_subintervals_fit_the_compact_table(self):
@@ -307,7 +306,7 @@ class SplitPdfReportTests(unittest.TestCase):
                 pair[component]["subintervals"] = record["subintervals"]
         reader, _ = self.render(inputs)
         self.assertEqual(len(reader.pages), 3)
-        for value in (*record["subintervals"], "1.111", "2.222", "3.333", "4.444"):
+        for value in (*record["subintervals"], "1.11", "2.22", "3.33", "4.44"):
             self.assertIn(value, reader.pages[1].extract_text())
 
     def test_vector_charts_preserve_exact_points_and_page_one(self):
@@ -390,7 +389,7 @@ class SplitPdfReportTests(unittest.TestCase):
         story = _pair_tables(inputs["final_results"], PAGE_SIZE[0] - 2 * PAGE_MARGIN,
                              lambda text, style="Table": Paragraph(str(text), styles[style]),
                              lambda pt, en: en)
-        block = story[2]._cellvalues[0][0][0]
+        block = story[0]._cellvalues[2][0][0]._cellvalues[0][0]
         for column in (1, 2, 3):
             for row in (2, 4):
                 self.assertIn(("SPAN", (column, row), (column, row + 1)), block._spanCmds)
@@ -398,14 +397,18 @@ class SplitPdfReportTests(unittest.TestCase):
         reader, _ = self.render(inputs)
         self.assertIn("Pairs unavailable (N/A).", reader.pages[2].extract_text())
 
-    def test_pair_page_supports_odd_blocks_and_rejects_overflow(self):
+    def test_pair_page_supports_odd_blocks_and_continues_overflow(self):
         inputs = sample_inputs()
         inputs["final_results"]["selected_pairs"] = [{"id": f"pair-{i}"} for i in range(5)]
         reader, _ = self.render(inputs)
         self.assertIn("pair-4", reader.pages[2].extract_text())
         inputs["final_results"]["selected_pairs"] = [{"id": f"pair-{i}"} for i in range(20)]
-        with self.assertRaisesRegex(ValueError, "Page 3"):
-            export_split_final_results_to_pdf(**inputs)
+        from reports.split_pdf_report import _run_tables
+        # Isolate unlimited coefficient pagination from the fixed measured-page capacity.
+        with patch("reports.split_pdf_report._run_tables", side_effect=lambda pairs, *args: _run_tables(pairs[:2], *args)):
+            reader, _ = self.render(inputs)
+        self.assertGreater(len(reader.pages), 3)
+        self.assertIn("pair-19", reader.pages[-1].extract_text())
 
     def test_final_results_section_uses_supplied_consolidation_without_averaging(self):
         for language, title in (("pt", "Resultados finais"), ("en", "Final results")):
@@ -459,14 +462,14 @@ class SplitPdfReportTests(unittest.TestCase):
         text = reader.pages[1].extract_text()
         self.assertNotIn("99.8", text)
         self.assertNotIn("77.70", text)
-        self.assertIn("N/A", text)
+        self.assertNotIn("Climate conditions", text)
 
     def test_run_page_translation_and_empty_sections(self):
         inputs = sample_run_inputs()
         inputs["language"] = "en"
         reader, _ = self.render(inputs)
         text = reader.pages[1].extract_text()
-        for label in ("Measured data", "High-speed runs", "Low-speed runs", "Climate conditions", "Speed [km/h]", "Time [s]", "Page 2"):
+        for label in ("Measured data", "High+", "Low-", "Direction +", "Direction -", "Speed [km/h]", "Time [s]", "Page 2"):
             self.assertIn(label, text)
         inputs["final_results"]["selected_pairs"] = []
         reader, _ = self.render(inputs)
@@ -480,13 +483,70 @@ class SplitPdfReportTests(unittest.TestCase):
             ("test_metadata", [], "test_metadata"),
             ("generated_at", None, "generated_at"),
             ("language", "fr", "language"),
-            ("test_metadata", {"location": "long metadata " * 2000}, "exceeds one page"),
         ):
             with self.subTest(key=key, message=message):
                 inputs = sample_inputs()
                 inputs[key] = value
                 with self.assertRaisesRegex(ValueError, message):
                     export_split_final_results_to_pdf(**inputs)
+
+    def test_variable_pair_pages_and_localized_totals(self):
+        for language in ("pt", "en"):
+            for count in (1, 2, 5, 8, 20, 50):
+                with self.subTest(language=language, count=count):
+                    inputs = sample_run_inputs()
+                    inputs["language"] = language
+                    base = inputs["final_results"]["selected_pairs"][0]
+                    pairs = [{**deepcopy(base), "id": f"selected-{i:03d}"} for i in range(count)]
+                    inputs["final_results"].update(selected_pairs=pairs, num_pairs=count)
+                    before = deepcopy(inputs)
+                    from reports.split_pdf_report import _run_tables
+                    # Page 2 card capacity is tested independently with the real pipeline.
+                    with patch("reports.split_pdf_report._run_tables", side_effect=lambda pairs, *args: _run_tables(pairs[:2], *args)):
+                        reader, _ = self.render(inputs)
+                    self.assertEqual(inputs, before)
+                    texts = [page.extract_text() for page in reader.pages]
+                    prefix = "Par | " if language == "pt" else "Pair | "
+                    positions = []
+                    for pair in pairs:
+                        matches = [i for i, text in enumerate(texts) if prefix + pair["id"] in text]
+                        self.assertEqual(len(matches), 1)
+                        positions.append(matches[0])
+                        block = texts[matches[0]].split(prefix + pair["id"], 1)[1].split(prefix, 1)[0]
+                        for value in ("High+", "Low+", "High-", "Low-", "0.1721", "0.1743"):
+                            self.assertIn(value, block)
+                    self.assertEqual(positions, sorted(positions))
+                    final_title = "Resultados finais" if language == "pt" else "Final results"
+                    final_page = next(i for i, text in enumerate(texts) if final_title in text)
+                    self.assertGreaterEqual(final_page, positions[-1])
+                    if count == 8:
+                        self.assertGreater(final_page, positions[-1])
+                    if count >= 20:
+                        self.assertGreater(len(set(positions)), 1)
+                    for i, text in enumerate(texts, 1):
+                        footer = f"Página {i} de {len(texts)}" if language == "pt" else f"Page {i} of {len(texts)}"
+                        self.assertIn(footer, text)
+                    final_text = "\n".join(texts[final_page:]).split(final_title, 1)[1]
+                    for pair in pairs:
+                        self.assertEqual(final_text.count(pair["id"]), 1)
+                    self.assertIn("0.1732", texts[-1])
+
+    def test_long_optional_metadata_continues_without_loss(self):
+        for language in ("pt", "en"):
+            inputs = sample_run_inputs()
+            inputs["language"] = language
+            for key in ("location", "comments", "responsible_engineer", "report_identifier"):
+                inputs["test_metadata"][key] = (key + " wrapped text ") * 400 + "END_" + key
+            inputs["test_metadata"]["equipment"] = {"logger": "logger details " * 400 + "END_logger"}
+            reader, first = self.render(inputs)
+            texts = [page.extract_text() for page in reader.pages]
+            self.assertIn("Resumo" if language == "pt" else "Results summary", first)
+            self.assertIn("Dados medidos" if language == "pt" else "Measured data", texts[1])
+            self.assertGreater(len(texts), 3)
+            all_text = "\n".join(texts)
+            for key in ("location", "comments", "responsible_engineer", "report_identifier", "logger"):
+                self.assertIn("END_" + key, all_text)
+            self.assertIn(f"{len(texts)}", texts[-1])
 
     def test_rendering_does_not_load_application_logic(self):
         result = subprocess.run(

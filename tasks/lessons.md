@@ -3850,3 +3850,35 @@ files had identical blobs, while the newer UI retained explicit combined-mode
 creation and editing. Preserve the divergent release commits as merge ancestry,
 but keep the validated feature tree as the promoted product state. A new release
 must advance the visible version instead of regressing from the prior release.
+
+## 2026-09-24 - Paginate presentation without recomputing results
+
+Use ReportLab table row splitting and repeated headings for corrected pair pages.
+A row contains complete side-by-side pair blocks, preserving directional merged
+cells and canonical order. Move the final summary intact when it fits a fresh
+page; longer summaries split only between pair rows. Retain bottom alignment.
+Two layout passes produce accurate PT/EN page totals without canvas-state replay
+or engineering calculations. Reuse flowables with a shallow story copy, as native
+multiBuild does; ReportLab chart and TopPadder objects do not support deepcopy.
+Preserve long optional metadata in a labeled details continuation instead of
+shrinking text or overflowing the fixed summary. Measured-page chart legends can
+use multiple columns without discarding runs. The former three-page report limit
+is superseded; the explicitly fixed measured page retains readable geometry limits.
+
+## 2026-09-24 - Pair cards should align data, not compress charts
+
+Transpose dynamic measured intervals into rows when displaying five pair cards
+across landscape A4. Group the four High/Low direction columns under explicit
+direction headers, measure the minimum label/value widths, and share measured row
+heights across cards. Preserve supplied totals rather than summing displayed bins.
+Reserve tall chart areas instead of reducing typography. Match graph snapshots by
+source/run identity and direction in selected-pair order; array order must not
+assign pair colors. Weather remains canonical input even when its visual tables
+are intentionally omitted. Test coefficient pagination separately from the fixed
+measured-page capacity, and inspect PT/EN against real pipeline data.
+
+Page 2 time precision is presentation-only: use two decimal places in pair cards,
+while preserving complete canonical times and graph points. Keep centered card
+styles local to the measured page so coefficient and summary typography is not
+affected. Side-by-side direction run blocks clarify identities without taking
+height away from the charts.

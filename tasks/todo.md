@@ -1091,3 +1091,44 @@ Approved plan: [docs/ui_modernization_plan.md](../docs/ui_modernization_plan.md)
 - [x] Inspect the updated sample and dense EN layout; pass 22 PDF tests and
   78 relevant regressions, py_compile, scoped Ruff and diff checks. Stage intended
   files individually without committing. Page 4 remains deferred.
+
+## Variable Split PDF pagination - 2026-09-24
+
+- [x] Replace the three-page coefficient capacity with native table pagination;
+  keep pair blocks together, canonical order, repeated headings and supplied results.
+- [x] Keep the first two pages fixed, wrap long optional metadata in a report-details
+  continuation, and print localized current/total page numbers.
+- [x] Accommodate five real selected pairs on the measured page with multi-column
+  chart legends; preserve typography and all supplied curve points.
+- [x] Inspect every page of the five-pair real-pipeline sample and the coefficient
+  continuation/final-summary pages of a 20-pair layout regression.
+- [x] Pass 34 focused PDF/workflow tests and all 517 tests, including Results/Excel,
+  weather/correction and persistence. py_compile, scoped Ruff, pip check and
+  git diff --check pass. Stage intended files individually; no commit.
+- Fixed measured-page geometry still rejects excessive distinct run rows or interval
+  columns that cannot fit legibly. Coefficient pair count has no fixed page limit.
+
+## Pair-oriented PDF measured page - 2026-09-24
+
+- [x] Replace the global measured/weather tables with neutral numbered pair cards.
+  Dynamic interval rows and shared row heights align High+/Low+ and High-/Low-
+  under explicit direction headers, with supplied run identifiers and total times.
+- [x] Preserve weather snapshots in the report inputs; omit their visual tables.
+- [x] Enlarge both charts, map their supplied curves to canonical pair/run identities,
+  and use matching pair colors with solid + and dashed - traces and labeled legends.
+- [x] Render and inspect the real five-pair Page 2 in PT/EN; five cards fit in one
+  row at existing font sizes. Check Pages 1 and 3 against the prior renderer.
+- [x] Pass 35 focused checks and all 518 tests; py_compile, scoped Ruff, pip check
+  and git diff --check pass. Pages 1 and 3 have identical content streams to the
+  prior five-pair renderer. Remove inspection images and stage intended files only;
+  do not commit.
+
+## Page 2 card typography polish - 2026-09-24
+
+- [x] Replace compact run subtitles with centered direction blocks identifying
+  High/Low runs explicitly; display time values to two decimals only.
+- [x] Increase card text to 8.5 pt (titles 9.5 pt), strengthen neutral internal
+  borders, and retain shared row heights. Regenerate and inspect the five-pair
+  sample; canonical values, graph data and engineering paths are unchanged.
+- [x] Add a subtle vertical divider between direction run blocks; regenerate
+  and visually inspect Page 2, with compilation and scoped Ruff passing.
